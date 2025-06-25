@@ -6,71 +6,109 @@ alwaysApply: false
 以下は今回検討した内容をもとにまとめたシステム概要設計書です。
 
 要約
-本システムは、ブラウザ上での音声録音から外部配信プラットフォーム（Voicy 等）への自動アップロードまでを一気通貫で実現し、将来的に文字起こし・要約・記事生成といったプラグイン方式の拡張機能を後付けできる構成を採用します。フロントエンドは PWA（Progressive Web App） とし、バックエンドはサーバーレス関数＋マネージド DB／ストレージ（Supabase 等）でローコストかつスケーラブルに運用。ブラウザ操作自動化は Browserless.io（Playwright/Puppeteer マネージドサービス）を活用し、安定したヘッドレス操作を実現します。
+本システムは、Substackからの音声取得、自動トリミング、複数配信プラットフォーム（Voicy、YouTube、Spotify）への自動アップロードまでを一気通貫で実現し、将来的に文字起こし・要約・記事生成といったプラグイン方式の拡張機能を後付けできる構成を採用します。フロントエンドは PWA（Progressive Web App） とし、バックエンドはサーバーレス関数＋マネージド DB／ストレージ（Railway PostgreSQL 等）でローコストかつスケーラブルに運用。ブラウザ操作自動化は Browserless.io（Playwright/Puppeteer マネージドサービス）を活用し、安定したヘッドレス操作を実現します。
 
 1. 目的・背景
 
 1.1 手動フローの課題
-	•	Substack→ファイルDL→Voicyアップロードを手作業で実施
+	•	Substack→ファイルDL→手動トリミング→複数プラットフォームアップロードを手作業で実施
 	•	作業工数が煩雑、ヒューマンエラー発生のリスク大
 	•	配信プラットフォームが増えるたびに手順が増加
+	•	音声の冒頭部分の手動トリミングが時間を要する
 
 1.2 システム化のゴール
-	•	音声録音から配信（Voicy 等）までの完全自動化
-	•	将来、文字起こし・要約・記事自動生成を “プラグイン” で後付け可能とする
+	•	Substackからの音声取得から複数配信プラットフォームへの自動アップロードまでの完全自動化
+	•	Whisper APIを活用した自動トリミング機能の実現
+	•	将来、文字起こし・要約・記事自動生成を "プラグイン" で後付け可能とする
 	•	サーバーレス＋マネージドサービス中心により、運用コスト最適化
 
 2. 全体アーキテクチャ
 
-[ブラウザ(PWA)]
-  └─録音コンポーネント──▶ Supabase Storage (音声ファイル)
+[音声取得]
+  ├─Substack RSS Feed ──▶ 音声ファイル取得
+  └─手動アップロード ──▶ 音声ファイル保存
+                                │
+                           Railway Storage
+                                │
+[自動トリミング] ──▶ Whisper API ──▶ キーフレーズ検出
                                 │
                            Webhook通知
                                 ▼
-[Vercel Function] ──▶ Browserless.io API ──▶ Voicy 操作自動化
-   │                     (Playwright)            │
-   └─Postgres(ステータス管理)◀───── エラー／完了 レスポンス
+[Railway Function] ──▶ 複数配信プラットフォーム自動化
+   │                     ├─Browserless.io API ──▶ Voicy 操作自動化
+   │                     ├─YouTube Data API ──▶ YouTube 動画アップロード
+   │                     └─RSS Feed生成 ──▶ Spotify 配信
+   │
+   └─PostgreSQL(ステータス管理)◀───── エラー／完了 レスポンス
 
-2.1 フロントエンド（PWA）
-	•	Web Audio API または RecordRTC を活用した録音・再生 UI
-	•	録音ファイルを直接 Supabase Storage にアップロード
-	•	ジョブステータス（未送信・処理中・完了・エラー）をリアルタイム表示
+2.1 音声取得機能
+	•	Substack RSS Feedからの自動音声取得
+	•	手動アップロード機能（ドラッグ&ドロップ対応）
+	•	音声ファイルの一時保存と管理
 
-2.2 バックエンド（サーバーレス関数）
-	•	Vercel Functions（Node.js）または AWS Lambda
-	•	Supabase からの Webhook をトリガーに自動化ジョブを投入
-	•	ジョブ結果（成功／失敗）を Postgres に記録
+2.2 自動トリミング機能
+	•	Whisper APIを活用したキーフレーズ検出
+	•	無音部分の自動検出と除去
+	•	冒頭部分の最適化トリミング
+
+2.3 フロントエンド（PWA）
+	•	音声ファイル管理UI（アップロード、プレビュー、編集）
+	•	トリミング設定UI（キーフレーズ検出、無音除去設定）
+	•	配信プラットフォーム選択UI
+	•	ジョブステータス（未処理／処理中／完了／エラー）をリアルタイム表示
+
+2.4 バックエンド（サーバーレス関数）
+	•	Railway Functions（Node.js）または Railway のサーバーレス環境
+	•	Substack RSS Feed取得API
+	•	Whisper API連携（音声解析・トリミング）
+	•	複数配信プラットフォーム自動化オーケストレータ
+	•	ジョブ結果（成功／失敗）を PostgreSQL に記録
 	•	完了時やエラー時にフロントへ WebSocket／メール通知
 
-2.3 自動化エンジン
+2.5 自動化エンジン
 	•	Browserless.io の REST API 経由で Playwright/​Puppeteer を呼び出し
 	•	Voicy ログイン → 録音ファイルアップロード → アップロード完了待ち
+	•	YouTube Data API を活用した動画アップロード
+	•	Spotify用RSS Feedの自動生成
 	•	クッキー／storageState を用いたログイン情報の永続化
 
 3. コンポーネント詳細設計
 
-3.1 録音コンポーネント
-	•	機能：録音開始・停止、波形プレビュー、不要区間カット
-	•	ライブラリ：Web Audio API＋MediaRecorder、または RecordRTC
-	•	UI：録音ボタン、リスト表示、再生・削除操作
+3.1 音声取得コンポーネント
+	•	機能：Substack RSS Feed取得、手動アップロード、ファイル管理
+	•	ライブラリ：RSS Parser、File Upload API
+	•	UI：RSS Feed設定、ドラッグ&ドロップ、ファイル一覧
 
-3.2 ファイル管理 UI
-	•	録音済みファイル一覧（サムネイル・タイムスタンプ）
-	•	ステータス表示（未処理／処理中／完了／エラー）
+3.2 自動トリミングコンポーネント
+	•	機能：Whisper API連携、キーフレーズ検出、無音除去
+	•	ライブラリ：OpenAI Whisper API、Web Audio API
+	•	UI：トリミング設定、プレビュー、調整機能
+
+3.3 配信管理コンポーネント
+	•	機能：複数プラットフォーム選択、スケジュール設定
+	•	UI：プラットフォーム選択、配信設定、スケジュール管理
+
+3.4 ファイル管理 UI
+	•	音声ファイル一覧（サムネイル・タイムスタンプ・ステータス）
+	•	トリミング前後の比較表示
+	•	配信状況の可視化
 	•	再試行・削除ボタン
 
-3.3 自動化オーケストレータ
-	•	Webhook 受信エンドポイント（例：/api/webhook/recorded）
-	•	ジョブキュー投入（内部キュー or Supabase Functions）
+3.5 自動化オーケストレータ
+	•	音声取得Webhook受信エンドポイント（例：/api/webhook/substack）
+	•	トリミング処理エンドポイント（例：/api/trim/audio）
+	•	配信自動化エンドポイント（例：/api/distribute/multi-platform）
+	•	ジョブキュー投入（内部キュー or Railway Functions）
 	•	Browserless.io 呼び出しラッパー
 
-3.4 ジョブ管理・通知
-	•	Postgres テーブル設計
-	•	jobs（id, user_id, file_url, status, started_at, finished_at, error_message）
-	•	フロント通知：Supabase Realtime or Next.js API Routes + websockets
+3.6 ジョブ管理・通知
+	•	PostgreSQL テーブル設計
+	•	jobs（id, user_id, audio_url, trimmed_url, status, platform_status, started_at, finished_at, error_message）
+	•	platform_jobs（id, job_id, platform, status, error_message）
+	•	フロント通知：Railway Realtime or Next.js API Routes + websockets
 	•	メール通知：SendGrid などと連携
 
-3.5 プラグイン層
+3.7 プラグイン層
 	•	文字起こし／要約／記事生成機能を別リポジトリ or サーバーレス関数で提供
 	•	プラグインごとに API エンドポイント（例：/api/plugin/transcribe）
 	•	各ジョブ実行後にプラグインチェーンを動的に組み合わせ可能
@@ -79,27 +117,32 @@ alwaysApply: false
 
 層	技術・サービス
 フロント	Next.js（React）＋Tailwind CSS
-録音ライブラリ	Web Audio API / RecordRTC
-認証・DB・Storage	Supabase (Auth, Postgres, Storage)
-サーバーレス	Vercel Functions / AWS Lambda + API Gateway
+音声取得	RSS Parser、File Upload API
+音声処理	OpenAI Whisper API、Web Audio API
+認証・DB・Storage	Railway (Auth, PostgreSQL, Storage)
+サーバーレス	Railway Functions / Railway サーバーレス環境
 自動化エンジン	Browserless.io (Playwright/Puppeteer)
-CI/CD	GitHub Actions → Vercel 自動デプロイ
+配信API	YouTube Data API、Spotify RSS
+CI/CD	GitHub Actions → Railway 自動デプロイ
 
 5. デプロイ・運用フロー
 	1.	GitHub にプッシュ → GitHub Actions 起動
-	2.	テスト／Lint→ Vercel へ自動デプロイ
-	3.	Supabase コンソールでテーブル・Storage バケットを管理
+	2.	テスト／Lint→ Railway へ自動デプロイ
+	3.	Railway コンソールでテーブル・Storage バケットを管理
 	4.	Browserless.io ダッシュボードで利用状況・ログを監視
+	5.	OpenAI API 利用状況の監視
 
 6. セキュリティ・運用上の注意
-	•	認証：Supabase Auth でユーザー管理（JWT）
-	•	API シークレット：環境変数に格納し、Vercel/AWS Secrets Manager で管理
+	•	認証：Railway Auth でユーザー管理（JWT）
+	•	API シークレット：環境変数に格納し、Railway Secrets Manager で管理
 	•	CORS：必要最小限のオリジン許可
 	•	ログイン情報：Browserless.io の storageState ファイルは暗号化保存
+	•	音声ファイル：一時保存後の自動削除機能
 	•	バージョン管理：プラグインごとにセマンティックバージョニング
 
 7. 今後の拡張計画
 	•	文字起こしプラグイン：OpenAI Whisper API との連携
 	•	記事生成プラグイン：GPT 系モデル呼び出し Function
-	•	多配信対応：Spotify／YouTube／Podcast 自動化ジョブ追加
+	•	追加配信対応：Apple Podcasts、Anchor等の自動化ジョブ追加
 	•	ダッシュボード：運用状況や KPI を可視化する管理画面
+	•	音声品質向上：ノイズ除去、音量正規化機能

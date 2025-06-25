@@ -25,9 +25,13 @@ alwaysApply: true
   - Accordion, Alert Dialog, Avatar, Tabs など多数のコンポーネントを使用
 - **Lucide React** (v0.446.0) - アイコンライブラリ
 
-### 認証
+### 認証・セキュリティ
 
 - **Clerk** (v6.12.9) - 認証・ユーザー管理
+  - Next.jsとの親和性が高く、UI/UX・セキュリティ・多要素認証・SSO対応が充実
+- **bcryptjs** - パスワードハッシュ化
+- **crypto-js** - データ暗号化
+- **jsonwebtoken** - JWT トークン管理
 
 ## バックエンド
 
@@ -35,7 +39,29 @@ alwaysApply: true
 
 - **Prisma** (v5.11.0) - TypeSafe ORM
   - @prisma/client - データベースクライアント
-- Local SqLite(後に Supabase へ変更)
+- Local SqLite(後に Railway PostgreSQL へ変更)
+- **Railway PostgreSQL** - Credential等の安全な保存先
+  - アプリケーションレベルで暗号化し、管理者が見えない状態で保存
+
+### 音声処理
+
+- **OpenAI Whisper API** - 音声解析・文字起こし・キーフレーズ検出
+- **Web Audio API** - ブラウザ側音声処理
+- **FFmpeg.wasm** - 音声ファイル変換・トリミング
+
+### 配信プラットフォーム連携
+
+- **YouTube Data API v3** - YouTube動画アップロード
+- **Browserless.io** - Voicyブラウザ操作自動化
+- **RSS Feed Generator** - Spotify配信用RSS生成
+
+### RSS Feed ホスト
+
+- **Next.js API Routes** - RSS Feed生成・配信
+  - Railway上で動的RSS Feedをホストし、ユーザーごとにURLを発行
+- **rss-parser** - RSS Feed解析
+- **rss-generator** - RSS Feed生成
+- **xml2js** - XML処理
 
 ## フォーム処理
 
@@ -48,9 +74,29 @@ alwaysApply: true
 
 - **date-fns** (v3.6.0) - 日付操作ライブラリ
 
-### UI 拡張
+### RSS処理
 
-- 適宜必要なものはインストールして利用してください。
+- **rss-parser** - RSS Feed解析
+- **rss-generator** - RSS Feed生成
+
+### ファイル処理
+
+- **multer** - ファイルアップロード処理
+- **sharp** - 画像処理（サムネイル生成）
+
+### 暗号化・セキュリティ
+
+- **crypto** - Node.js標準暗号化モジュール
+- **dotenv** - 環境変数管理
+- **helmet** - セキュリティヘッダー
+
+## セキュリティ設計・Credential管理
+
+- ユーザーの各種プラットフォームCredentialは、アプリケーションレベルで暗号化（例: AES-256-GCM）し、Railway PostgreSQLに保存。
+- 暗号化キーは環境変数で管理し、管理者・運用者が平文で閲覧できない設計。
+- Clerk認証と連携し、本人のみがCredentialを復号・利用可能。
+- Next.js API RoutesでCredentialの登録・取得・復号を実装。
+- RSS FeedもNext.js API Routesで動的生成・配信。
 
 ## 開発ツール
 
@@ -60,7 +106,7 @@ alwaysApply: true
 
 ## デプロイメント
 
-- Vercel プラットフォーム推奨
+- Railway プラットフォーム推奨
 
 ## 特徴
 
@@ -69,3 +115,8 @@ alwaysApply: true
 - レスポンシブデザイン
 - アクセシビリティ対応
 - 型安全性の確保
+- 音声処理の自動化
+- 複数プラットフォーム配信対応
+- セキュアな認証・認可システム
+- 暗号化されたCredential管理
+- RSS Feed自動生成・配信機能
