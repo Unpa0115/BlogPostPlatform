@@ -7,18 +7,11 @@ export const db = new Pool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 })
 
-// Railway API クライアント
-export const railwayApi = axios.create({
-  baseURL: 'https://backboard.railway.app/graphql/v2',
-  headers: {
-    'Authorization': `Bearer ${process.env.RAILWAY_TOKEN}`,
-    'Content-Type': 'application/json',
-  },
-})
-
-// Railway Storage クライアント
+// Railway Storage クライアント（直接的なAPI連携）
 export const railwayStorage = {
   upload: async (file: Buffer, fileName: string, contentType: string) => {
+    // Railway Storageへの直接アップロード
+    // 実際の実装では、RailwayのStorage APIエンドポイントを使用
     const response = await axios.post(
       `${process.env.RAILWAY_STORAGE_ENDPOINT}/upload`,
       {
@@ -37,6 +30,7 @@ export const railwayStorage = {
   },
 
   getSignedUrl: async (fileName: string, expiresIn: number = 3600) => {
+    // 署名付きURLの取得
     const response = await axios.post(
       `${process.env.RAILWAY_STORAGE_ENDPOINT}/presigned-url`,
       {
@@ -54,6 +48,7 @@ export const railwayStorage = {
   },
 
   delete: async (fileName: string) => {
+    // ファイル削除
     const response = await axios.delete(
       `${process.env.RAILWAY_STORAGE_ENDPOINT}/delete`,
       {

@@ -20,6 +20,10 @@
   - Railway PostgreSQL、Auth、Storage設定
   - 見積時間: 1時間
 
+- [x] 依存関係のインストール
+  - Railway用パッケージのインストール完了
+  - 見積時間: 5分
+
 - [ ] Railwayプロジェクト設定
   - Railwayプロジェクト作成
   - 環境変数設定
@@ -120,12 +124,13 @@
   - package.jsonをRailway用に更新
   - Railway PostgreSQL、Auth、Storage設定完了
   - データベーススキーマ設計完了
-  - 次: Railwayプロジェクト設定と依存関係インストール
+  - 依存関係インストール完了
+  - 次: Railwayプロジェクト設定とデータベース初期化
 
 ## 次のアクション
-1. 新しい依存関係のインストール（npm install）
-2. Railwayプロジェクトの設定
-3. データベース初期化
+1. Railwayプロジェクトの設定
+2. 環境変数の設定
+3. データベース初期化（npm run db:init）
 4. 基本認証機能の実装
 
 ## 完了したタスク
@@ -138,6 +143,7 @@
 - ✅ データベーススキーマ設計（src/lib/database.ts）
 - ✅ 型定義ファイル更新（src/types/index.ts）
 - ✅ 環境変数サンプルファイル更新（env.example）
+- ✅ 依存関係インストール完了
 - ✅ README.md作成
 
 ## 技術スタック（Railwayベース）
