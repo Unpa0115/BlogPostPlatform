@@ -9,7 +9,7 @@ alwaysApply: false
 
 ## 概要
 
-このプロジェクトでは、SQLite を使用し、Prisma ORM でデータベースを管理します。
+このプロジェクトでは、開発環境ではSQLite、本番環境ではRailway PostgreSQL を使用し、Prisma ORM でデータベースを管理します。音声取得、自動トリミング、複数配信プラットフォーム対応のためのスキーマ設計を行います。
 
 ## スキーマ設計の基本ルール
 
@@ -84,6 +84,109 @@ alwaysApply: false
 - 複雑なリレーションの説明
 - インデックスの使用理由
 - マイグレーション手順
+
+## 主要テーブル設計
+
+### User テーブル
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // リレーション
+  audioFiles AudioFile[]
+  jobs       Job[]
+  
+  @@map("users")
+}
+```
+
+### AudioFile テーブル
+```prisma
+model AudioFile {
+  id          String   @id @default(cuid())
+  userId      String
+  originalUrl String   // 元の音声ファイルURL
+  trimmedUrl  String?  // トリミング後の音声ファイルURL
+  title       String
+  duration    Int      // 秒数
+  fileSize    Int      // バイト数
+  source      String   // "substack", "manual"
+  status      String   // "processing", "trimmed", "error"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // リレーション
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs Job[]
+  
+  @@map("audio_files")
+}
+```
+
+### Job テーブル
+```prisma
+model Job {
+  id          String   @id @default(cuid())
+  userId      String
+  audioFileId String
+  status      String   // "pending", "processing", "completed", "error"
+  errorMessage String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // リレーション
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  audioFile AudioFile @relation(fields: [audioFileId], references: [id], onDelete: Cascade)
+  platformJobs PlatformJob[]
+  
+  @@map("jobs")
+}
+```
+
+### PlatformJob テーブル
+```prisma
+model PlatformJob {
+  id        String   @id @default(cuid())
+  jobId     String
+  platform  String   // "voicy", "youtube", "spotify"
+  status    String   // "pending", "processing", "completed", "error"
+  url       String?  // 配信後のURL
+  errorMessage String?
+  startedAt DateTime?
+  finishedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // リレーション
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  
+  @@map("platform_jobs")
+}
+```
+
+### SubstackFeed テーブル
+```prisma
+model SubstackFeed {
+  id        String   @id @default(cuid())
+  userId    String
+  feedUrl   String
+  isActive  Boolean  @default(true)
+  lastFetchedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // リレーション
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("substack_feeds")
+}
+```
 
 ## 開発フロー
 

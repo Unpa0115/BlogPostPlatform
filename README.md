@@ -1,105 +1,172 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# BlogPostPlatform
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+## 機能
 
-## Features
+- 🎵 音声ファイルのアップロード・管理（Railway Storage）
+- ✂️ Whisper APIを使用した自動音声トリミング
+- 📤 複数プラットフォームへの自動配信（Voicy、YouTube、Spotify）
+- 🔌 プラグイン方式での機能拡張
+- 📊 ジョブ管理・ステータス追跡
+- 🔐 JWT認証システム
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+## 技術スタック
 
-## Demo
+- **フロントエンド**: Next.js 14, React 18, TypeScript
+- **スタイリング**: Tailwind CSS
+- **データベース**: Railway PostgreSQL
+- **認証**: JWT + bcryptjs
+- **ストレージ**: Railway Storage
+- **音声処理**: OpenAI Whisper API
+- **自動化**: Browserless.io (Playwright)
+- **配信API**: YouTube Data API
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+## セットアップ
 
-## Deploy to Vercel
+### 前提条件
 
-Vercel deployment will guide you through creating a Supabase account and project.
+- Node.js 18以上
+- npm または yarn
+- Railwayアカウント
+- OpenAI APIキー
+- Browserless.io APIキー
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+### インストール
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+1. リポジトリをクローン
+```bash
+git clone <repository-url>
+cd BlogPostPlatform
+```
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+2. 依存関係をインストール
+```bash
+npm install
+```
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+3. 環境変数を設定
+```bash
+cp env.example .env.local
+```
 
-## Clone and run locally
+4. `.env.local`ファイルを編集して必要なAPIキーを設定
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+5. Railwayプロジェクトを設定
+   - Railwayでプロジェクトを作成
+   - PostgreSQLデータベースを追加
+   - Storageバケットを作成
+   - 環境変数を設定
 
-2. Create a Next.js app using the Supabase Starter template npx command
+6. データベースを初期化
+```bash
+npm run db:init
+```
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+7. 開発サーバーを起動
+```bash
+npm run dev
+```
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+## プロジェクト構造
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+```
+src/
+├── app/                 # Next.js App Router
+│   ├── layout.tsx      # ルートレイアウト
+│   ├── page.tsx        # ホームページ
+│   └── globals.css     # グローバルスタイル
+├── components/         # Reactコンポーネント
+├── lib/               # ライブラリ設定
+│   ├── railway.ts     # Railway PostgreSQL/Storage
+│   ├── auth.ts        # JWT認証システム
+│   └── database.ts    # データベース初期化
+├── types/             # TypeScript型定義
+├── hooks/             # カスタムフック
+├── utils/             # ユーティリティ関数
+└── contexts/          # Reactコンテキスト
+```
 
-3. Use `cd` to change into the app's directory
+## データベーススキーマ
 
-   ```bash
-   cd with-supabase-app
-   ```
+### users
+- id (UUID, Primary Key)
+- email (VARCHAR, Unique)
+- password_hash (VARCHAR)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
-4. Rename `.env.example` to `.env.local` and update the following:
+### audio_files
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key)
+- file_name (VARCHAR)
+- file_url (TEXT)
+- file_size (BIGINT)
+- duration (INTEGER)
+- status (VARCHAR)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
-   ```
+### jobs
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key)
+- audio_file_id (UUID, Foreign Key)
+- job_type (VARCHAR)
+- status (VARCHAR)
+- result_url (TEXT)
+- error_message (TEXT)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+### distribution_platforms
+- id (UUID, Primary Key)
+- user_id (UUID, Foreign Key)
+- platform_type (VARCHAR)
+- platform_name (VARCHAR)
+- credentials (JSONB)
+- enabled (BOOLEAN)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
-5. You can now run the Next.js local development server:
+## 開発
 
-   ```bash
-   npm run dev
-   ```
+### 利用可能なスクリプト
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+- `npm run dev` - 開発サーバー起動
+- `npm run build` - プロダクションビルド
+- `npm run start` - プロダクションサーバー起動
+- `npm run lint` - ESLint実行
+- `npm run type-check` - TypeScript型チェック
+- `npm run db:init` - データベース初期化
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+### コーディング規約
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+- TypeScriptの厳格モードを使用
+- ESLint + Prettierでコードフォーマット
+- コンポーネントは関数型コンポーネント
+- Server Componentsを優先使用
+- Railwayベースの一貫したアーキテクチャを維持
 
-## Feedback and issues
+## デプロイ
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+### Railway
 
-## More Supabase examples
+1. Railwayにプロジェクトを接続
+2. 環境変数を設定
+3. PostgreSQLデータベースを追加
+4. Storageバケットを作成
+5. 自動デプロイが有効
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+### Vercel
+
+1. Vercelにプロジェクトを接続
+2. 環境変数を設定
+3. Railwayとの連携設定
+
+## ライセンス
+
+MIT License
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します。 
