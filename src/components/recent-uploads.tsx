@@ -1,0 +1,156 @@
+"use client"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { FileAudio, Play, Download, Trash2 } from "lucide-react"
+import { useEffect, useState } from "react"
+
+interface AudioFile {
+  id: string
+  file_name: string
+  file_url: string
+  file_size: number
+  duration: number | null
+  status: 'uploading' | 'processing' | 'completed' | 'error'
+  metadata: Record<string, any>
+  created_at: string
+}
+
+export function RecentUploads() {
+  const [uploads, setUploads] = useState<AudioFile[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUploads = async () => {
+      try {
+        const response = await fetch('/api/uploads?limit=5', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          setUploads(data.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch uploads:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUploads()
+  }, [])
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'uploading':
+        return <Badge variant="secondary">アップロード中</Badge>
+      case 'processing':
+        return <Badge variant="default">処理中</Badge>
+      case 'completed':
+        return <Badge variant="default" className="bg-green-100 text-green-800">完了</Badge>
+      case 'error':
+        return <Badge variant="destructive">エラー</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return '--:--'
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>最近のアップロード</CardTitle>
+          <CardDescription>最近アップロードされたファイル一覧</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4 p-4 border rounded-lg">
+                <div className="w-12 h-12 bg-gray-200 rounded animate-pulse"></div>
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>最近のアップロード</CardTitle>
+        <CardDescription>最近アップロードされたファイル一覧</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {uploads.length === 0 ? (
+          <div className="text-center py-8">
+            <FileAudio className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-600">まだアップロードされたファイルがありません</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {uploads.map((upload) => (
+              <div key={upload.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <FileAudio className="h-6 w-6 text-gray-600" />
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-gray-900 truncate">
+                      {upload.metadata?.title || upload.file_name}
+                    </h4>
+                    {getStatusBadge(upload.status)}
+                  </div>
+                  
+                  <div className="flex items-center space-x-4 mt-1 text-xs text-gray-500">
+                    <span>{formatFileSize(upload.file_size)}</span>
+                    {upload.duration && (
+                      <span>{formatDuration(upload.duration)}</span>
+                    )}
+                    <span>{new Date(upload.created_at).toLocaleDateString('ja-JP')}</span>
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Button size="sm" variant="ghost">
+                    <Play className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost">
+                    <Download className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="ghost">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+} 

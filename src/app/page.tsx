@@ -1,42 +1,29 @@
 import { Metadata } from 'next'
+import { UploadForm } from "@/components/upload-form"
+import { RecentUploads } from "@/components/recent-uploads"
+import { StatsCards } from "@/components/stats-cards"
 
 export const metadata: Metadata = {
   title: 'BlogPostPlatform - ホーム',
   description: '音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム',
 }
 
-export default function HomePage() {
+export default function Dashboard() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold text-foreground mb-4">
-          BlogPostPlatform
-        </h1>
-        <p className="text-xl text-muted-foreground mb-8">
-          音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム
-        </p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
+          <p className="text-gray-600 mt-2">
+            音声ファイルのアップロードと配信管理を行います
+          </p>
+        </div>
+
+        <StatsCards />
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="bg-card p-6 rounded-lg border">
-            <h3 className="text-lg font-semibold mb-2">音声管理</h3>
-            <p className="text-muted-foreground">
-              音声ファイルのアップロード、プレビュー、管理機能
-            </p>
-          </div>
-          
-          <div className="bg-card p-6 rounded-lg border">
-            <h3 className="text-lg font-semibold mb-2">自動トリミング</h3>
-            <p className="text-muted-foreground">
-              Whisper APIを使用した自動音声トリミング機能
-            </p>
-          </div>
-          
-          <div className="bg-card p-6 rounded-lg border">
-            <h3 className="text-lg font-semibold mb-2">配信自動化</h3>
-            <p className="text-muted-foreground">
-              複数プラットフォームへの自動アップロード機能
-            </p>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+          <UploadForm />
+          <RecentUploads />
         </div>
       </div>
     </div>
