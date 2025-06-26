@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Navigation } from '@/components/navigation'
 import { Toaster } from '@/components/ui/toaster'
+import { AuthProvider } from '@/contexts/auth-context'
 import Link from 'next/link'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -20,24 +21,26 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body className={inter.className}>
-        <div className="min-h-screen bg-background">
-          <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-14 items-center">
-              <div className="mr-4 hidden md:flex">
-                <Link href="/" className="mr-6 flex items-center space-x-2">
-                  <span className="hidden font-bold sm:inline-block">
-                    BlogPostPlatform
-                  </span>
-                </Link>
-                <Navigation />
+        <AuthProvider>
+          <div className="min-h-screen bg-background">
+            <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="container flex h-14 items-center">
+                <div className="mr-4 hidden md:flex">
+                  <Link href="/" className="mr-6 flex items-center space-x-2">
+                    <span className="hidden font-bold sm:inline-block">
+                      BlogPostPlatform
+                    </span>
+                  </Link>
+                  <Navigation />
+                </div>
               </div>
-            </div>
-          </header>
-          <main className="flex-1">
-            {children}
-          </main>
-        </div>
-        <Toaster />
+            </header>
+            <main className="flex-1">
+              {children}
+            </main>
+          </div>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   )
