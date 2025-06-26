@@ -1,0 +1,225 @@
+import { google } from 'googleapis';
+import { OAuth2Client } from 'google-auth-library';
+import fs from 'fs';
+import { storage } from './storage';
+
+export class YouTubeService {
+  private oauth2Client: OAuth2Client;
+  private youtube: any;
+  private clientId: string | null = null;
+  private clientSecret: string | null = null;
+
+  constructor() {
+    this.oauth2Client = new google.auth.OAuth2();
+    this.youtube = google.youtube({
+      version: 'v3',
+      auth: this.oauth2Client,
+    });
+  }
+
+  setCredentials(clientId: string, clientSecret: string) {
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    
+    // Use REPLIT_DOMAINS for the correct callback URL in Replit environment
+    const baseUrl = process.env.REPLIT_DOMAINS 
+      ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` 
+      : process.env.REPL_URL || 'http://localhost:5000';
+    
+    this.oauth2Client = new google.auth.OAuth2(
+      clientId,
+      clientSecret,
+      `${baseUrl}/api/youtube/callback`
+    );
+  }
+
+  generateAuthUrl(): string {
+    if (!this.clientId || !this.clientSecret) {
+      throw new Error('YouTube credentials not configured');
+    }
+
+    const scopes = [
+      'https://www.googleapis.com/auth/youtube.upload',
+      'https://www.googleapis.com/auth/youtube'
+    ];
+
+    return this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent'
+    });
+  }
+
+  async handleAuthCallback(code: string): Promise<{ access_token: string; refresh_token: string }> {
+    try {
+      if (!this.clientId || !this.clientSecret) {
+        throw new Error('YouTube credentials not configured');
+      }
+
+      const { tokens } = await this.oauth2Client.getToken(code);
+      
+      if (!tokens || !tokens.refresh_token) {
+        throw new Error('No refresh token received. Please revoke access and try again.');
+      }
+
+      this.oauth2Client.setCredentials(tokens);
+
+      // Store refresh token in platform settings
+      const currentSettings = await storage.getPlatformSettings('youtube');
+      await storage.updatePlatformSettings('youtube', {
+        settings: {
+          clientId: currentSettings?.settings?.clientId || this.clientId!,
+          clientSecret: currentSettings?.settings?.clientSecret || this.clientSecret!,
+          refreshToken: tokens.refresh_token,
+        },
+        isActive: true,
+      });
+
+      return {
+        access_token: tokens.access_token!,
+        refresh_token: tokens.refresh_token,
+      };
+    } catch (error: any) {
+      console.error('YouTube auth callback error:', error);
+      throw new Error(`Authentication failed: ${error.message}`);
+    }
+  }
+
+  async uploadVideo(filePath: string, metadata: any): Promise<{ videoId: string; status: string }> {
+    try {
+      const platformSettings = await storage.getPlatformSettings('youtube');
+      if (!platformSettings?.settings?.refreshToken) {
+        throw new Error('YouTube not authenticated. Please complete OAuth flow first.');
+      }
+
+      // Ensure OAuth2Client is properly configured with credentials
+      if (!platformSettings.settings.clientId || !platformSettings.settings.clientSecret) {
+        throw new Error('YouTube client credentials not configured.');
+      }
+
+      // Create a new OAuth2Client instance for this upload to ensure clean state
+      const oauth2Client = new google.auth.OAuth2(
+        platformSettings.settings.clientId,
+        platformSettings.settings.clientSecret,
+        `${process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : 'http://localhost:5000'}/api/youtube/callback`
+      );
+      
+      // Set credentials with refresh token
+      oauth2Client.setCredentials({
+        refresh_token: platformSettings.settings.refreshToken,
+      });
+
+      // Create a new YouTube API instance with the properly configured OAuth client
+      const youtube = google.youtube({
+        version: 'v3',
+        auth: oauth2Client,
+      });
+
+      const requestBody = {
+        snippet: {
+          title: metadata.title,
+          description: metadata.description,
+          tags: metadata.tags,
+          categoryId: this.getCategoryId(metadata.category),
+        },
+        status: {
+          privacyStatus: metadata.visibility || 'private',
+        },
+      };
+
+      const media = {
+        mimeType: 'video/*',
+        body: fs.createReadStream(filePath),
+      };
+
+      const response = await youtube.videos.insert({
+        part: ['snippet', 'status'],
+        requestBody,
+        media,
+      });
+
+      // Check the actual processing status from YouTube
+      const videoId = response.data.id!;
+      const videoStatus = response.data.status;
+      
+      console.log(`YouTube upload response:`, {
+        videoId,
+        uploadStatus: videoStatus?.uploadStatus,
+        privacyStatus: videoStatus?.privacyStatus,
+        failureReason: videoStatus?.failureReason
+      });
+
+      return {
+        videoId,
+        status: 'uploaded'
+      };
+    } catch (error: any) {
+      console.error('YouTube upload error:', error);
+      throw new Error(`YouTube upload failed: ${error.message}`);
+    }
+  }
+
+  private getCategoryId(category: string): string {
+    const categoryMap: { [key: string]: string } = {
+      'gaming': '20',
+      'music': '10',
+      'education': '27',
+      'entertainment': '24',
+      'news': '25',
+      'tech': '28',
+      'sports': '17',
+      'travel': '19',
+      'default': '22', // People & Blogs
+    };
+    return categoryMap[category?.toLowerCase()] || categoryMap.default;
+  }
+
+  async getChannelInfo(): Promise<any> {
+    try {
+      const platformSettings = await storage.getPlatformSettings('youtube');
+      if (!platformSettings?.settings?.refreshToken) {
+        throw new Error('YouTube not authenticated');
+      }
+
+      this.oauth2Client.setCredentials({
+        refresh_token: platformSettings.settings.refreshToken,
+      });
+
+      const response = await this.youtube.channels.list({
+        part: ['snippet', 'statistics'],
+        mine: true,
+      });
+
+      return response.data.items[0];
+    } catch (error: any) {
+      console.error('YouTube channel info error:', error);
+      throw new Error(`Failed to get channel info: ${error.message}`);
+    }
+  }
+
+  async revokeAccess(): Promise<void> {
+    try {
+      const platformSettings = await storage.getPlatformSettings('youtube');
+      if (platformSettings?.settings?.refreshToken) {
+        this.oauth2Client.setCredentials({
+          refresh_token: platformSettings.settings.refreshToken,
+        });
+        await this.oauth2Client.revokeCredentials();
+      }
+
+      await storage.updatePlatformSettings('youtube', {
+        settings: {
+          clientId: platformSettings?.settings?.clientId,
+          clientSecret: platformSettings?.settings?.clientSecret,
+          refreshToken: '',
+        },
+        isActive: false,
+      });
+    } catch (error: any) {
+      console.error('YouTube revoke access error:', error);
+      throw new Error(`Failed to revoke access: ${error.message}`);
+    }
+  }
+}
+
+export const youtubeService = new YouTubeService();

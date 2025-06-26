@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { NextRequest } from 'next/server'
 import { db } from './railway'
 
 export interface User {
@@ -66,6 +67,29 @@ export function verifyToken(token: string): { userId: string; email: string } | 
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string }
     return decoded
   } catch (error) {
+    return null
+  }
+}
+
+// NextRequestから認証情報を検証
+export async function verifyAuth(request: NextRequest): Promise<User | null> {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null
+    }
+
+    const token = authHeader.substring(7)
+    const decoded = verifyToken(token)
+    
+    if (!decoded) {
+      return null
+    }
+
+    const user = await getUserById(decoded.userId)
+    return user
+  } catch (error) {
+    console.error('Auth verification error:', error)
     return null
   }
 }
