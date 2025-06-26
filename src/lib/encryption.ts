@@ -1,0 +1,120 @@
+import crypto from 'crypto'
+
+const ALGORITHM = 'aes-256-gcm'
+const IV_LENGTH = 16
+const SALT_LENGTH = 64
+const TAG_LENGTH = 16
+const KEY_LENGTH = 32
+const ITERATIONS = 100000
+
+export class CredentialEncryption {
+  private static getKey(password: string, salt: Buffer): Buffer {
+    return crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LENGTH, 'sha512')
+  }
+
+  static encrypt(data: string, masterKey: string): string {
+    try {
+      // ランダムなソルトとIVを生成
+      const salt = crypto.randomBytes(SALT_LENGTH)
+      const iv = crypto.randomBytes(IV_LENGTH)
+
+      // マスターキーから暗号化キーを生成
+      const key = this.getKey(masterKey, salt)
+
+      // 暗号化
+      const cipher = crypto.createCipher(ALGORITHM, key)
+      cipher.setAAD(Buffer.from('credentials', 'utf8'))
+      
+      let encrypted = cipher.update(data, 'utf8', 'hex')
+      encrypted += cipher.final('hex')
+
+      // 認証タグを取得
+      const tag = cipher.getAuthTag()
+
+      // ソルト + IV + タグ + 暗号化データを結合
+      const result = Buffer.concat([salt, iv, tag, Buffer.from(encrypted, 'hex')])
+      
+      return result.toString('base64')
+    } catch (error) {
+      console.error('Encryption error:', error)
+      throw new Error('Failed to encrypt credentials')
+    }
+  }
+
+  static decrypt(encryptedData: string, masterKey: string): string {
+    try {
+      // Base64デコード
+      const data = Buffer.from(encryptedData, 'base64')
+
+      // 各部分を抽出
+      const salt = data.subarray(0, SALT_LENGTH)
+      const iv = data.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
+      const tag = data.subarray(SALT_LENGTH + IV_LENGTH, SALT_LENGTH + IV_LENGTH + TAG_LENGTH)
+      const encrypted = data.subarray(SALT_LENGTH + IV_LENGTH + TAG_LENGTH)
+
+      // マスターキーから暗号化キーを生成
+      const key = this.getKey(masterKey, salt)
+
+      // 復号化
+      const decipher = crypto.createDecipher(ALGORITHM, key)
+      decipher.setAAD(Buffer.from('credentials', 'utf8'))
+      decipher.setAuthTag(tag)
+
+      let decrypted = decipher.update(encrypted, undefined, 'utf8')
+      decrypted += decipher.final('utf8')
+
+      return decrypted
+    } catch (error) {
+      console.error('Decryption error:', error)
+      throw new Error('Failed to decrypt credentials')
+    }
+  }
+
+  // 環境変数からマスターキーを取得
+  static getMasterKey(): string {
+    const masterKey = process.env.ENCRYPTION_MASTER_KEY
+    if (!masterKey) {
+      throw new Error('ENCRYPTION_MASTER_KEY environment variable is required')
+    }
+    return masterKey
+  }
+}
+
+// プラットフォーム別のCredentials暗号化
+export const PlatformCredentials = {
+  // YouTube認証情報の暗号化
+  encryptYouTube: (credentials: { clientId: string; clientSecret: string }): string => {
+    const data = JSON.stringify(credentials)
+    return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
+  },
+
+  // YouTube認証情報の復号化
+  decryptYouTube: (encryptedData: string): { clientId: string; clientSecret: string } => {
+    const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
+    return JSON.parse(data)
+  },
+
+  // Voicy認証情報の暗号化
+  encryptVoicy: (credentials: { email: string; password: string }): string => {
+    const data = JSON.stringify(credentials)
+    return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
+  },
+
+  // Voicy認証情報の復号化
+  decryptVoicy: (encryptedData: string): { email: string; password: string } => {
+    const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
+    return JSON.parse(data)
+  },
+
+  // Spotify認証情報の暗号化
+  encryptSpotify: (credentials: { clientId: string; clientSecret: string }): string => {
+    const data = JSON.stringify(credentials)
+    return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
+  },
+
+  // Spotify認証情報の復号化
+  decryptSpotify: (encryptedData: string): { clientId: string; clientSecret: string } => {
+    const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
+    return JSON.parse(data)
+  }
+} 

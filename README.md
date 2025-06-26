@@ -2,6 +2,19 @@
 
 音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム
 
+## セキュリティ機能
+
+### Credentials暗号化
+- すべてのプラットフォーム認証情報はAES-256-GCMで暗号化
+- 環境変数`ENCRYPTION_MASTER_KEY`で管理
+- データベースには暗号化された状態で保存
+- 復号化はアプリケーション実行時のみ
+
+### 認証・認可
+- JWTベースの認証システム
+- ユーザーごとの認証情報分離
+- APIエンドポイントの認証保護
+
 ## 機能
 
 - 🎵 音声ファイルのアップロード・管理（Railway Storage）
@@ -14,56 +27,42 @@
 ## 技術スタック
 
 - **フロントエンド**: Next.js 14, React 18, TypeScript
-- **スタイリング**: Tailwind CSS
+- **スタイリング**: Tailwind CSS, shadcn/ui
 - **データベース**: Railway PostgreSQL
 - **認証**: JWT + bcryptjs
 - **ストレージ**: Railway Storage
+- **暗号化**: AES-256-GCM
 - **音声処理**: OpenAI Whisper API
 - **自動化**: Browserless.io (Playwright)
 - **配信API**: YouTube Data API
 
 ## セットアップ
 
-### 前提条件
+### 1. 環境変数の設定
 
-- Node.js 18以上
-- npm または yarn
-- Railwayアカウント
-- OpenAI APIキー
-- Browserless.io APIキー
-
-### インストール
-
-1. リポジトリをクローン
-```bash
-git clone <repository-url>
-cd BlogPostPlatform
-```
-
-2. 依存関係をインストール
-```bash
-npm install
-```
-
-3. 環境変数を設定
 ```bash
 cp env.example .env.local
 ```
 
-4. `.env.local`ファイルを編集して必要なAPIキーを設定
+必須の環境変数：
+- `DATABASE_URL`: Railway PostgreSQL接続URL
+- `JWT_SECRET`: JWT署名用シークレット
+- `ENCRYPTION_MASTER_KEY`: Credentials暗号化用マスターキー（32文字以上推奨）
 
-5. Railwayプロジェクトを設定
-   - Railwayでプロジェクトを作成
-   - PostgreSQLデータベースを追加
-   - Storageバケットを作成
-   - 環境変数を設定
+### 2. 依存関係のインストール
 
-6. データベースを初期化
+```bash
+npm install
+```
+
+### 3. データベース初期化
+
 ```bash
 npm run db:init
 ```
 
-7. 開発サーバーを起動
+### 4. 開発サーバー起動
+
 ```bash
 npm run dev
 ```
@@ -149,19 +148,17 @@ src/
 
 ## デプロイ
 
-### Railway
+Railwayでの自動デプロイに対応しています。
 
-1. Railwayにプロジェクトを接続
+1. GitHubリポジトリをRailwayに接続
 2. 環境変数を設定
-3. PostgreSQLデータベースを追加
-4. Storageバケットを作成
-5. 自動デプロイが有効
+3. 自動デプロイ開始
 
-### Vercel
+## 注意事項
 
-1. Vercelにプロジェクトを接続
-2. 環境変数を設定
-3. Railwayとの連携設定
+- `ENCRYPTION_MASTER_KEY`は絶対に漏洩させないでください
+- 本番環境では強力なマスターキーを使用してください
+- 定期的なセキュリティ監査を推奨します
 
 ## ライセンス
 
