@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/railway'
+import { db } from '@/lib/database'
 import { railwayStorage } from '@/lib/railway'
 import { verifyAuth } from '@/lib/auth'
+
+// UUID生成（SQLite用）
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c == 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
 
 // ファイルアップロード
 export async function POST(request: NextRequest) {
@@ -44,24 +53,46 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const uploadResult = await railwayStorage.upload(buffer, fileName, file.type)
 
-    // データベースに記録
-    const result = await db.query(`
-      INSERT INTO audio_files (user_id, file_name, file_url, file_size, metadata)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, file_name, file_url, status
-    `, [user.id, file.name, uploadResult.url, file.size, metadata || '{}'])
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      const result = await db.query(`
+        INSERT INTO audio_files (user_id, file_name, file_url, file_size, metadata)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id, file_name, file_url, status
+      `, [user.id, file.name, uploadResult.url, file.size, metadata || '{}'])
 
-    const audioFile = result.rows[0]
+      const audioFile = result.rows[0]
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        id: audioFile.id,
-        file_name: audioFile.file_name,
-        file_url: audioFile.file_url,
-        status: audioFile.status
-      }
-    })
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: audioFile.id,
+          file_name: audioFile.file_name,
+          file_url: audioFile.file_url,
+          status: audioFile.status
+        }
+      })
+    } else {
+      // SQLite
+      const sqliteDb = await db
+      const fileId = generateUUID()
+      const now = new Date().toISOString()
+      
+      await sqliteDb.run(`
+        INSERT INTO audio_files (id, user_id, file_name, file_url, file_size, metadata, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `, [fileId, user.id, file.name, uploadResult.url, file.size, metadata || '{}', now, now])
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          id: fileId,
+          file_name: file.name,
+          file_url: uploadResult.url,
+          status: 'uploading'
+        }
+      })
+    }
 
   } catch (error) {
     console.error('Upload error:', error)
@@ -82,18 +113,36 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    const result = await db.query(`
-      SELECT id, file_name, file_url, file_size, duration, status, metadata, created_at
-      FROM audio_files
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3
-    `, [user.id, limit, offset])
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      const result = await db.query(`
+        SELECT id, file_name, file_url, file_size, duration, status, metadata, created_at
+        FROM audio_files
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT $2 OFFSET $3
+      `, [user.id, limit, offset])
 
-    return NextResponse.json({
-      success: true,
-      data: result.rows
-    })
+      return NextResponse.json({
+        success: true,
+        data: result.rows
+      })
+    } else {
+      // SQLite
+      const sqliteDb = await db
+      const result = await sqliteDb.all(`
+        SELECT id, file_name, file_url, file_size, duration, status, metadata, created_at
+        FROM audio_files
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `, [user.id, limit, offset])
+
+      return NextResponse.json({
+        success: true,
+        data: result
+      })
+    }
 
   } catch (error) {
     console.error('Get uploads error:', error)

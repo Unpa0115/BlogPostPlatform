@@ -14,15 +14,18 @@ export class CredentialEncryption {
 
   static encrypt(data: string, masterKey: string): string {
     try {
+      console.log('Starting encryption with algorithm:', ALGORITHM)
+      
       // ランダムなソルトとIVを生成
       const salt = crypto.randomBytes(SALT_LENGTH)
       const iv = crypto.randomBytes(IV_LENGTH)
 
       // マスターキーから暗号化キーを生成
       const key = this.getKey(masterKey, salt)
+      console.log('Key generated successfully, length:', key.length)
 
-      // 暗号化
-      const cipher = crypto.createCipher(ALGORITHM, key)
+      // 暗号化（createCipherivを使用）
+      const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
       cipher.setAAD(Buffer.from('credentials', 'utf8'))
       
       let encrypted = cipher.update(data, 'utf8', 'hex')
@@ -34,10 +37,18 @@ export class CredentialEncryption {
       // ソルト + IV + タグ + 暗号化データを結合
       const result = Buffer.concat([salt, iv, tag, Buffer.from(encrypted, 'hex')])
       
+      console.log('Encryption completed successfully')
       return result.toString('base64')
     } catch (error) {
-      console.error('Encryption error:', error)
-      throw new Error('Failed to encrypt credentials')
+      console.error('Encryption error details:', {
+        error: error,
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        algorithm: ALGORITHM,
+        keyLength: KEY_LENGTH,
+        ivLength: IV_LENGTH
+      })
+      throw new Error(`Failed to encrypt credentials: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -55,8 +66,8 @@ export class CredentialEncryption {
       // マスターキーから暗号化キーを生成
       const key = this.getKey(masterKey, salt)
 
-      // 復号化
-      const decipher = crypto.createDecipher(ALGORITHM, key)
+      // 復号化（createDecipherivを使用）
+      const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
       decipher.setAAD(Buffer.from('credentials', 'utf8'))
       decipher.setAuthTag(tag)
 
@@ -73,9 +84,24 @@ export class CredentialEncryption {
   // 環境変数からマスターキーを取得
   static getMasterKey(): string {
     const masterKey = process.env.ENCRYPTION_MASTER_KEY
+    console.log('Master key check:', {
+      hasEnvKey: !!masterKey,
+      envKeyLength: masterKey ? masterKey.length : 0,
+      nodeEnv: process.env.NODE_ENV
+    })
+    
     if (!masterKey) {
-      throw new Error('ENCRYPTION_MASTER_KEY environment variable is required')
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('ENCRYPTION_MASTER_KEY environment variable is required in production')
+      } else {
+        // 開発環境ではデフォルトキーを使用
+        const devKey = 'dev-encryption-master-key-for-development-only-32-chars'
+        console.log('Using development master key, length:', devKey.length)
+        return devKey
+      }
     }
+    
+    console.log('Using environment master key, length:', masterKey.length)
     return masterKey
   }
 }
@@ -107,13 +133,13 @@ export const PlatformCredentials = {
   },
 
   // Spotify認証情報の暗号化
-  encryptSpotify: (credentials: { clientId: string; clientSecret: string }): string => {
+  encryptSpotify: (credentials: { rssFeedUrl: string }): string => {
     const data = JSON.stringify(credentials)
     return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
   },
 
   // Spotify認証情報の復号化
-  decryptSpotify: (encryptedData: string): { clientId: string; clientSecret: string } => {
+  decryptSpotify: (encryptedData: string): { rssFeedUrl: string } => {
     const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
     return JSON.parse(data)
   }

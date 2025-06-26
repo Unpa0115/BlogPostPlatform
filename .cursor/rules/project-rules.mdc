@@ -12,8 +12,10 @@ description: Next.js + TypeScript での WebApp プロジェクト初期構成�
 prompt: |
 以下の仕様で WebApp プロジェクトを作成したいです。
 	•	フレームワーク: Next.js (TypeScript)
-	•	DB/Storage: Supabase
+	•	DB/Storage: Railway PostgreSQL
+	•	音声処理: OpenAI Whisper API
 	•	自動化エンジン: Browserless.io + Playwright
+	•	配信API: YouTube Data API、Spotify RSS
 	•	ディレクトリ構成:
 /src
 /pages
@@ -21,24 +23,46 @@ prompt: |
 /lib
 /api
 	•	package.json, tsconfig.json などの基本設定
-	•	id: recording_component
-title: 録音コンポーネント実装
-description: Web Audio API または RecordRTC を用いた録音コンポーネントの生成
+	•	id: audio_acquisition
+title: 音声取得コンポーネント実装
+description: Substack RSS Feed取得と手動アップロード機能の実装
 prompt: |
-録音コンポーネントを実装します。要件は以下のとおりです。
-	1.	録音開始／停止ボタン
-	2.	録音中の波形プレビュー
-	3.	録音結果を Blob として取得し、onRecorded(blob: Blob) コールバックで返却
+音声取得コンポーネントを実装します。要件は以下のとおりです。
+	1.	Substack RSS Feedからの自動音声取得
+	2.	手動アップロード機能（ドラッグ&ドロップ対応）
+	3.	音声ファイルの一時保存と管理
+	4.	ファイル一覧表示とプレビュー機能
 React + TypeScript でコンポーネントコードを生成してください。
+	•	id: audio_trimming
+title: 自動トリミングコンポーネント実装
+description: Whisper APIを活用した音声自動トリミング機能の実装
+prompt: |
+自動トリミングコンポーネントを実装します。要件は以下のとおりです。
+	1.	Whisper APIを活用したキーフレーズ検出
+	2.	無音部分の自動検出と除去
+	3.	冒頭部分の最適化トリミング
+	4.	トリミング前後のプレビュー機能
+React + TypeScript でコンポーネントコードを生成してください。
+	•	id: multi_platform_distribution
+title: 複数配信プラットフォーム自動化実装
+description: Voicy、YouTube、Spotifyへの自動配信機能の実装
+prompt: |
+複数配信プラットフォーム自動化を実装します。要件は以下のとおりです。
+	1.	Voicy: Browserless.io API を活用したブラウザ操作自動化
+	2.	YouTube: YouTube Data API を活用した動画アップロード
+	3.	Spotify: RSS Feed生成による配信
+	4.	配信状況の管理とエラーハンドリング
+Railway Functions で実装し、各プラットフォームのAPI連携コードも含めて生成してください。
 	•	id: backend_api
 title: バックエンド API 実装
-description: Vercel Functions での webhook 受信とジョブ投入 API の生成
+description: Railway Functions での音声処理と配信自動化APIの生成
 prompt: |
-Vercel Functions で以下の API を作成してください。
-	•	POST /api/recorded ：Supabase からの webhook 受信。body に fileUrl を含む。
-	•	GET  /api/jobs    ：ユーザーのジョブ一覧を返却。
-POST /api/recorded では Browserless.io の REST API を呼び出し、Voicy へのアップロード自動化を行い、
-結果を Postgres の jobs テーブルに保存する処理を実装してください。
+Railway Functions で以下の API を作成してください。
+	•	POST /api/substack/fetch ：Substack RSS Feedからの音声取得
+	•	POST /api/audio/trim ：Whisper APIを活用した音声トリミング
+	•	POST /api/distribute/multi-platform ：複数プラットフォームへの配信自動化
+	•	GET  /api/jobs ：ユーザーのジョブ一覧を返却
+各APIで適切なエラーハンドリングとログ出力を実装してください。
 	•	id: plugin_transcribe
 title: 文字起こしプラグイン実装
 description: OpenAI Whisper API を呼び出すサーバーレス関数の生成
@@ -72,32 +96,52 @@ prompt: |
 │   └── robots.txt
 ├── src
 │   ├── pages
-│   │   ├── index.tsx          # 録音ページ
+│   │   ├── index.tsx          # メインダッシュボード
 │   │   ├── _app.tsx
 │   │   ├── api
-│   │   │   ├── recorded.ts    # /api/recorded：Webhook受信／ジョブ投入
+│   │   │   ├── substack
+│   │   │   │   └── fetch.ts   # /api/substack/fetch：RSS Feed取得
+│   │   │   ├── audio
+│   │   │   │   └── trim.ts    # /api/audio/trim：音声トリミング
+│   │   │   ├── distribute
+│   │   │   │   └── multi-platform.ts # /api/distribute/multi-platform：配信自動化
 │   │   │   └── jobs.ts        # /api/jobs：ジョブ一覧取得
 │   │   └── plugins
 │   │       ├── transcribe.ts  # /api/plugins/transcribe：文字起こしプラグイン
 │   │       └── summarize.ts   # /api/plugins/summarize：要約プラグイン
 │   ├── components
-│   │   ├── Recording
-│   │   │   ├── Recording.tsx   # 録音コンポーネント
-│   │   │   └── Recording.module.css
-│   │   ├── FileList.tsx       # 録音ファイル一覧＆ステータス表示
+│   │   ├── AudioAcquisition
+│   │   │   ├── AudioAcquisition.tsx   # 音声取得コンポーネント
+│   │   │   └── AudioAcquisition.module.css
+│   │   ├── AudioTrimming
+│   │   │   ├── AudioTrimming.tsx      # 自動トリミングコンポーネント
+│   │   │   └── AudioTrimming.module.css
+│   │   ├── Distribution
+│   │   │   ├── Distribution.tsx       # 配信管理コンポーネント
+│   │   │   └── Distribution.module.css
+│   │   ├── FileList.tsx       # 音声ファイル一覧＆ステータス表示
 │   │   └── ui                 # ボタン・モーダルなど共通UI
 │   ├── lib
-│   │   ├── supabaseClient.ts  # Supabase初期化
-│   │   └── browserlessClient.ts # Browserless.ioラッパー
+│   │   ├── railwayClient.ts   # Railway初期化
+│   │   ├── browserlessClient.ts # Browserless.ioラッパー
+│   │   ├── youtubeClient.ts   # YouTube Data APIラッパー
+│   │   ├── whisperClient.ts   # OpenAI Whisper APIラッパー
+│   │   └── rssGenerator.ts    # Spotify用RSS Feed生成
 │   ├── hooks
-│   │   └── useJobs.ts         # ジョブ状態取得用カスタムフック
+│   │   ├── useJobs.ts         # ジョブ状態取得用カスタムフック
+│   │   ├── useAudio.ts        # 音声処理用カスタムフック
+│   │   └── useDistribution.ts # 配信管理用カスタムフック
 │   ├── contexts
 │   │   └── AuthContext.tsx    # ユーザー認証コンテキスト
 │   ├── utils
 │   │   ├── logger.ts
-│   │   └── validators.ts
+│   │   ├── validators.ts
+│   │   ├── audioUtils.ts      # 音声処理ユーティリティ
+│   │   └── rssUtils.ts        # RSS処理ユーティリティ
 │   ├── types
 │   │   ├── Job.ts
+│   │   ├── Audio.ts
+│   │   ├── Platform.ts
 │   │   └── Plugin.ts
 │   └── config
 │       ├── index.ts          # 環境変数読み込み
@@ -109,9 +153,13 @@ prompt: |
 │   └── generate-types.sh     # DB→TypeScript型自動生成
 ├── tests
 │   ├── components
-│   │   └── Recording.test.tsx
+│   │   ├── AudioAcquisition.test.tsx
+│   │   ├── AudioTrimming.test.tsx
+│   │   └── Distribution.test.tsx
 │   ├── api
-│   │   └── recorded.test.ts
+│   │   ├── substack.test.ts
+│   │   ├── audio.test.ts
+│   │   └── distribute.test.ts
 │   └── plugins
 │       ├── transcribe.test.ts
 │       └── summarize.test.ts

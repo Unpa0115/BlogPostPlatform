@@ -1,14 +1,34 @@
-import { Metadata } from 'next'
+"use client"
+
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { UploadForm } from "@/components/upload-form"
 import { RecentUploads } from "@/components/recent-uploads"
 import { StatsCards } from "@/components/stats-cards"
-
-export const metadata: Metadata = {
-  title: 'BlogPostPlatform - ホーム',
-  description: '音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム',
-}
+import { useAuth } from "@/contexts/auth-context"
 
 export default function Dashboard() {
+  const { user, loading: authLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return null // リダイレクト中
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-6 py-8">

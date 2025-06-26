@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/railway'
+import { db } from '@/lib/database'
 import { verifyAuth } from '@/lib/auth'
 
 // ジョブ一覧取得
@@ -17,37 +17,71 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const jobType = searchParams.get('job_type')
 
-    let query = `
-      SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.result_url, j.error_message, j.created_at,
-             af.file_name, af.file_url
-      FROM jobs j
-      JOIN audio_files af ON j.audio_file_id = af.id
-      WHERE j.user_id = $1
-    `
-    const params: any[] = [user.id]
-    let paramIndex = 2
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      let query = `
+        SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
+               af.file_name as audio_file_name
+        FROM jobs j
+        LEFT JOIN audio_files af ON j.audio_file_id = af.id
+        WHERE j.user_id = $1
+      `
+      const params: any[] = [user.id]
+      let paramIndex = 2
 
-    if (status) {
-      query += ` AND j.status = $${paramIndex}`
-      params.push(status)
-      paramIndex++
+      if (status) {
+        query += ` AND j.status = $${paramIndex}`
+        params.push(status)
+        paramIndex++
+      }
+
+      if (jobType) {
+        query += ` AND j.job_type = $${paramIndex}`
+        params.push(jobType)
+        paramIndex++
+      }
+
+      query += ` ORDER BY j.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+      params.push(limit, offset)
+
+      const result = await db.query(query, params)
+
+      return NextResponse.json({
+        success: true,
+        data: result.rows
+      })
+    } else {
+      // SQLite
+      const sqliteDb = await db
+      let query = `
+        SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
+               af.file_name as audio_file_name
+        FROM jobs j
+        LEFT JOIN audio_files af ON j.audio_file_id = af.id
+        WHERE j.user_id = ?
+      `
+      const params: any[] = [user.id]
+
+      if (status) {
+        query += ` AND j.status = ?`
+        params.push(status)
+      }
+
+      if (jobType) {
+        query += ` AND j.job_type = ?`
+        params.push(jobType)
+      }
+
+      query += ` ORDER BY j.created_at DESC LIMIT ? OFFSET ?`
+      params.push(limit, offset)
+
+      const result = await sqliteDb.all(query, params)
+
+      return NextResponse.json({
+        success: true,
+        data: result
+      })
     }
-
-    if (jobType) {
-      query += ` AND j.job_type = $${paramIndex}`
-      params.push(jobType)
-      paramIndex++
-    }
-
-    query += ` ORDER BY j.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
-    params.push(limit, offset)
-
-    const result = await db.query(query, params)
-
-    return NextResponse.json({
-      success: true,
-      data: result.rows
-    })
 
   } catch (error) {
     console.error('Get jobs error:', error)
