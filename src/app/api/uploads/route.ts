@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/database'
-import { railwayStorage } from '@/lib/railway'
+import fs from 'fs/promises'
+import path from 'path'
 import { verifyAuth } from '@/lib/auth'
 
-// UUID生成（SQLite用）
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0
-    const v = c == 'x' ? r : (r & 0x3 | 0x8)
-    return v.toString(16)
-  })
-}
+const UPLOAD_DIR = process.env.NODE_ENV === 'production'
+  ? '/mnt/volume/uploads'
+  : path.join(process.cwd(), 'uploads')
 
 // ファイルアップロード
 export async function POST(request: NextRequest) {
@@ -23,7 +18,13 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File
-    const metadata = formData.get('metadata') as string
+    const metadataRaw = formData.get('metadata') as string
+    let metadata: Record<string, any> = {}
+    try {
+      metadata = metadataRaw ? JSON.parse(metadataRaw) : {}
+    } catch {
+      metadata = {}
+    }
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
@@ -35,7 +36,6 @@ export async function POST(request: NextRequest) {
       'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/aac', 'audio/mpeg',
       'audio/mp4', 'audio/x-m4a', 'audio/x-mpeg-3', 'audio/mpeg3'
     ]
-
     if (!allowedMimes.includes(file.type)) {
       return NextResponse.json({ error: 'Invalid file type' }, { status: 400 })
     }
@@ -45,62 +45,41 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large' }, { status: 400 })
     }
 
-    // ファイル名生成
+    // ファイル名生成（ユーザーID＋タイムスタンプ＋元ファイル名）
     const timestamp = Date.now()
-    const fileName = `${user.id}/${timestamp}_${file.name}`
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const fileName = `${user.id}_${timestamp}_${safeFileName}`
+    const filePath = path.join(UPLOAD_DIR, fileName)
+    const metadataPath = filePath + '.metadata.json'
 
-    // Railway Storageにアップロード
+    // ディレクトリ作成
+    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    // ファイル保存
     const buffer = Buffer.from(await file.arrayBuffer())
-    const uploadResult = await railwayStorage.upload(buffer, fileName, file.type)
+    await fs.writeFile(filePath, buffer)
+    // メタデータ保存
+    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2))
 
-    if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
-      const result = await db.query(`
-        INSERT INTO audio_files (user_id, file_name, file_url, file_size, metadata)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, file_name, file_url, status
-      `, [user.id, file.name, uploadResult.url, file.size, metadata || '{}'])
+    // 必要ならDB登録処理をここに追加
 
-      const audioFile = result.rows[0]
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          id: audioFile.id,
-          file_name: audioFile.file_name,
-          file_url: audioFile.file_url,
-          status: audioFile.status
-        }
-      })
-    } else {
-      // SQLite
-      const sqliteDb = await db
-      const fileId = generateUUID()
-      const now = new Date().toISOString()
-      
-      await sqliteDb.run(`
-        INSERT INTO audio_files (id, user_id, file_name, file_url, file_size, metadata, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `, [fileId, user.id, file.name, uploadResult.url, file.size, metadata || '{}', now, now])
-
-      return NextResponse.json({
-        success: true,
-        data: {
-          id: fileId,
-          file_name: file.name,
-          file_url: uploadResult.url,
-          status: 'uploading'
-        }
-      })
-    }
-
+    return NextResponse.json({
+      success: true,
+      data: {
+        file_name: fileName,
+        file_url: `/api/uploads?file=${encodeURIComponent(fileName)}`,
+        status: 'uploading',
+        metadata,
+        created_at: new Date().toISOString(),
+        file_size: file.size
+      }
+    })
   } catch (error) {
     console.error('Upload error:', error)
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 }
 
-// アップロード一覧取得
+// ファイルダウンロード
 export async function GET(request: NextRequest) {
   try {
     // 認証チェック
@@ -110,42 +89,68 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const fileName = searchParams.get('file')
+    const limit = searchParams.get('limit')
+    const offset = searchParams.get('offset')
 
-    if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
-      const result = await db.query(`
-        SELECT id, file_name, file_url, file_size, duration, status, metadata, created_at
-        FROM audio_files
-        WHERE user_id = $1
-        ORDER BY created_at DESC
-        LIMIT $2 OFFSET $3
-      `, [user.id, limit, offset])
-
-      return NextResponse.json({
-        success: true,
-        data: result.rows
-      })
-    } else {
-      // SQLite
-      const sqliteDb = await db
-      const result = await sqliteDb.all(`
-        SELECT id, file_name, file_url, file_size, duration, status, metadata, created_at
-        FROM audio_files
-        WHERE user_id = ?
-        ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
-      `, [user.id, limit, offset])
-
-      return NextResponse.json({
-        success: true,
-        data: result
-      })
+    // ファイルダウンロード（fileパラメータ優先）
+    if (fileName) {
+      // パスの安全性確保
+      if (fileName.includes('..')) {
+        return NextResponse.json({ error: 'Invalid file name' }, { status: 400 })
+      }
+      const filePath = path.join(UPLOAD_DIR, fileName)
+      try {
+        const fileBuffer = await fs.readFile(filePath)
+        // Content-Typeは簡易的にoctet-stream
+        return new Response(fileBuffer, {
+          headers: {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${fileName}"`
+          }
+        })
+      } catch {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
     }
 
+    // ファイル一覧取得（limit, offsetパラメータがある場合）
+    if (limit || offset) {
+      await fs.mkdir(UPLOAD_DIR, { recursive: true })
+      let files = await fs.readdir(UPLOAD_DIR)
+      // ユーザーIDでフィルタ（ファイル名先頭がuser.id_で始まるもの、.metadata.jsonは除外）
+      files = files.filter(f => f.startsWith(user.id + '_') && !f.endsWith('.metadata.json'))
+      // 新しい順（ファイル名にtimestampが含まれている前提）
+      files.sort((a, b) => b.localeCompare(a))
+      const lim = parseInt(limit || '10')
+      const off = parseInt(offset || '0')
+      const paged = files.slice(off, off + lim)
+      // ファイル情報を返す（必要に応じて拡張）
+      const fileInfos = await Promise.all(paged.map(async (f) => {
+        const stat = await fs.stat(path.join(UPLOAD_DIR, f))
+        let metadata = {}
+        try {
+          const metaRaw = await fs.readFile(path.join(UPLOAD_DIR, f + '.metadata.json'), 'utf-8')
+          metadata = JSON.parse(metaRaw)
+        } catch {}
+        return {
+          id: f,
+          file_name: f,
+          file_url: `/api/uploads?file=${encodeURIComponent(f)}`,
+          file_size: stat.size,
+          duration: null, // TODO: 音声長取得は後で
+          status: 'uploading', // TODO: 状態管理は後で
+          metadata,
+          created_at: stat.birthtime
+        }
+      }))
+      return NextResponse.json({ success: true, data: fileInfos })
+    }
+
+    // パラメータなしは400
+    return NextResponse.json({ error: 'No file or list parameter' }, { status: 400 })
   } catch (error) {
-    console.error('Get uploads error:', error)
-    return NextResponse.json({ error: 'Failed to get uploads' }, { status: 500 })
+    console.error('Download/List error:', error)
+    return NextResponse.json({ error: 'Download/List failed' }, { status: 500 })
   }
 } 
