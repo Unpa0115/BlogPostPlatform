@@ -11,11 +11,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
-import { Youtube, Music, Mic } from "lucide-react"
+import { Youtube, Music, Mic, Brain } from "lucide-react"
 
 interface Platform {
   id: string
-  platform_type: 'voicy' | 'youtube' | 'spotify'
+  platform_type: 'voicy' | 'youtube' | 'spotify' | 'openai'
   platform_name: string
   is_active: boolean
   created_at: string
@@ -26,6 +26,7 @@ interface Platform {
     email?: string
     password?: string
     rssFeedUrl?: string
+    apiKey?: string
   }
 }
 
@@ -33,6 +34,7 @@ export default function PlatformsPage() {
   const [platforms, setPlatforms] = useState<Platform[]>([])
   const [loading, setLoading] = useState(true)
   const [savingSpotify, setSavingSpotify] = useState(false)
+  const [savingOpenAI, setSavingOpenAI] = useState(false)
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({})
   const [youtubeCredentials, setYouTubeCredentials] = useState({
     clientId: "",
@@ -45,6 +47,10 @@ export default function PlatformsPage() {
   const [spotifyCredentials, setSpotifyCredentials] = useState({
     rssFeedUrl: ""
   })
+  const [openaiCredentials, setOpenAICredentials] = useState({
+    apiKey: ""
+  })
+  const [youtubeDebugInfo, setYoutubeDebugInfo] = useState<any>(null)
   const { toast } = useToast()
   const { user, token, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -59,6 +65,31 @@ export default function PlatformsPage() {
       fetchPlatforms()
     }
   }, [user, token, authLoading, router])
+
+  // YouTube認証結果の確認
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const youtubeAuth = urlParams.get('youtube_auth')
+    
+    if (youtubeAuth === 'success') {
+      toast({
+        title: "YouTube認証成功",
+        description: "YouTubeアカウントの認証が完了しました。",
+      })
+      // URLパラメータをクリア
+      window.history.replaceState({}, document.title, window.location.pathname)
+      // プラットフォーム一覧を再取得
+      fetchPlatforms()
+    } else if (youtubeAuth === 'error') {
+      toast({
+        title: "YouTube認証失敗",
+        description: "YouTubeアカウントの認証に失敗しました。",
+        variant: "destructive"
+      })
+      // URLパラメータをクリア
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
 
   const fetchPlatforms = async () => {
     try {
@@ -82,7 +113,8 @@ export default function PlatformsPage() {
 
   const handleYouTubeAuth = async () => {
     try {
-      const response = await fetch('/api/platforms', {
+      // まず、クライアントIDとシークレットを保存
+      const saveResponse = await fetch('/api/platforms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,17 +128,78 @@ export default function PlatformsPage() {
         })
       })
 
-      if (response.ok) {
+      if (saveResponse.ok) {
         toast({
-          title: "YouTube設定完了",
-          description: "YouTubeの設定が保存されました。",
+          title: "YouTube設定保存完了",
+          description: "クライアントIDとシークレットが保存されました。認証フローを開始します。",
         })
+
+        // OAuth認証URLを取得
+        const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (authResponse.ok) {
+          const authData = await authResponse.json()
+          console.log('YouTube auth URL generated:', authData.authUrl)
+          
+          // ブラウザで認証URLを開く
+          const newWindow = window.open(authData.authUrl, '_blank', 'width=600,height=700')
+          
+          // 新しいウィンドウが開いたかチェック
+          if (newWindow) {
+            toast({
+              title: "認証フロー開始",
+              description: "新しいウィンドウでGoogle認証を完了してください。認証が完了すると自動的にこのページに戻ります。",
+            })
+          } else {
+            // ポップアップブロッカーが有効な場合
+            toast({
+              title: "ポップアップがブロックされました",
+              description: "以下のURLを新しいタブで開いて認証を完了してください。",
+              variant: "destructive"
+            })
+            
+            // 認証URLをクリップボードにコピー
+            try {
+              await navigator.clipboard.writeText(authData.authUrl)
+              toast({
+                title: "URLをコピーしました",
+                description: "認証URLがクリップボードにコピーされました。新しいタブで貼り付けてください。",
+              })
+            } catch (error) {
+              console.error('Clipboard copy failed:', error)
+            }
+          }
+          
+          // 認証URLをコンソールにも出力（デバッグ用）
+          console.log('YouTube Auth URL:', authData.authUrl)
+        } else {
+          const errorData = await authResponse.json()
+          console.error('YouTube auth URL generation failed:', errorData)
+          toast({
+            title: "認証エラー",
+            description: `認証URLの生成に失敗しました: ${errorData.error || 'Unknown error'}`,
+            variant: "destructive"
+          })
+        }
+
         await fetchPlatforms()
+      } else {
+        const errorData = await saveResponse.json()
+        toast({
+          title: "エラー",
+          description: `YouTube設定の保存に失敗しました: ${errorData.error || 'Unknown error'}`,
+          variant: "destructive"
+        })
       }
     } catch (error) {
+      console.error('YouTube auth error:', error)
       toast({
         title: "エラー",
-        description: "YouTube設定の保存に失敗しました。",
+        description: "YouTube認証フローに失敗しました。",
         variant: "destructive"
       })
     }
@@ -224,6 +317,105 @@ export default function PlatformsPage() {
     }
   }
 
+  const handleOpenAIAuth = async () => {
+    try {
+      const response = await fetch('/api/platforms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          platform_type: 'openai',
+          platform_name: 'OpenAI',
+          credentials: openaiCredentials,
+          settings: {}
+        })
+      })
+
+      if (response.ok) {
+        toast({
+          title: "OpenAI設定完了",
+          description: "OpenAIの設定が保存されました。",
+        })
+        await fetchPlatforms()
+      }
+    } catch (error) {
+      toast({
+        title: "エラー",
+        description: "OpenAI設定の保存に失敗しました。",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const checkYouTubeAuthStatus = async () => {
+    try {
+      const response = await fetch('/api/platforms/youtube/debug', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setYoutubeDebugInfo(data)
+        console.log('YouTube debug info:', data)
+        
+        toast({
+          title: "認証状態確認",
+          description: `ClientID: ${data.debug.hasClientId ? '✓' : '✗'}, RefreshToken: ${data.debug.hasRefreshToken ? '✓' : '✗'}`,
+        })
+      } else {
+        toast({
+          title: "エラー",
+          description: "認証状態の確認に失敗しました。",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('YouTube debug error:', error)
+      toast({
+        title: "エラー",
+        description: "認証状態の確認に失敗しました。",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const resetYouTubeAuth = async () => {
+    try {
+      const response = await fetch('/api/platforms/youtube/revoke', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        toast({
+          title: "認証情報リセット完了",
+          description: "YouTube認証情報がリセットされました。再認証が必要です。",
+        })
+        await fetchPlatforms()
+        setYoutubeDebugInfo(null)
+      } else {
+        toast({
+          title: "エラー",
+          description: "認証情報のリセットに失敗しました。",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('YouTube reset error:', error)
+      toast({
+        title: "エラー",
+        description: "認証情報のリセットに失敗しました。",
+        variant: "destructive"
+      })
+    }
+  }
+
   const getPlatformStatus = (platformType: string) => {
     const platform = platforms.find(p => p.platform_type === platformType)
     const isConnected = platform && (platform.is_active || platform.id)
@@ -236,6 +428,8 @@ export default function PlatformsPage() {
           return <Badge className="bg-blue-100 text-blue-800 border-blue-200">接続済み</Badge>
         case 'spotify':
           return <Badge className="bg-green-100 text-green-800 border-green-200">接続済み</Badge>
+        case 'openai':
+          return <Badge className="bg-purple-100 text-purple-800 border-purple-200">設定済み</Badge>
         default:
           return <Badge className="bg-green-100 text-green-800 border-green-200">接続済み</Badge>
       }
@@ -266,6 +460,13 @@ export default function PlatformsPage() {
           card: 'border-green-200',
           button: 'bg-green-600 hover:bg-green-700 text-white',
           icon: 'text-green-600'
+        }
+      case 'openai':
+        return {
+          tab: 'data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 data-[state=active]:border-purple-200',
+          card: 'border-purple-200',
+          button: 'bg-purple-600 hover:bg-purple-700 text-white',
+          icon: 'text-purple-600'
         }
       default:
         return {
@@ -322,7 +523,7 @@ export default function PlatformsPage() {
         </div>
 
         <Tabs defaultValue="youtube" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="youtube" className={`flex items-center gap-2 ${getPlatformColors('youtube').tab}`}>
               <Youtube className={`h-4 w-4 ${getPlatformColors('youtube').icon}`} />
               YouTube
@@ -334,6 +535,10 @@ export default function PlatformsPage() {
             <TabsTrigger value="spotify" className={`flex items-center gap-2 ${getPlatformColors('spotify').tab}`}>
               <Music className={`h-4 w-4 ${getPlatformColors('spotify').icon}`} />
               Spotify
+            </TabsTrigger>
+            <TabsTrigger value="openai" className={`flex items-center gap-2 ${getPlatformColors('openai').tab}`}>
+              <Brain className={`h-4 w-4 ${getPlatformColors('openai').icon}`} />
+              前処理設定
             </TabsTrigger>
           </TabsList>
 
@@ -416,6 +621,72 @@ export default function PlatformsPage() {
                 <Button onClick={handleYouTubeAuth} className={`w-full ${getPlatformColors('youtube').button}`}>
                   YouTube設定を保存
                 </Button>
+                <Button 
+                  onClick={checkYouTubeAuthStatus} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  認証状態を確認
+                </Button>
+                <Button 
+                  onClick={resetYouTubeAuth} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  認証情報をリセット
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}`, {
+                        headers: {
+                          'Authorization': `Bearer ${token}`
+                        }
+                      })
+                      
+                      if (authResponse.ok) {
+                        const authData = await authResponse.json()
+                        window.open(authData.authUrl, '_blank')
+                        toast({
+                          title: "認証URLを開きました",
+                          description: "新しいタブでGoogle認証を完了してください。",
+                        })
+                      }
+                    } catch (error) {
+                      toast({
+                        title: "エラー",
+                        description: "認証URLの取得に失敗しました。",
+                        variant: "destructive"
+                      })
+                    }
+                  }}
+                  variant="outline" 
+                  className="w-full"
+                  disabled={!youtubeCredentials.clientId || !youtubeCredentials.clientSecret}
+                >
+                  認証URLを手動で開く
+                </Button>
+                {youtubeDebugInfo && (
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <h4 className="font-medium text-gray-900 mb-2">認証状態</h4>
+                    <div className="text-sm space-y-1">
+                      <div>Client ID: {youtubeDebugInfo.debug.hasClientId ? '✓' : '✗'}</div>
+                      <div>Client Secret: {youtubeDebugInfo.debug.hasClientSecret ? '✓' : '✗'}</div>
+                      <div>Access Token: {youtubeDebugInfo.debug.hasAccessToken ? '✓' : '✗'}</div>
+                      <div>Refresh Token: {youtubeDebugInfo.debug.hasRefreshToken ? '✓' : '✗'}</div>
+                    </div>
+                    {!youtubeDebugInfo.debug.hasRefreshToken && (
+                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                        <strong>注意:</strong> Refresh Tokenが取得できていません。Google認証を完了してください。
+                      </div>
+                    )}
+                    {youtubeDebugInfo.debug.hasRefreshToken && (
+                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                        <strong>情報:</strong> テスト中のGoogle Cloudプロジェクトでは、Refresh Tokenは7日間で期限切れになります。期限切れの場合は再認証が必要です。
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -560,6 +831,73 @@ export default function PlatformsPage() {
                   disabled={savingSpotify}
                 >
                   {savingSpotify ? '検証中...' : 'Spotify設定を保存'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="openai" className="mt-6">
+            <Card className={getPlatformColors('openai').card}>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Brain className={`h-5 w-5 ${getPlatformColors('openai').icon}`} />
+                      OpenAI設定
+                    </CardTitle>
+                    <CardDescription>
+                      OpenAI APIキーを設定してください
+                    </CardDescription>
+                  </div>
+                  {getPlatformStatus('openai')}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(() => {
+                  const connectedPlatform = getConnectedPlatformData('openai')
+                  if (connectedPlatform) {
+                    return (
+                      <div className="space-y-4">
+                        <div className="p-4 bg-gray-50 rounded-lg">
+                          <h4 className="font-medium text-gray-900 mb-3">現在の設定</h4>
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">APIキー:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-mono bg-white px-2 py-1 rounded border max-w-xs truncate">
+                                  {maskSensitiveData(connectedPlatform.credentials?.apiKey || '', showPasswords['openai-api-key'])}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePasswordVisibility('openai-api-key')}
+                                  className="text-xs text-blue-600 hover:text-blue-800"
+                                >
+                                  {showPasswords['openai-api-key'] ? '隠す' : '表示'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="border-t pt-4">
+                          <h4 className="font-medium text-gray-900 mb-3">設定を更新</h4>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                })()}
+                <div className="space-y-2">
+                  <Label htmlFor="openai-api-key">APIキー</Label>
+                  <Input
+                    id="openai-api-key"
+                    type="text"
+                    value={openaiCredentials.apiKey}
+                    onChange={(e) => setOpenAICredentials(prev => ({ ...prev, apiKey: e.target.value }))}
+                    placeholder="OpenAI APIキー"
+                  />
+                </div>
+                <Button onClick={handleOpenAIAuth} className={`w-full ${getPlatformColors('openai').button}`}>
+                  OpenAI設定を保存
                 </Button>
               </CardContent>
             </Card>

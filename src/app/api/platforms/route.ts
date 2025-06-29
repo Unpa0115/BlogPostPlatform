@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
               case 'spotify':
                 decryptedCredentials = PlatformCredentials.decryptSpotify(platform.credentials.encrypted)
                 break
+              case 'openai':
+                decryptedCredentials = PlatformCredentials.decryptOpenAI(platform.credentials.encrypted)
+                break
             }
             return {
               ...platform,
@@ -92,6 +95,9 @@ export async function GET(request: NextRequest) {
                   break
                 case 'spotify':
                   decryptedCredentials = PlatformCredentials.decryptSpotify(credentials.encrypted)
+                  break
+                case 'openai':
+                  decryptedCredentials = PlatformCredentials.decryptOpenAI(credentials.encrypted)
                   break
               }
               return {
@@ -152,6 +158,11 @@ export async function POST(request: NextRequest) {
           case 'spotify':
             encryptedCredentials = {
               encrypted: PlatformCredentials.encryptSpotify(credentials)
+            }
+            break
+          case 'openai':
+            encryptedCredentials = {
+              encrypted: PlatformCredentials.encryptOpenAI(credentials)
             }
             break
           default:
@@ -250,4 +261,155 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// YouTubeアップロード用のPOSTは別ファイルに分離します。 
+// YouTubeアップロード用のPOSTは別ファイルに分離します。
+
+// プラットフォーム認証情報更新
+export async function PATCH(request: NextRequest) {
+  try {
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { platform_type, credentials } = body
+
+    if (!platform_type) {
+      return NextResponse.json({ error: 'Missing platform_type' }, { status: 400 })
+    }
+
+    // 既存の認証情報を取得
+    let existingCredentials = {}
+    if (process.env.NODE_ENV === 'production') {
+      const existingResult = await db.query(
+        'SELECT credentials FROM distribution_platforms WHERE user_id = $1 AND platform_type = $2',
+        [user.id, platform_type]
+      )
+      
+      if (existingResult.rows.length > 0) {
+        const platform = existingResult.rows[0]
+        if (platform.credentials && platform.credentials.encrypted) {
+          try {
+            switch (platform_type) {
+              case 'youtube':
+                existingCredentials = PlatformCredentials.decryptYouTube(platform.credentials.encrypted)
+                break
+              case 'voicy':
+                existingCredentials = PlatformCredentials.decryptVoicy(platform.credentials.encrypted)
+                break
+              case 'spotify':
+                existingCredentials = PlatformCredentials.decryptSpotify(platform.credentials.encrypted)
+                break
+              case 'openai':
+                existingCredentials = PlatformCredentials.decryptOpenAI(platform.credentials.encrypted)
+                break
+            }
+          } catch (error) {
+            console.error('Decryption error:', error)
+          }
+        }
+      }
+    } else {
+      const sqliteDb = await db
+      const existingResult = await sqliteDb.get(
+        'SELECT credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
+        [user.id, platform_type]
+      )
+      
+      if (existingResult && existingResult.credentials) {
+        try {
+          const storedCredentials = typeof existingResult.credentials === 'string' 
+            ? JSON.parse(existingResult.credentials) 
+            : existingResult.credentials
+          
+          if (storedCredentials.encrypted) {
+            switch (platform_type) {
+              case 'youtube':
+                existingCredentials = PlatformCredentials.decryptYouTube(storedCredentials.encrypted)
+                break
+              case 'voicy':
+                existingCredentials = PlatformCredentials.decryptVoicy(storedCredentials.encrypted)
+                break
+              case 'spotify':
+                existingCredentials = PlatformCredentials.decryptSpotify(storedCredentials.encrypted)
+                break
+              case 'openai':
+                existingCredentials = PlatformCredentials.decryptOpenAI(storedCredentials.encrypted)
+                break
+            }
+          }
+        } catch (error) {
+          console.error('Decryption error:', error)
+        }
+      }
+    }
+
+    // 新しい認証情報と既存の認証情報をマージ
+    const updatedCredentials = {
+      ...existingCredentials,
+      ...credentials
+    }
+
+    // 認証情報を暗号化
+    let encryptedCredentials = {}
+    try {
+      switch (platform_type) {
+        case 'youtube':
+          encryptedCredentials = {
+            encrypted: PlatformCredentials.encryptYouTube(updatedCredentials)
+          }
+          break
+        case 'voicy':
+          encryptedCredentials = {
+            encrypted: PlatformCredentials.encryptVoicy(updatedCredentials)
+          }
+          break
+        case 'spotify':
+          encryptedCredentials = {
+            encrypted: PlatformCredentials.encryptSpotify(updatedCredentials)
+          }
+          break
+        case 'openai':
+          encryptedCredentials = {
+            encrypted: PlatformCredentials.encryptOpenAI(updatedCredentials)
+          }
+          break
+        default:
+          return NextResponse.json({ error: 'Unsupported platform type' }, { status: 400 })
+      }
+    } catch (error) {
+      console.error('Encryption error:', error)
+      return NextResponse.json({ 
+        error: 'Failed to encrypt credentials',
+        details: error instanceof Error ? error.message : 'Unknown encryption error'
+      }, { status: 500 })
+    }
+
+    // データベースを更新
+    if (process.env.NODE_ENV === 'production') {
+      await db.query(`
+        UPDATE distribution_platforms 
+        SET credentials = $1, updated_at = NOW()
+        WHERE user_id = $2 AND platform_type = $3
+      `, [encryptedCredentials, user.id, platform_type])
+    } else {
+      const sqliteDb = await db
+      const now = new Date().toISOString()
+      await sqliteDb.run(`
+        UPDATE distribution_platforms 
+        SET credentials = ?, updated_at = ?
+        WHERE user_id = ? AND platform_type = ?
+      `, [JSON.stringify(encryptedCredentials), now, user.id, platform_type])
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Platform credentials updated successfully'
+    })
+
+  } catch (error) {
+    console.error('Update platform credentials error:', error)
+    return NextResponse.json({ error: 'Failed to update platform credentials' }, { status: 500 })
+  }
+} 

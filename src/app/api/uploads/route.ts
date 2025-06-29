@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'fs/promises'
 import path from 'path'
 import { verifyAuth } from '@/lib/auth'
+import { storage } from '@/lib/storage'
+import { RssGenerator } from '@/lib/rss-generator'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/mnt/volume/uploads'
@@ -60,16 +62,45 @@ export async function POST(request: NextRequest) {
     // メタデータ保存
     await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2))
 
-    // 必要ならDB登録処理をここに追加
+    // DBにアップロード情報を保存
+    const upload = await storage.createUpload({
+      user_id: user.id,
+      title: metadata.title || file.name,
+      description: metadata.description || '',
+      file_path: filePath,
+      file_size: file.size,
+      mime_type: file.type,
+      status: 'completed',
+      metadata: metadata
+    })
+
+    // uploadオブジェクトの存在チェック
+    if (!upload || !upload.id) {
+      console.error('❌ Failed to create upload record in database')
+      return NextResponse.json({ error: 'Failed to save upload information' }, { status: 500 })
+    }
+
+    // 音声ファイルの場合、統合RSS Feedを更新
+    if (file.type.startsWith('audio/')) {
+      try {
+        const rssGenerator = new RssGenerator()
+        await rssGenerator.addEpisode(upload.id)
+        console.log(`✅ Added audio file to unified RSS feed: ${upload.title}`)
+      } catch (error) {
+        console.error('❌ Failed to update RSS feed:', error)
+        // RSS Feed更新の失敗はアップロード自体の失敗にはしない
+      }
+    }
 
     return NextResponse.json({
       success: true,
       data: {
+        id: upload.id,
         file_name: fileName,
         file_url: `/api/uploads?file=${encodeURIComponent(fileName)}`,
-        status: 'uploading',
+        status: 'completed',
         metadata,
-        created_at: new Date().toISOString(),
+        created_at: upload.created_at.toISOString(),
         file_size: file.size
       }
     })
