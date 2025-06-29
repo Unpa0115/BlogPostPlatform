@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +17,7 @@ import { usePlatforms } from "@/hooks/use-platforms"
 import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
+import { AuthNotifications } from '@/components/auth-notifications'
 
 export default function Dashboard() {
   const { user, loading: authLoading, token } = useAuth()
@@ -153,7 +154,19 @@ export default function Dashboard() {
           <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
           <p className="text-gray-600 mt-2">音声ファイルのアップロードと配信管理を行います</p>
         </div>
-        <StatsCards />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 認証通知 */}
+          <div className="lg:col-span-1">
+            <AuthNotifications userId="10699750-312a-4f82-ada7-c8e5cf9b1fa8" />
+          </div>
+
+          {/* 統計情報 */}
+          <div className="lg:col-span-2">
+            <Suspense fallback={<div>統計情報を読み込み中...</div>}>
+              <StatsCards />
+            </Suspense>
+          </div>
+        </div>
         {/* 新規アップロードエリア */}
         <Card className="mt-8">
           <CardHeader>
@@ -366,7 +379,9 @@ export default function Dashboard() {
         </div>
         {/* 最近のアップロード */}
         <div className="mt-8">
-          <RecentUploads />
+          <Suspense fallback={<div>アップロード履歴を読み込み中...</div>}>
+            <RecentUploads />
+          </Suspense>
         </div>
       </div>
     </div>

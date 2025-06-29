@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Upload, FileAudio, FileVideo, Clock } from 'lucide-react'
 import { DistributionManager } from '@/components/distribution-manager'
 import { FileSelector } from '@/components/file-selector'
+import { checkAllPlatforms } from '@/lib/file-formats'
 
 interface UploadItem {
   id: string
@@ -36,6 +37,7 @@ export default function UploadPage() {
   const [pastUploads, setPastUploads] = useState<UploadItem[]>([])
   const [showPastUploads, setShowPastUploads] = useState(false)
   const [uploadedFile, setUploadedFile] = useState<{id: string, filePath: string, mimeType: string} | null>(null)
+  const [platformSupport, setPlatformSupport] = useState<{ [key: string]: { isSupported: boolean; message: string } }>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { user, token } = useAuth()
   const { toast } = useToast()
@@ -45,6 +47,59 @@ export default function UploadPage() {
       fetchPastUploads()
     }
   }, [user, token])
+
+  // ファイル形式に基づいてプラットフォームの対応状況をチェック
+  useEffect(() => {
+    if (selectedFile) {
+      const supportResults = checkAllPlatforms(selectedFile.name)
+      setPlatformSupport(supportResults)
+      
+      // 対応しているプラットフォームがある場合は通知
+      const supportedPlatforms = Object.keys(supportResults).filter(
+        platform => supportResults[platform].isSupported
+      )
+      
+      if (supportedPlatforms.length > 0) {
+        toast({
+          title: "ファイル形式確認",
+          description: `${supportedPlatforms.join(', ')}に対応したファイル形式です。`,
+        })
+      } else {
+        toast({
+          title: "ファイル形式警告",
+          description: "このファイル形式はどのプラットフォームにも対応していません。",
+          variant: "destructive"
+        })
+      }
+    }
+  }, [selectedFile, toast])
+
+  // 既存ファイル選択時のプラットフォーム対応状況チェック
+  useEffect(() => {
+    if (selectedUploadedFiles.length > 0) {
+      const fileName = selectedUploadedFiles[0]
+      const supportResults = checkAllPlatforms(fileName)
+      setPlatformSupport(supportResults)
+      
+      // 対応しているプラットフォームがある場合は通知
+      const supportedPlatforms = Object.keys(supportResults).filter(
+        platform => supportResults[platform].isSupported
+      )
+      
+      if (supportedPlatforms.length > 0) {
+        toast({
+          title: "ファイル形式確認",
+          description: `${supportedPlatforms.join(', ')}に対応したファイル形式です。`,
+        })
+      } else {
+        toast({
+          title: "ファイル形式警告",
+          description: "このファイル形式はどのプラットフォームにも対応していません。",
+          variant: "destructive"
+        })
+      }
+    }
+  }, [selectedUploadedFiles, toast])
 
   const fetchPastUploads = async () => {
     try {
@@ -227,6 +282,27 @@ export default function UploadPage() {
                   title="既存ファイル選択"
                   description="アップロード済みファイルから選択してください"
                 />
+                
+                {/* 既存ファイル選択時のプラットフォーム対応状況表示 */}
+                {selectedUploadedFiles.length > 0 && Object.keys(platformSupport).length > 0 && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <div className="text-sm font-medium text-gray-700 mb-2">プラットフォーム対応状況:</div>
+                    <div className="space-y-1">
+                      {Object.entries(platformSupport).map(([platform, support]) => (
+                        <div key={platform} className="text-sm flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${support.isSupported ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                          <span className="capitalize font-medium">{platform}:</span>
+                          <span className={support.isSupported ? 'text-green-600' : 'text-red-600'}>
+                            {support.isSupported ? '対応' : '非対応'}
+                          </span>
+                          {!support.isSupported && (
+                            <span className="text-xs text-gray-500">({support.message})</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -325,10 +401,28 @@ export default function UploadPage() {
                     <span className="text-sm text-gray-500">
                       {formatFileSize(selectedFile.size)}
                     </span>
+                    
+                    {/* プラットフォーム対応状況の表示 */}
+                    {Object.keys(platformSupport).length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        <div className="text-xs font-medium text-gray-700">プラットフォーム対応状況:</div>
+                        {Object.entries(platformSupport).map(([platform, support]) => (
+                          <div key={platform} className="text-xs flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${support.isSupported ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            <span className="capitalize">{platform}:</span>
+                            <span className={support.isSupported ? 'text-green-600' : 'text-red-600'}>
+                              {support.isSupported ? '対応' : '非対応'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
                         setSelectedFile(null)
+                        setPlatformSupport({})
                         if (fileInputRef.current) {
                           fileInputRef.current.value = ''
                         }

@@ -6,8 +6,8 @@
     <description>Automatically generated podcast feed for Spotify synchronization</description>
     <language>ja</language>
     <copyright>© 2025 AutoPost</copyright>
-    <lastBuildDate>Sat, 28 Jun 2025 00:47:18 GMT</lastBuildDate>
-    <pubDate>Sat, 28 Jun 2025 00:47:18 GMT</pubDate>
+    <lastBuildDate>Sun, 29 Jun 2025 07:26:22 GMT</lastBuildDate>
+    <pubDate>Sun, 29 Jun 2025 07:26:22 GMT</pubDate>
     <itunes:category text="Technology" />
     <itunes:explicit>no</itunes:explicit>
     <itunes:image href="http://localhost:3000/podcast-cover.jpg" />
@@ -16,9 +16,9 @@
     <item>
       <title><![CDATA[bell-ringing-05のコピー.mp3]]></title>
       <description><![CDATA[]]></description>
-      <enclosure url="http://localhost:3000/api/rss/media/44" length="99238" type="audio/mpeg" />
-      <guid isPermaLink="false">autopost-44e7bab2-54f0-4db2-b251-b3546988208a-1751071638997</guid>
-      <pubDate>Sat, 28 Jun 2025 00:47:18 GMT</pubDate>
+      <enclosure url="http://localhost:3000/api/rss/media/5246486" length="99238" type="audio/mpeg" />
+      <guid isPermaLink="false">autopost-5246486a-7e4d-4bfd-91db-109923da8107-1751181982811</guid>
+      <pubDate>Sun, 29 Jun 2025 07:26:22 GMT</pubDate>
       <itunes:duration>00:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>

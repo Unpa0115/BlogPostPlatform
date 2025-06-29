@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast'
 import { usePlatforms } from '@/hooks/use-platforms'
 import { useAuth } from '@/contexts/auth-context'
 import { Youtube, Music, Mic, Upload, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react'
+import { checkAllPlatforms } from '@/lib/file-formats'
 
 interface DistributionManagerProps {
   uploadId?: string
@@ -28,6 +29,12 @@ interface DistributionStatus {
   message?: string
 }
 
+interface PlatformSupport {
+  isSupported: boolean
+  message: string
+  disabled: boolean
+}
+
 export function DistributionManager({ uploadId, title, description, filePath, mimeType, disabled }: DistributionManagerProps) {
   const [distributionTargets, setDistributionTargets] = useState({
     youtube: false,
@@ -37,6 +44,11 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   const [distributionStatus, setDistributionStatus] = useState<DistributionStatus[]>([])
   const [isDistributing, setIsDistributing] = useState(false)
   const [youtubeAuthUrl, setYoutubeAuthUrl] = useState<string | null>(null)
+  const [platformSupport, setPlatformSupport] = useState<{ [key: string]: PlatformSupport }>({
+    youtube: { isSupported: true, message: '', disabled: false },
+    voicy: { isSupported: true, message: '', disabled: false },
+    spotify: { isSupported: true, message: '', disabled: false }
+  })
   
   const { toast } = useToast()
   const { isPlatformConfigured, getPlatformCredentials } = usePlatforms()
@@ -70,6 +82,64 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [toast])
+
+  // ファイル形式に基づいてプラットフォームの対応状況をチェック
+  useEffect(() => {
+    // filePathまたはtitleからファイル名を取得
+    let fileName = ''
+    
+    if (filePath) {
+      // filePathからファイル名を抽出（パスの最後の部分）
+      fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath
+    } else if (title) {
+      fileName = title
+    }
+    
+    console.log('=== File Format Check Debug ===')
+    console.log('fileName:', fileName)
+    console.log('filePath:', filePath)
+    console.log('title:', title)
+    console.log('mimeType:', mimeType)
+    
+    if (fileName) {
+      const supportResults = checkAllPlatforms(fileName, mimeType)
+      console.log('Support results:', supportResults)
+      
+      const newPlatformSupport: { [key: string]: PlatformSupport } = {}
+      
+      Object.keys(supportResults).forEach(platform => {
+        const result = supportResults[platform]
+        newPlatformSupport[platform] = {
+          isSupported: result.isSupported,
+          message: result.message,
+          disabled: !result.isSupported
+        }
+      })
+      
+      console.log('New platform support:', newPlatformSupport)
+      setPlatformSupport(newPlatformSupport)
+      
+      // 対応していないプラットフォームは自動的にオフにし、対応しているプラットフォームは自動的にオンにする
+      setDistributionTargets(prev => {
+        const newTargets = { ...prev }
+        Object.keys(newPlatformSupport).forEach(platform => {
+          if (!newPlatformSupport[platform].isSupported) {
+            newTargets[platform as keyof typeof prev] = false
+          } else {
+            // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
+            const isConfigured = isPlatformConfigured(platform as 'youtube' | 'voicy' | 'spotify')
+            if (isConfigured) {
+              newTargets[platform as keyof typeof prev] = true
+            } else {
+              // 設定されていない場合はオフのままにする
+              newTargets[platform as keyof typeof prev] = false
+            }
+          }
+        })
+        return newTargets
+      })
+    }
+  }, [filePath, title, mimeType])
 
   const platforms = [
     {
@@ -474,6 +544,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
             const isConfigured = isPlatformConfigured(platform.key)
             const isEnabled = distributionTargets[platform.key]
             const Icon = platform.icon
+            const support = platformSupport[platform.key]
 
             return (
               <div
@@ -482,7 +553,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
                   isEnabled 
                     ? 'border-blue-500 bg-blue-50' 
                     : 'border-gray-200 hover:border-gray-300'
-                } ${!isConfigured || disabled ? 'opacity-50' : ''}`}
+                } ${!isConfigured || disabled || support.disabled ? 'opacity-50' : ''}`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -497,13 +568,28 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
                   <Switch
                     checked={isEnabled}
                     onCheckedChange={() => handleTogglePlatform(platform.key)}
-                    disabled={!isConfigured || disabled}
+                    disabled={!isConfigured || disabled || support.disabled}
                   />
                 </div>
                 
                 {!isConfigured && (
                   <Badge variant="secondary" className="text-xs">
                     設定が必要
+                  </Badge>
+                )}
+                
+                {support.disabled && (
+                  <div className="mt-2">
+                    <Badge variant="destructive" className="text-xs mb-1">
+                      対象外の拡張子
+                    </Badge>
+                    <p className="text-xs text-red-600">{support.message}</p>
+                  </div>
+                )}
+                
+                {support.isSupported && !support.disabled && (
+                  <Badge variant="default" className="text-xs">
+                    対応ファイル形式
                   </Badge>
                 )}
               </div>

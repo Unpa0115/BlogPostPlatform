@@ -89,6 +89,34 @@ export interface YouTubeCredentials {
   expiresAt?: number
 }
 
+// YouTube Token管理
+export interface YouTubeToken {
+  id: string
+  user_id: string
+  access_token?: string
+  refresh_token: string
+  expires_at?: Date
+  created_at: Date
+  updated_at: Date
+  status: 'active' | 'warning' | 'expired'
+  failure_count: number
+  last_used_at?: Date
+}
+
+// 認証通知
+export interface AuthNotification {
+  id: string
+  user_id: string
+  platform_type: string
+  notification_type: string
+  message: string
+  action_url?: string
+  is_read: boolean
+  expires_at?: Date
+  created_at: Date
+  updated_at: Date
+}
+
 // Voicy認証関連
 export interface VoicyCredentials {
   email: string

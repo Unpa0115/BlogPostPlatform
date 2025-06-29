@@ -104,6 +104,37 @@ export const createTables = async () => {
         )
       `)
 
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS youtube_tokens (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          access_token TEXT,
+          refresh_token TEXT NOT NULL,
+          expires_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'warning', 'expired')),
+          failure_count INTEGER DEFAULT 0,
+          last_used_at TIMESTAMP WITH TIME ZONE,
+          UNIQUE(user_id)
+        )
+      `)
+
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS auth_notifications (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          platform_type VARCHAR(20) NOT NULL,
+          notification_type VARCHAR(50) NOT NULL,
+          message TEXT NOT NULL,
+          action_url TEXT,
+          is_read BOOLEAN DEFAULT false,
+          expires_at TIMESTAMP WITH TIME ZONE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `)
+
       // インデックス作成
       await db.query(`CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id)`)
@@ -197,6 +228,39 @@ export const createTables = async () => {
           is_active INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+
+      await sqliteDb.exec(`
+        CREATE TABLE IF NOT EXISTS youtube_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          access_token TEXT,
+          refresh_token TEXT NOT NULL,
+          expires_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          status TEXT DEFAULT 'active',
+          failure_count INTEGER DEFAULT 0,
+          last_used_at DATETIME,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          UNIQUE(user_id)
+        )
+      `)
+
+      await sqliteDb.exec(`
+        CREATE TABLE IF NOT EXISTS auth_notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          platform_type TEXT NOT NULL,
+          notification_type TEXT NOT NULL,
+          message TEXT NOT NULL,
+          action_url TEXT,
+          is_read INTEGER DEFAULT 0,
+          expires_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `)
 
