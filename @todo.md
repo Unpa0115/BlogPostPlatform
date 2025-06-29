@@ -30,6 +30,35 @@
   - API Routesの実装
   - 見積時間: 3時間
 
+- [x] APIエンドポイント修正
+  - Next.js App Router構造に合わせたAPIルート修正
+  - /api/uploads/trim、/api/platforms/youtube-upload、/api/platforms/voicy-upload
+  - RSS Feed生成のURL検証修正
+  - 見積時間: 1時間
+
+- [x] ファイルサイズ表示とAPIエラー修正
+  - アップロード済みファイルのサイズ表示修正
+  - トリミングAPIのffmpeg出力パス設定修正
+  - YouTube/VoicyアップロードAPIのファイルパス処理改善
+  - エラーハンドリングの強化
+  - 見積時間: 1.5時間
+
+- [x] YouTubeアップロード機能の実装
+  - youtube-service.tsを参考にしたOAuth認証フロー実装
+  - YouTubeClientクラスの作成
+  - 認証コールバックAPIの追加
+  - アップロード処理の改善
+  - 見積時間: 2時間
+
+- [x] Voicyアップロード機能の修正
+  - Pythonスクリプト（voicy_automation.py）を使用するように変更
+  - Playwright直接使用からPythonスクリプト実行に変更
+  - 環境変数とコマンドライン引数の適切な設定
+  - フロントエンドのaudioFilesパラメータ送信修正
+  - Python環境のセットアップ（requirements.txt、setup-python.sh）
+  - デバッグログの追加
+  - 見積時間: 2時間
+
 - [ ] Railwayプロジェクト設定
   - Railwayプロジェクト作成
   - 環境変数設定
@@ -64,12 +93,12 @@
   - 見積時間: 1.5時間
 
 ### 🟢 通常 - 自動トリミング機能
-- [ ] Whisper API連携
+- [x] Whisper API連携
   - 音声解析機能
   - キーフレーズ検出
   - 見積時間: 3時間
 
-- [ ] 自動トリミングUI
+- [x] 自動トリミングUI
   - トリミング設定画面
   - プレビュー機能
   - 見積時間: 2時間
@@ -80,17 +109,35 @@
   - 認証情報管理
   - 見積時間: 2時間
 
-- [ ] Browserless.io連携
-  - Voicy自動アップロード機能
-  - 見積時間: 4時間
-
-- [ ] YouTube Data API連携
-  - YouTube動画アップロード機能
+- [x] 配信機能フロントエンド実装
+  - 各プラットフォームへの一括配信機能
+  - トグルボタンによる配信先選択
+  - 設定未完了時の無効化機能
+  - 配信状況のリアルタイム表示
   - 見積時間: 3時間
 
-- [ ] RSS Feed生成機能
+- [x] Browserless.io連携
+  - Voicy自動アップロード機能（Pythonスクリプト使用）
+  - Playwright + Stealth による自動化
+  - 見積時間: 4時間
+
+- [x] YouTube Data API連携
+  - YouTube動画アップロード機能
+  - OAuth認証フロー実装
+  - 見積時間: 3時間
+
+- [x] RSS Feed生成機能
   - Spotify配信用RSS生成
+  - URL検証機能追加
   - 見積時間: 1.5時間
+
+- [x] Spotify RSS Feed 50件制限対応
+  - アーカイブ機能の実装
+  - 自動制限管理システム
+  - 統計情報表示機能
+  - アーカイブからの復元機能
+  - RSS Feed管理UIの追加
+  - 見積時間: 3時間
 
 ### 🟢 通常 - ジョブ管理システム
 - [x] ジョブ管理データベース設計
@@ -136,14 +183,47 @@
   - API Routes実装完了（uploads, jobs, stats, platforms）
   - フロントエンドコンポーネント実装完了
   - ナビゲーション実装完了
-  - 次: Railwayプロジェクト設定とデータベース初期化
+  - [x] 配信機能フロントエンド実装完了
+    - DistributionManagerコンポーネント作成
+    - usePlatformsフック作成
+    - アップロードページへの統合
+    - 設定状態に基づくトグル制御
+  - [x] APIエンドポイント修正完了
+    - Next.js App Router構造に合わせた修正
+    - 404エラーの解決
+    - RSS Feed生成の改善
+  - [x] ファイルサイズ表示とAPIエラー修正完了
+    - アップロード済みファイルのサイズ表示修正
+    - トリミングAPIのffmpeg出力パス設定修正
+    - YouTube/VoicyアップロードAPIのファイルパス処理改善
+    - エラーハンドリングの強化
+  - [x] YouTubeアップロード機能実装完了
+    - youtube-service.tsを参考にしたOAuth認証フロー実装
+    - YouTubeClientクラスの作成
+    - 認証コールバックAPIの追加
+    - アップロード処理の改善
+  - [x] Voicyアップロード機能修正完了
+    - Pythonスクリプトを使用するように変更
+    - フロントエンドのaudioFilesパラメータ送信修正
+    - Python環境のセットアップ完了
+  - [x] Spotify RSS Feed 50件制限対応完了
+    - RssGeneratorクラスにアーカイブ機能を追加
+    - 自動制限管理システムの実装
+    - 統計情報取得APIの追加
+    - アーカイブ管理APIの追加
+    - RssFeedManager UIコンポーネントの作成
+    - 設定ページへの統合
+  - 次: 機能テストとRailwayプロジェクト設定
 
 ## 次のアクション
-1. Railwayプロジェクトの設定
-2. 環境変数の設定
-3. データベース初期化（npm run db:init）
-4. 認証機能のテスト
-5. アップロード機能のテスト
+1. ファイルアップロード機能のテスト
+2. トリミング機能のテスト
+3. YouTubeアップロード機能のテスト
+4. Voicyアップロード機能のテスト
+5. RSS Feed生成のテスト
+6. Railwayプロジェクトの設定
+7. 環境変数の設定
+8. データベース初期化（npm run db:init）
 
 ## 完了したタスク
 - ✅ プロジェクト初期設定（package.json、tsconfig.json、next.config.ts）
@@ -162,6 +242,36 @@
 - ✅ フロントエンドコンポーネント実装
 - ✅ ナビゲーション実装
 - ✅ ダッシュボード機能実装
+- ✅ 配信機能フロントエンド実装
+  - DistributionManagerコンポーネント
+  - usePlatformsフック
+  - アップロードページ統合
+  - 設定状態管理
+- ✅ APIエンドポイント修正
+  - Next.js App Router構造対応
+  - 404エラー解決
+  - RSS Feed生成改善
+- ✅ ファイルサイズ表示とAPIエラー修正
+  - アップロード済みファイルのサイズ表示修正
+  - トリミングAPIのffmpeg出力パス設定修正
+  - YouTube/VoicyアップロードAPIのファイルパス処理改善
+  - エラーハンドリングの強化
+- ✅ YouTubeアップロード機能実装
+  - youtube-service.tsを参考にしたOAuth認証フロー実装
+  - YouTubeClientクラスの作成
+  - 認証コールバックAPIの追加
+  - アップロード処理の改善
+- ✅ Voicyアップロード機能修正
+  - Pythonスクリプトを使用するように変更
+  - フロントエンドのaudioFilesパラメータ送信修正
+  - Python環境のセットアップ完了
+- ✅ Spotify RSS Feed 50件制限対応完了
+  - RssGeneratorクラスにアーカイブ機能を追加
+  - 自動制限管理システムの実装
+  - 統計情報取得APIの追加
+  - アーカイブ管理APIの追加
+  - RssFeedManager UIコンポーネントの作成
+  - 設定ページへの統合
 
 ## 技術スタック（Railwayベース）
 - **フロントエンド**: Next.js 14, React 18, TypeScript

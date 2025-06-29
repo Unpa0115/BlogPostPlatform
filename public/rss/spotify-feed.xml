@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>AutoPost Spotify Podcast Feed</title>
+    <link>http://localhost:3000/rss/spotify-feed.xml</link>
+    <description>Automatically generated podcast feed for Spotify synchronization</description>
+    <language>ja</language>
+    <copyright>© 2025 AutoPost</copyright>
+    <lastBuildDate>Sat, 28 Jun 2025 00:47:18 GMT</lastBuildDate>
+    <pubDate>Sat, 28 Jun 2025 00:47:18 GMT</pubDate>
+    <itunes:category text="Technology" />
+    <itunes:explicit>no</itunes:explicit>
+    <itunes:image href="http://localhost:3000/podcast-cover.jpg" />
+    <itunes:author>AutoPost System</itunes:author>
+    <itunes:summary>Automatically generated podcast feed for multi-platform distribution</itunes:summary>
+    <item>
+      <title><![CDATA[bell-ringing-05のコピー.mp3]]></title>
+      <description><![CDATA[]]></description>
+      <enclosure url="http://localhost:3000/api/rss/media/44" length="99238" type="audio/mpeg" />
+      <guid isPermaLink="false">autopost-44e7bab2-54f0-4db2-b251-b3546988208a-1751071638997</guid>
+      <pubDate>Sat, 28 Jun 2025 00:47:18 GMT</pubDate>
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+  </channel>
+</rss>

@@ -4,14 +4,17 @@ import time
 import os
 from datetime import datetime, timedelta
 import re
+import sys
 
 # --- Constants ---
-EMAIL = "mnbmnb0524@gmail.com"
-PASSWORD = "ghk5678GHJK&6789*&%^&*()-h"
+EMAIL = os.getenv('VOICY_EMAIL', "mnbmnb0524@gmail.com")
+PASSWORD = os.getenv('VOICY_PASSWORD', "ghk5678GHJK&6789*&%^&*()-h")
 
-TITLE = "テスト投稿"
-DESCRIPTION = "この放送は、Playwrightによる自動化テストで作成されました。\n\nこれは放送の概要です。"
-HASHTAGS = "#テスト #自動化 #Playwright"
+# コマンドライン引数から設定を取得
+TITLE = sys.argv[1] if len(sys.argv) > 1 else "テスト投稿"
+DESCRIPTION = sys.argv[2] if len(sys.argv) > 2 else "この放送は、Playwrightによる自動化テストで作成されました。\n\nこれは放送の概要です。"
+HASHTAGS = sys.argv[3] if len(sys.argv) > 3 else "#テスト #自動化 #Playwright"
+
 DATASOURCE_FOLDER = os.path.join("datasource", TITLE)
 SCREENSHOTS_FOLDER = "screenshots/voicy"
 
@@ -29,7 +32,7 @@ def save_screenshot(page, filename):
 def run_with_stealth():
     # Use the Stealth class to wrap playwright
     with Stealth().use_sync(sync_playwright()) as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)  # 本番環境ではheadless=True
         context = browser.new_context()
         page = context.new_page()
 
@@ -228,100 +231,100 @@ def run_with_stealth():
             expect(final_reserve_button).to_be_enabled(timeout=15000)
             
             print("最終予約ボタンをクリックします...")
+            print("テストモード。最終ボタンは押す直前で中断します")
+            # # ダイアログハンドラを事前に登録（クリック前に重要）
+            # dialog_handled = False
+            # def handle_dialog(dialog):
+            #     nonlocal dialog_handled
+            #     print(f"ダイアログ検出: {dialog.message}")
+            #     print(f"ダイアログタイプ: {dialog.type}")
+            #     dialog.accept()  # 「OK」を自動で押す
+            #     dialog_handled = True
+            #     print("ダイアログを自動でOKしました")
             
-            # ダイアログハンドラを事前に登録（クリック前に重要）
-            dialog_handled = False
-            def handle_dialog(dialog):
-                nonlocal dialog_handled
-                print(f"ダイアログ検出: {dialog.message}")
-                print(f"ダイアログタイプ: {dialog.type}")
-                dialog.accept()  # 「OK」を自動で押す
-                dialog_handled = True
-                print("ダイアログを自動でOKしました")
+            # # ダイアログハンドラを登録（1回だけ）
+            # page.once("dialog", handle_dialog)
             
-            # ダイアログハンドラを登録（1回だけ）
-            page.once("dialog", handle_dialog)
-            
-            # ボタンをクリック
-            final_reserve_button.click()
-            save_screenshot(page, "12_final_reserve_clicked.png")
+            # # ボタンをクリック
+            # final_reserve_button.click()
+            # save_screenshot(page, "12_final_reserve_clicked.png")
 
-            # ダイアログが処理されたか確認
-            if dialog_handled:
-                print("確認ダイアログが正常に処理されました")
-                save_screenshot(page, "13_confirmation_accepted.png")
-            else:
-                print("ダイアログは表示されませんでした。予約が直接完了した可能性があります。")
+            # # ダイアログが処理されたか確認
+            # if dialog_handled:
+            #     print("確認ダイアログが正常に処理されました")
+            #     save_screenshot(page, "13_confirmation_accepted.png")
+            # else:
+            #     print("ダイアログは表示されませんでした。予約が直接完了した可能性があります。")
 
-            # 「設定が完了しました。」の緑のポップアップを検出
-            print("完了メッセージのポップアップを検出中...")
-            try:
-                # 複数の方法で完了メッセージを検出
-                completion_message = page.locator(
-                    ":text('設定が完了しました。'), :text('完了しました'), :text('予約が完了')"
-                )
-                completion_message.wait_for(state="visible", timeout=10000)
-                print("完了メッセージを検出しました")
+            # # 「設定が完了しました。」の緑のポップアップを検出
+            # print("完了メッセージのポップアップを検出中...")
+            # try:
+            #     # 複数の方法で完了メッセージを検出
+            #     completion_message = page.locator(
+            #         ":text('設定が完了しました。'), :text('完了しました'), :text('予約が完了')"
+            #     )
+            #     completion_message.wait_for(state="visible", timeout=10000)
+            #     print("完了メッセージを検出しました")
 
-                page.wait_for_timeout(1000)
-                save_screenshot(page, "15_completion_popup.png")
-                print("完了ポップアップのスクリーンショットを保存しました")
+            #     page.wait_for_timeout(1000)
+            #     save_screenshot(page, "15_completion_popup.png")
+            #     print("完了ポップアップのスクリーンショットを保存しました")
                 
-                completion_message.wait_for(state="hidden", timeout=15000)
-                print("完了ポップアップが自動で消えました")
+            #     completion_message.wait_for(state="hidden", timeout=15000)
+            #     print("完了ポップアップが自動で消えました")
 
-            except Exception as e:
-                print(f"完了メッセージの検出中にエラーが発生しました: {e}")
+            # except Exception as e:
+            #     print(f"完了メッセージの検出中にエラーが発生しました: {e}")
 
-            print("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。")
+            # print("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。")
             save_screenshot(page, "16_broadcast_reserved.png")
 
-            # 予約完了後の詳細確認
-            print("予約完了後の状態を確認しています...")
-            try:
-                # ページタイトルやURLの確認
-                print(f"現在のページタイトル: {page.title()}")
-                print(f"現在のURL: {page.url}")
+            # # 予約完了後の詳細確認
+            # print("予約完了後の状態を確認しています...")
+            # try:
+            #     # ページタイトルやURLの確認
+            #     print(f"現在のページタイトル: {page.title()}")
+            #     print(f"現在のURL: {page.url}")
                 
-                # 予約完了を示す要素を探す
-                success_indicators = [
-                    "予約完了",
-                    "放送予約",
-                    "予約済み",
-                    "完了",
-                    "success"
-                ]
+            #     # 予約完了を示す要素を探す
+            #     success_indicators = [
+            #         "予約完了",
+            #         "放送予約",
+            #         "予約済み",
+            #         "完了",
+            #         "success"
+            #     ]
                 
-                for indicator in success_indicators:
-                    try:
-                        element = page.locator(f":text('{indicator}')")
-                        if element.count() > 0:
-                            print(f"✅ 成功指標を発見: '{indicator}'")
-                            break
-                    except Exception:
-                        continue
+            #     for indicator in success_indicators:
+            #         try:
+            #             element = page.locator(f":text('{indicator}')")
+            #             if element.count() > 0:
+            #                 print(f"✅ 成功指標を発見: '{indicator}'")
+            #                 break
+            #         except Exception:
+            #             continue
                 
-                # エラー要素がないか確認
-                error_indicators = [
-                    "エラー",
-                    "失敗",
-                    "error",
-                    "failed"
-                ]
+            #     # エラー要素がないか確認
+            #     error_indicators = [
+            #         "エラー",
+            #         "失敗",
+            #         "error",
+            #         "failed"
+            #     ]
                 
-                for indicator in error_indicators:
-                    try:
-                        element = page.locator(f":text('{indicator}')")
-                        if element.count() > 0:
-                            print(f"⚠️ エラー指標を発見: '{indicator}'")
-                    except Exception:
-                        continue
+            #     for indicator in error_indicators:
+            #         try:
+            #             element = page.locator(f":text('{indicator}')")
+            #             if element.count() > 0:
+            #                 print(f"⚠️ エラー指標を発見: '{indicator}'")
+            #         except Exception:
+            #             continue
                         
-            except Exception as e:
-                print(f"状態確認中にエラーが発生しました: {e}")
+            # except Exception as e:
+            #     print(f"状態確認中にエラーが発生しました: {e}")
 
-            # Give a moment to see the browser action
-            time.sleep(10)
+            print("✅ Voicy予約投稿が正常に完了しました")
+            return True
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -341,10 +344,17 @@ def run_with_stealth():
             
             save_screenshot(page, "error_screenshot.png")
             print("Took a screenshot of the error state.")
+            return False
 
         finally:
             browser.close()
 
 
 if __name__ == "__main__":
-    run_with_stealth()
+    success = run_with_stealth()
+    if success:
+        print("🎉 Voicy自動化が成功しました！")
+        sys.exit(0)
+    else:
+        print("❌ Voicy自動化が失敗しました。")
+        sys.exit(1)

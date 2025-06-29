@@ -109,13 +109,23 @@ export class CredentialEncryption {
 // プラットフォーム別のCredentials暗号化
 export const PlatformCredentials = {
   // YouTube認証情報の暗号化
-  encryptYouTube: (credentials: { clientId: string; clientSecret: string }): string => {
+  encryptYouTube: (credentials: { 
+    clientId: string; 
+    clientSecret: string; 
+    accessToken?: string; 
+    refreshToken?: string; 
+  }): string => {
     const data = JSON.stringify(credentials)
     return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
   },
 
   // YouTube認証情報の復号化
-  decryptYouTube: (encryptedData: string): { clientId: string; clientSecret: string } => {
+  decryptYouTube: (encryptedData: string): { 
+    clientId: string; 
+    clientSecret: string; 
+    accessToken?: string; 
+    refreshToken?: string; 
+  } => {
     const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
     return JSON.parse(data)
   },
@@ -140,6 +150,18 @@ export const PlatformCredentials = {
 
   // Spotify認証情報の復号化
   decryptSpotify: (encryptedData: string): { rssFeedUrl: string } => {
+    const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
+    return JSON.parse(data)
+  },
+
+  // OpenAI APIキーの暗号化
+  encryptOpenAI: (credentials: { apiKey: string }): string => {
+    const data = JSON.stringify(credentials)
+    return CredentialEncryption.encrypt(data, CredentialEncryption.getMasterKey())
+  },
+
+  // OpenAI APIキーの復号化
+  decryptOpenAI: (encryptedData: string): { apiKey: string } => {
     const data = CredentialEncryption.decrypt(encryptedData, CredentialEncryption.getMasterKey())
     return JSON.parse(data)
   }
