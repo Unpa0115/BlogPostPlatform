@@ -184,4 +184,49 @@ export async function GET(request: NextRequest) {
     console.error('Download/List error:', error)
     return NextResponse.json({ error: 'Download/List failed' }, { status: 500 })
   }
+}
+
+// ファイル削除
+export async function DELETE(request: NextRequest) {
+  try {
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const fileName = searchParams.get('file')
+    if (!fileName) {
+      return NextResponse.json({ error: 'No file specified' }, { status: 400 })
+    }
+    // パスの安全性確保
+    if (fileName.includes('..')) {
+      return NextResponse.json({ error: 'Invalid file name' }, { status: 400 })
+    }
+    const filePath = path.join(UPLOAD_DIR, fileName)
+    const metadataPath = filePath + '.metadata.json'
+
+    // ファイル削除
+    try {
+      await fs.unlink(filePath)
+    } catch (e) {
+      // ファイルが存在しない場合も無視
+    }
+    try {
+      await fs.unlink(metadataPath)
+    } catch (e) {}
+
+    // DBレコード削除
+    try {
+      await storage.deleteUploadByFilePath(filePath)
+    } catch (e) {
+      // DBレコードがなくても無視
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Delete error:', error)
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+  }
 } 

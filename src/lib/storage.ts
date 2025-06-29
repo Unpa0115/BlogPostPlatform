@@ -842,6 +842,23 @@ export class DatabaseStorage {
     }
   }
 
+  // ファイルパスでアップロードレコードを削除
+  async deleteUploadByFilePath(filePath: string): Promise<boolean> {
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        const result = await db.query('DELETE FROM uploads WHERE file_path = $1', [filePath])
+        return result.rowCount > 0
+      } else {
+        const sqliteDb = await db
+        const result = await sqliteDb.run('DELETE FROM uploads WHERE file_path = ?', [filePath])
+        return result.changes > 0
+      }
+    } catch (error) {
+      console.error('Error deleting upload by file path:', error)
+      return false
+    }
+  }
+
   // RSS Episode operations
   async getRssEpisodeGuids(feedId: string): Promise<string[]> {
     try {

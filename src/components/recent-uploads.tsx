@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { FileAudio, Play, Download, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
+import { useToast } from '@/hooks/use-toast'
 
 interface AudioFile {
   id: string
@@ -20,6 +21,8 @@ interface AudioFile {
 export function RecentUploads() {
   const [uploads, setUploads] = useState<AudioFile[]>([])
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUploads = async () => {
@@ -72,6 +75,100 @@ export function RecentUploads() {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = seconds % 60
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  // ファイル再取得
+  const refreshUploads = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/uploads?limit=5', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setUploads(data.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch uploads:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ダウンロード処理
+  const handleDownload = async (fileName: string) => {
+    try {
+      const res = await fetch(`/api/uploads?file=${encodeURIComponent(fileName)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      if (!res.ok) throw new Error('ダウンロード失敗')
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+      toast({ title: 'ダウンロード完了', description: 'ファイルをダウンロードしました。' })
+    } catch (e) {
+      toast({ title: 'ダウンロード失敗', description: 'ファイルのダウンロードに失敗しました。', variant: 'destructive' })
+    }
+  }
+
+  // 削除処理
+  const handleDelete = async (fileName: string) => {
+    if (!window.confirm('本当にこのファイルを削除しますか？')) return
+    setDeletingId(fileName)
+    try {
+      const res = await fetch(`/api/uploads?file=${encodeURIComponent(fileName)}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      })
+      if (!res.ok) throw new Error('削除失敗')
+      toast({ title: '削除完了', description: 'ファイルを削除しました。' })
+      await refreshUploads()
+    } catch (e) {
+      toast({ title: '削除失敗', description: 'ファイルの削除に失敗しました。', variant: 'destructive' })
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  // 再アップロード処理
+  const handleReupload = async (fileName: string) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'audio/*,video/*'
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('metadata', '{}')
+      try {
+        const res = await fetch('/api/uploads', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        })
+        if (!res.ok) throw new Error('アップロード失敗')
+        toast({ title: '再アップロード完了', description: 'ファイルを再アップロードしました。' })
+        await refreshUploads()
+      } catch (e) {
+        toast({ title: 'アップロード失敗', description: 'ファイルの再アップロードに失敗しました。', variant: 'destructive' })
+      }
+    }
+    input.click()
   }
 
   if (loading) {
@@ -136,13 +233,13 @@ export function RecentUploads() {
                 </div>
                 
                 <div className="flex items-center space-x-2">
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" onClick={() => handleReupload(upload.file_name)}>
                     <Play className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" onClick={() => handleDownload(upload.file_name)}>
                     <Download className="h-4 w-4" />
                   </Button>
-                  <Button size="sm" variant="ghost">
+                  <Button size="sm" variant="ghost" onClick={() => handleDelete(upload.file_name)} disabled={deletingId === upload.file_name}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

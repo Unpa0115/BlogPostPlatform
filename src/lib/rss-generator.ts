@@ -149,7 +149,9 @@ ${episodeItems}
         filePath: upload.processed_file_path || upload.file_path,
         fileSize: upload.file_size,
         mimeType: upload.mime_type,
-        pubDate: upload.created_at,
+        pubDate: upload.created_at instanceof Date 
+          ? upload.created_at 
+          : new Date(upload.created_at),
         guid: `autopost-${upload.id}-${Date.now()}`,
       };
 
@@ -196,16 +198,23 @@ ${episodeItems}
         upload.status === 'completed'
       );
 
-      return audioUploads.map(upload => ({
-        id: parseInt(upload.id),
-        title: upload.title,
-        description: upload.description || undefined,
-        filePath: upload.processed_file_path || upload.file_path,
-        fileSize: upload.file_size,
-        mimeType: upload.mime_type,
-        pubDate: upload.created_at,
-        guid: `autopost-${upload.id}-${upload.created_at.getTime()}`,
-      })).sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
+      return audioUploads.map(upload => {
+        // created_atをDateオブジェクトに変換
+        const pubDate = upload.created_at instanceof Date 
+          ? upload.created_at 
+          : new Date(upload.created_at);
+        
+        return {
+          id: parseInt(upload.id),
+          title: upload.title,
+          description: upload.description || undefined,
+          filePath: upload.processed_file_path || upload.file_path,
+          fileSize: upload.file_size,
+          mimeType: upload.mime_type,
+          pubDate: pubDate,
+          guid: `autopost-${upload.id}-${pubDate.getTime()}`,
+        };
+      }).sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
       
     } catch (error) {
       console.error('Failed to get existing episodes:', error);
