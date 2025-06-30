@@ -1,4 +1,5 @@
 # Use the official Node.js runtime as the base image
+# TypeScript版のみを使用 - Python環境は削除済み
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
