@@ -24,33 +24,34 @@
 
 ### [2024-12-27 17:00] - Dockerfile修正とPython版voicy_automation.py統合
 
+### [2024-12-27 17:30] - Dockerビルドエラーの解決
+
 # 実行結果報告
 
 ## 概要
-RailwayでのNext.jsアプリケーションとしてのデプロイ設定を確認し、Python版のvoicy_automation.pyを統合しました。Dockerfileを修正してPython環境とPlaywrightを追加し、TypeScript版とPython版の両方のVoicy自動化スクリプトを使用できるようにしました。
+Dockerビルドエラーの原因を特定し、`.dockerignore`ファイルの修正により解決しました。`python-scripts/requirements.txt`ファイルがDockerビルドに含まれるようになり、Railwayでのデプロイ準備が完了しました。
 
 ## 実行ステップ
-1. 現在のDockerfileの構造を確認し、Next.jsアプリケーション用に正しく設定されていることを確認
-2. Python環境とPlaywrightの依存関係をDockerfileに追加
-3. voicyClient.tsを修正してPython版とTypeScript版の両方を使用できるように変更
-4. voicy-upload APIエンドポイントにusePythonScriptオプションを追加
-5. Python版voicy_automation.pyの利用可能性を検証
+1. Dockerビルドエラーの詳細分析（python-scripts/requirements.txt not found）
+2. `.dockerignore`ファイルの確認と修正（python-scripts/ディレクトリの除外を削除）
+3. 環境変数ファイル（env.example）の更新（Voicy自動化用設定を追加）
+4. Railwayデプロイに必要な環境変数の確認
 
 ## 最終成果物
-- **修正されたDockerfile**: Python環境とPlaywrightを追加
-- **修正されたvoicyClient.ts**: Python版とTypeScript版の両方に対応
-- **修正されたvoicy-upload API**: usePythonScriptオプションを追加
-- **統合されたvoicy_automation.py**: Next.jsアプリケーション内で実行可能
+- **修正された.dockerignore**: python-scriptsディレクトリをDockerビルドに含めるように修正
+- **更新されたenv.example**: Voicy自動化用の環境変数を追加
+- **解決されたDockerビルドエラー**: python-scripts/requirements.txtファイルが正常にコピーされる
 
 ## 課題対応（該当する場合）
-- Dockerビルドエラーの原因を特定（Python Lambda用のDockerfileが誤って使用されていた）
-- RailwayでのNext.jsアプリケーションとしての適切なデプロイ設定を確認
-- Pythonスクリプトの実行環境をDockerコンテナ内に統合
+- **問題**: Dockerビルド時に`python-scripts/requirements.txt`ファイルが見つからない
+- **原因**: `.dockerignore`ファイルで`python-scripts/`ディレクトリが除外されていた
+- **対策**: `.dockerignore`ファイルから`python-scripts/`の除外を削除
 
 ## 注意点・改善提案
-- Python版とTypeScript版の両方を使用できるため、安定性の高い方を選択可能
-- DockerfileにPython環境を追加したため、ビルド時間が若干増加
-- Railwayでのデプロイ時は、適切な環境変数（API_TOKEN等）の設定が必要
+- Railwayでのデプロイ時は、`API_TOKEN`環境変数の設定が必要
+- `API_BASE_URL`は本番環境では適切なURLに変更する必要がある
+- Voicy認証情報は暗号化してデータベースに保存されるため、環境変数での設定は不要
+- Dockerビルドが正常に完了することを確認してからRailwayにデプロイ
 
 ## 累積成果物
 
