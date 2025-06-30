@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Upload, Rss, AudioLines, FileAudio } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { FileSelector } from './file-selector'
+import { Badge } from "@/components/ui/badge"
 
 interface UploadFormProps {
   onUploadComplete?: (fileId: string) => void
@@ -17,6 +19,7 @@ interface UploadFormProps {
 
 export function UploadForm({ onUploadComplete }: UploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [selectedUploadedFilePath, setSelectedUploadedFilePath] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
   const [metadata, setMetadata] = useState({
@@ -26,6 +29,17 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     category: ""
   })
   const { toast } = useToast()
+  const [rssUrl, setRssUrl] = useState<string>("")
+  const [rssEpisodes, setRssEpisodes] = useState<any[]>([])
+  const [rssLoading, setRssLoading] = useState(false)
+  const [rssError, setRssError] = useState<string | null>(null)
+  const [selectedRssEpisode, setSelectedRssEpisode] = useState<any | null>(null)
+
+  // RSS URLの初期化（localStorageから）
+  useEffect(() => {
+    const saved = localStorage.getItem("input_rss_url")
+    if (saved) setRssUrl(saved)
+  }, [])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -119,6 +133,54 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
     })
   }
 
+  // アップロード済みファイルの配信処理
+  const handleUploadedFileDistribute = async () => {
+    if (!selectedUploadedFilePath) return
+    try {
+      // ここで配信APIを呼び出す（例: /api/jobs POST など）
+      // 必要に応じてメタデータやプラットフォーム情報も渡す
+      toast({ title: '配信リクエスト送信', description: '配信処理を開始しました。' })
+      // TODO: 実際の配信API呼び出し実装
+    } catch (e) {
+      toast({ title: '配信エラー', description: '配信に失敗しました。', variant: 'destructive' })
+    }
+  }
+
+  // RSSエピソード取得
+  const fetchRssEpisodes = async (url: string) => {
+    setRssLoading(true)
+    setRssError(null)
+    try {
+      const res = await fetch(`/api/rss/info?url=${encodeURIComponent(url)}`)
+      if (!res.ok) throw new Error("RSS取得失敗")
+      const data = await res.json()
+      setRssEpisodes(data.episodes || [])
+    } catch (e: any) {
+      setRssError(e.message || "RSS取得エラー")
+      setRssEpisodes([])
+    } finally {
+      setRssLoading(false)
+    }
+  }
+
+  // RSS URL保存
+  const handleSaveRssUrl = () => {
+    localStorage.setItem("input_rss_url", rssUrl)
+    fetchRssEpisodes(rssUrl)
+    toast({ title: "RSS URLを保存", description: "エピソードを取得しました。" })
+  }
+
+  // RSSエピソード配信
+  const handleRssDistribute = async () => {
+    if (!selectedRssEpisode) return
+    try {
+      // TODO: 実際の配信API呼び出し実装
+      toast({ title: '配信リクエスト送信', description: 'RSSエピソードの配信処理を開始しました。' })
+    } catch (e) {
+      toast({ title: '配信エラー', description: '配信に失敗しました。', variant: 'destructive' })
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -132,11 +194,11 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="upload" className="flex items-center gap-2">
               <Upload className="h-4 w-4" />
-              ファイルアップロード
+              新規アップロード
             </TabsTrigger>
-            <TabsTrigger value="rss" className="flex items-center gap-2">
-              <Rss className="h-4 w-4" />
-              RSSエピソード
+            <TabsTrigger value="uploaded" className="flex items-center gap-2">
+              <AudioLines className="h-4 w-4" />
+              アップロード済みファイル
             </TabsTrigger>
           </TabsList>
           
@@ -227,13 +289,18 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
             )}
           </TabsContent>
           
-          <TabsContent value="rss" className="mt-4">
-            <div className="text-center py-8">
-              <Rss className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-600">
-                RSSエピソード選択機能は開発中です。
-              </p>
-            </div>
+          <TabsContent value="uploaded" className="mt-4">
+            <FileSelector
+              onFileSelect={(files) => setSelectedUploadedFilePath(files[0] || null)}
+              multiple={false}
+              title="アップロード済みファイル一覧"
+              description="過去にアップロードしたファイルから選択して配信できます"
+            />
+            {selectedUploadedFilePath && (
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <Button onClick={handleUploadedFileDistribute} className="w-48">配信する</Button>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -18,6 +18,15 @@ import { Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { AuthNotifications } from '@/components/auth-notifications'
+import { RssFeedManager } from '@/components/rss-feed-manager'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+/**
+ * 2024/07/01 UI改修
+ * ルート画面上部にタブを追加し、
+ * 「新規アップロード」と「RSS Feed管理・配信」画面を切り替えられるようにしました。
+ * Shadcn/uiのTabsコンポーネントを利用。
+ */
 
 export default function Dashboard() {
   const { user, loading: authLoading, token } = useAuth()
@@ -167,123 +176,129 @@ export default function Dashboard() {
             </Suspense>
           </div>
         </div>
-        {/* 新規アップロードエリア */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>新規アップロード</CardTitle>
-            <CardDescription>ファイルを選択し、メタデータを入力して投稿してください</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* ドラッグ＆ドロップ ファイル選択エリア */}
-            <div
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-gray-500 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onClick={handleFileAreaClick}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleFileAreaClick()
-                }
-              }}
-            >
-              {selectedFile ? (
-                <div className="text-center">
-                  <div className="flex items-center gap-2 mb-2">
-                    {selectedFile.type.startsWith('video/') ? (
-                      <FileVideo className="h-8 w-8 text-blue-500" />
-                    ) : (
-                      <FileAudio className="h-8 w-8 text-green-500" />
-                    )}
-                    <span className="font-medium text-gray-900">{selectedFile.name}</span>
-                  </div>
-                  <span className="text-sm text-gray-500">
-                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedFile(null)
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = ''
+        {/* 新規アップロードエリア + RSS Feed管理タブ */}
+        <div className="mt-8">
+          <Tabs defaultValue="upload">
+            <TabsList className="mb-4">
+              <TabsTrigger value="upload">新規アップロード</TabsTrigger>
+              <TabsTrigger value="rss">RSS Feed管理・配信</TabsTrigger>
+            </TabsList>
+            <TabsContent value="upload">
+              <Card>
+                <CardHeader>
+                  <CardTitle>新規アップロード</CardTitle>
+                  <CardDescription>ファイルを選択し、メタデータを入力して投稿してください</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* ドラッグ＆ドロップ ファイル選択エリア */}
+                  <div
+                    className="border-2 border-dashed border-gray-300 rounded-lg p-8 flex flex-col items-center justify-center text-gray-500 hover:border-blue-400 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onClick={handleFileAreaClick}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleFileAreaClick()
                       }
                     }}
-                    className="mt-2 text-sm text-red-600 hover:text-red-800 underline"
                   >
-                    ファイルを削除
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="h-12 w-12 text-gray-400 mb-4" />
-                  <span className="text-lg font-medium">ここに動画・音声ファイルをドラッグ＆ドロップ</span>
-                  <span className="text-sm mt-2">またはクリックしてファイルを選択</span>
-                  <span className="text-xs mt-1 text-gray-400">対応形式: MP4, MOV, MP3, WAV, M4A</span>
-                </>
-              )}
-              {/* 隠しファイル入力 */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,video/*,.mp4,.mov,.mp3,.wav,.m4a"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </div>
-            {/* アップロード済みファイルのサムネイル（うっすら表示） */}
-            {uploadedFile && (
-              <div className={cn("mt-4 p-4 rounded-lg border flex items-center gap-4", "bg-gray-100/60 text-gray-700")}> 
-                <FileAudio className="h-8 w-8 text-green-400" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{uploadedFile.id}</div>
-                  <div className="text-xs">{uploadedFile.mimeType} / {uploadedFile.fileSize ? `${(uploadedFile.fileSize / 1024 / 1024).toFixed(2)} MB` : 'サイズ不明'}</div>
-                </div>
-              </div>
-            )}
-            {/* メタデータ入力 */}
-            <div className="space-y-2">
-              <Label htmlFor="title">タイトル</Label>
-              <Input
-                id="title"
-                value={metadata.title}
-                onChange={e => setMetadata(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="エピソードのタイトル"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">説明</Label>
-              <Textarea
-                id="description"
-                value={metadata.description}
-                onChange={e => setMetadata(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="エピソードの説明"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="tags">タグ</Label>
-                <Input
-                  id="tags"
-                  value={metadata.tags}
-                  onChange={e => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
-                  placeholder="カンマ区切りでタグを入力"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="category">カテゴリ</Label>
-                <Input
-                  id="category"
-                  value={metadata.category}
-                  onChange={e => setMetadata(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="カテゴリ"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                    {selectedFile ? (
+                      <div className="text-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          {selectedFile.type.startsWith('video/') ? (
+                            <FileVideo className="h-8 w-8 text-blue-500" />
+                          ) : (
+                            <FileAudio className="h-8 w-8 text-green-500" />
+                          )}
+                          <span className="font-medium">{selectedFile.name}</span>
+                        </div>
+                        <div className="text-xs text-gray-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-12 w-12 mb-4" />
+                        <div className="text-xl font-semibold mb-2">ここに動画・音声ファイルをドラッグ＆ドロップ</div>
+                        <div className="text-gray-500 mb-2">またはクリックしてファイルを選択</div>
+                        <div className="text-xs text-gray-400">対応形式: MP4, MOV, MP3, WAV, M4A</div>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept=".mp4,.mov,.mp3,.wav,.m4a,video/*,audio/*"
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                    />
+                  </div>
+                  {/* アップロード済みファイルのサムネイル（うっすら表示） */}
+                  {uploadedFile && (
+                    <div className={cn("mt-4 p-4 rounded-lg border flex items-center gap-4", "bg-gray-100/60 text-gray-700")}> 
+                      <FileAudio className="h-8 w-8 text-green-400" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{uploadedFile.id}</div>
+                        <div className="text-xs">{uploadedFile.mimeType} / {uploadedFile.fileSize ? `${(uploadedFile.fileSize / 1024 / 1024).toFixed(2)} MB` : 'サイズ不明'}</div>
+                      </div>
+                    </div>
+                  )}
+                  {/* メタデータ入力 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="title">タイトル</Label>
+                    <Input
+                      id="title"
+                      value={metadata.title}
+                      onChange={e => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="エピソードのタイトル"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">説明</Label>
+                    <Textarea
+                      id="description"
+                      value={metadata.description}
+                      onChange={e => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="エピソードの説明"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="tags">タグ</Label>
+                      <Input
+                        id="tags"
+                        value={metadata.tags}
+                        onChange={e => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                        placeholder="カンマ区切りでタグを入力"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">カテゴリ</Label>
+                      <Input
+                        id="category"
+                        value={metadata.category}
+                        onChange={e => setMetadata(prev => ({ ...prev, category: e.target.value }))}
+                        placeholder="カテゴリ"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="rss">
+              <Card>
+                <CardHeader>
+                  <CardTitle>RSS Feed管理・配信</CardTitle>
+                  <CardDescription>RSS Feedの管理や配信設定を行います</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RssFeedManager />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
         {/* ファイル前処理エリア（1カラム） */}
         <Card className="mt-8">
           <CardHeader>

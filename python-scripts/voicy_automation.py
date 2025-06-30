@@ -5,10 +5,15 @@ import os
 from datetime import datetime, timedelta
 import re
 import sys
+import requests
+import json
 
 # --- Constants ---
-EMAIL = os.getenv('VOICY_EMAIL', "mnbmnb0524@gmail.com")
-PASSWORD = os.getenv('VOICY_PASSWORD', "ghk5678GHJK&6789*&%^&*()-h")
+# ハードコードされた認証情報を削除
+
+# API設定
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000')
+API_TOKEN = os.getenv('API_TOKEN')  # 環境変数からトークンを取得
 
 # コマンドライン引数から設定を取得
 TITLE = sys.argv[1] if len(sys.argv) > 1 else "テスト投稿"
@@ -17,6 +22,40 @@ HASHTAGS = sys.argv[3] if len(sys.argv) > 3 else "#テスト #自動化 #Playwri
 
 DATASOURCE_FOLDER = os.path.join("datasource", TITLE)
 SCREENSHOTS_FOLDER = "screenshots/voicy"
+
+def get_voicy_credentials():
+    """APIからVoicy認証情報を取得"""
+    try:
+        if not API_TOKEN:
+            raise Exception("API_TOKEN環境変数が設定されていません")
+        
+        headers = {
+            'Authorization': f'Bearer {API_TOKEN}',
+            'Content-Type': 'application/json'
+        }
+        
+        response = requests.get(f'{API_BASE_URL}/api/platforms/voicy-credentials', headers=headers)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('success') and data.get('data'):
+                credentials = data['data']
+                return credentials.get('email'), credentials.get('password')
+            else:
+                raise Exception("APIレスポンスの形式が正しくありません")
+        elif response.status_code == 404:
+            raise Exception("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。")
+        elif response.status_code == 401:
+            raise Exception("API認証に失敗しました。トークンを確認してください。")
+        else:
+            error_data = response.json() if response.content else {}
+            error_message = error_data.get('message', f'HTTP {response.status_code}')
+            raise Exception(f"API呼び出しエラー: {error_message}")
+            
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"API接続エラー: {str(e)}")
+    except Exception as e:
+        raise Exception(f"認証情報取得エラー: {str(e)}")
 
 def save_screenshot(page, filename):
     """スクリーンショットを保存"""
@@ -30,6 +69,15 @@ def save_screenshot(page, filename):
         return False
 
 def run_with_stealth():
+    # 認証情報を取得
+    try:
+        print("🔐 Voicy認証情報を取得中...")
+        email, password = get_voicy_credentials()
+        print(f"✅ 認証情報取得成功: {email}")
+    except Exception as e:
+        print(f"❌ 認証情報取得失敗: {e}")
+        return False
+
     # Use the Stealth class to wrap playwright
     with Stealth().use_sync(sync_playwright()) as p:
         browser = p.chromium.launch(headless=True)  # 本番環境ではheadless=True
@@ -70,9 +118,9 @@ def run_with_stealth():
 
             # Wait for the login form to be ready and fill in credentials
             print("Filling in login credentials...")
-            page.locator('input[placeholder="メールアドレスを入力してください"]').fill(EMAIL)
+            page.locator('input[placeholder="メールアドレスを入力してください"]').fill(email)
             page.wait_for_timeout(1000)  # 入力間隔
-            page.locator('input[placeholder="パスワードを入力してください"]').fill(PASSWORD)
+            page.locator('input[placeholder="パスワードを入力してください"]').fill(password)
             page.wait_for_timeout(1000)  # 入力間隔
 
             print("Clicking the login button...")

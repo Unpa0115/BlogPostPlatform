@@ -2,22 +2,92 @@ import { uploadToVoicy } from '@/lib/voicyClient'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs/promises'
+import { verifyAuth } from '@/lib/auth'
+import { db } from '@/lib/database'
+import { PlatformCredentials } from '@/lib/encryption'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/mnt/volume/uploads'
   : path.join(process.cwd(), 'uploads')
 
+async function getVoicyCredentials(userId: string): Promise<{ email: string; password: string }> {
+  // データベースからVoicy認証情報を取得
+  if (process.env.NODE_ENV === 'production') {
+    // PostgreSQL
+    const result = await db.query(`
+      SELECT credentials
+      FROM distribution_platforms
+      WHERE user_id = $1 AND platform_type = 'voicy' AND is_active = true
+      LIMIT 1
+    `, [userId])
+
+    if (result.rows.length === 0) {
+      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
+    }
+
+    const platform = result.rows[0]
+    if (!platform.credentials || !platform.credentials.encrypted) {
+      throw new Error("認証情報の形式が正しくありません。");
+    }
+
+    try {
+      const decryptedCredentials = PlatformCredentials.decryptVoicy(platform.credentials.encrypted)
+      return decryptedCredentials
+    } catch (error) {
+      console.error('Voicy credentials decryption error:', error)
+      throw new Error("認証情報の復号化に失敗しました。");
+    }
+  } else {
+    // SQLite
+    const sqliteDb = await db
+    const result = await sqliteDb.get(`
+      SELECT credentials
+      FROM distribution_platforms
+      WHERE user_id = ? AND platform_type = 'voicy' AND is_active = 1
+      LIMIT 1
+    `, [userId])
+
+    if (!result) {
+      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
+    }
+
+    if (!result.credentials) {
+      throw new Error("認証情報の形式が正しくありません。");
+    }
+
+    try {
+      const credentials = typeof result.credentials === 'string' 
+        ? JSON.parse(result.credentials) 
+        : result.credentials
+      
+      if (!credentials.encrypted) {
+        throw new Error("認証情報の形式が正しくありません。");
+      }
+
+      const decryptedCredentials = PlatformCredentials.decryptVoicy(credentials.encrypted)
+      return decryptedCredentials
+    } catch (error) {
+      console.error('Voicy credentials decryption error:', error)
+      throw new Error("認証情報の復号化に失敗しました。");
+    }
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Voicy upload API called')
+    
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     
     const body = await request.json()
     console.log('📥 Request body:', JSON.stringify(body, null, 2))
     
     // 必要なパラメータの検証
     const {
-      email,
-      password,
       title,
       description,
       hashtags,
@@ -28,19 +98,22 @@ export async function POST(request: NextRequest) {
     } = body
 
     console.log('🔍 Validating parameters...')
-    console.log('  - email:', email ? '✅ provided' : '❌ missing')
-    console.log('  - password:', password ? '✅ provided' : '❌ missing')
     console.log('  - title:', title ? '✅ provided' : '❌ missing')
     console.log('  - audioFiles:', audioFiles ? `✅ provided (${audioFiles.length} files)` : '❌ missing')
 
-    if (!email || !password || !title || !audioFiles || !Array.isArray(audioFiles)) {
+    if (!title || !audioFiles || !Array.isArray(audioFiles)) {
       console.log('❌ Missing required parameters')
       return NextResponse.json({ 
         error: 'Missing required parameters',
-        required: ['email', 'password', 'title', 'audioFiles'],
+        required: ['title', 'audioFiles'],
         received: Object.keys(body)
       }, { status: 400 })
     }
+
+    // Voicy認証情報を取得
+    console.log('🔐 Getting Voicy credentials...')
+    const { email, password } = await getVoicyCredentials(user.id)
+    console.log('✅ Voicy credentials retrieved successfully')
 
     // ファイルパスを実際のファイルシステムパスに変換
     console.log('🔍 Converting file paths...')
@@ -64,11 +137,6 @@ export async function POST(request: NextRequest) {
         }, { status: 404 })
       }
     }
-
-    // 環境変数を設定
-    console.log('🔍 Setting environment variables...')
-    process.env.VOICY_EMAIL = email
-    process.env.VOICY_PASSWORD = password
 
     console.log('🚀 Starting Voicy upload process...')
     const result = await uploadToVoicy({

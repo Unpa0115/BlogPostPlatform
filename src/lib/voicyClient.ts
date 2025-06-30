@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { runVoicyAutomation } from './voicyAutomation'
 import path from 'path'
 import fs from 'fs/promises'
 
@@ -16,9 +16,6 @@ export interface VoicyUploadOptions {
 
 export async function uploadToVoicy(options: VoicyUploadOptions): Promise<{ success: boolean; message: string }> {
   try {
-    // Pythonスクリプトのパスを設定
-    const scriptPath = path.join(process.cwd(), 'voicy_automation.py')
-    
     // データソースフォルダを作成
     const datasourceFolder = path.join(process.cwd(), 'datasource', options.title)
     await fs.mkdir(datasourceFolder, { recursive: true })
@@ -34,48 +31,22 @@ export async function uploadToVoicy(options: VoicyUploadOptions): Promise<{ succ
       await fs.copyFile(audioFile, destinationPath)
     }
     
-    // Pythonスクリプトを実行（引数を渡す）
-    return new Promise((resolve, reject) => {
-      const pythonProcess = spawn('python3', [
-        scriptPath,
-        options.title,
-        options.description,
-        options.hashtags
-      ], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          PYTHONPATH: process.cwd(),
-          VOICY_EMAIL: options.email,
-          VOICY_PASSWORD: options.password
-        }
-      })
-      
-      let stdout = ''
-      let stderr = ''
-      
-      pythonProcess.stdout.on('data', (data) => {
-        stdout += data.toString()
-        console.log('Python stdout:', data.toString())
-      })
-      
-      pythonProcess.stderr.on('data', (data) => {
-        stderr += data.toString()
-        console.error('Python stderr:', data.toString())
-      })
-      
-      pythonProcess.on('close', (code) => {
-        if (code === 0) {
-          resolve({ success: true, message: 'Voicy予約投稿成功' })
-        } else {
-          reject(new Error(`Python script failed with code ${code}: ${stderr}`))
-        }
-      })
-      
-      pythonProcess.on('error', (error) => {
-        reject(new Error(`Failed to start Python script: ${error.message}`))
-      })
+    // 環境変数を設定
+    process.env.VOICY_EMAIL = options.email
+    process.env.VOICY_PASSWORD = options.password
+    
+    // TypeScript版のVoicy自動化を実行
+    const success = await runVoicyAutomation({
+      title: options.title,
+      description: options.description,
+      hashtags: options.hashtags
     })
+    
+    if (success) {
+      return { success: true, message: 'Voicy予約投稿成功' }
+    } else {
+      return { success: false, message: 'Voicy自動化が失敗しました' }
+    }
     
   } catch (error) {
     console.error('Voicy upload error:', error)
