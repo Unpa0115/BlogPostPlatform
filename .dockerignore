@@ -42,12 +42,6 @@ yarn-error.log*
 .git
 .gitignore
 
-# Python scripts (not needed in Next.js container)
-python-scripts/
-voicy_automation.py
-requirements.txt
-setup-python.sh
-
 # Database
 *.db
 *.sqlite
