@@ -71,8 +71,9 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Playwright browsers from deps stage
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/playwright/.cache /app/node_modules/playwright/.cache
+# Copy Playwright browsers from deps stage (only if cache exists)
+RUN mkdir -p /app/node_modules/playwright
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/playwright/.cache /app/node_modules/playwright/.cache 2>/dev/null || true
 
 USER nextjs
 
