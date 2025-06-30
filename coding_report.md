@@ -20,57 +20,38 @@
 
 ### [2024-06-29 直近アップロード操作機能実装]
 
+### [2024-12-27 16:30] - Voicy認証情報のAPI取得機能実装
+
 # 実行結果報告
 
 ## 概要
-uploadsフォルダを参照してWebAppで指定のファイルを読み込む機能を実装し、voicy_automation.pyをテスト用に修正しました。
+Voicy自動化スクリプトでハードコードされていた認証情報を削除し、フロントエンドのプラットフォーム設定ページから取得するように変更しました。セキュリティを強化し、認証情報の暗号化・復号化処理を実装しました。
 
 ## 実行ステップ
-1. **uploadsフォルダのファイル一覧取得APIの作成**
-   - `/api/uploads/list`エンドポイントを実装
-   - ファイル情報（名前、サイズ、更新日時、タイプ）を取得
-   - 音声・動画ファイルのみをフィルタリング
-
-2. **FileSelectorコンポーネントの実装**
-   - shadcn/uiコンポーネントを使用したファイル選択UI
-   - ファイル検索機能
-   - ファイル情報の表示（サイズ、更新日時、タイプ）
-   - 選択状態の管理
-
-3. **アップロードページへの統合**
-   - 新規アップロードと既存ファイル選択の切り替え機能
-   - FileSelectorコンポーネントの統合
-   - 既存ファイルを使用した配信機能
-
-4. **voicy_automation.pyのテスト用修正**
-   - 送信ボタンを押す直前で中断するように修正
-   - テスト完了メッセージの追加
-   - スクリーンショット保存の追加
-
-5. **実行結果報告・記録ルールの作成**
-   - 標準フォーマットの実行結果報告ルール
-   - coding_report.mdファイル管理ルール
-   - 品質管理と例外処理の定義
+1. プラットフォーム設定の構造を確認し、Voicy認証情報の保存方法を把握
+2. `/api/platforms/voicy-credentials`エンドポイントを作成
+3. Pythonスクリプト（voicy_automation.py）を修正してAPIから認証情報を取得
+4. TypeScriptファイル（voicyAutomation.ts）を修正してAPIから認証情報を取得
+5. 既存のVoicyアップロードAPIを修正して認証情報を自動取得
+6. Python requirements.txtにrequestsライブラリを追加
+7. エラーハンドリングとセキュリティ強化を実装
 
 ## 最終成果物
-- **API エンドポイント**: `/api/uploads/list` - uploadsフォルダのファイル一覧取得
-- **UI コンポーネント**: `FileSelector` - ファイル選択機能
-- **修正されたページ**: `src/app/upload/page.tsx` - 新規/既存ファイル選択の統合
-- **テスト用スクリプト**: `voicy_automation.py` - 送信ボタン直前で中断
-- **ルールファイル**: `cursor/rules/dev-rules/execution-reporting.mdc` - 実行結果報告ルール
+- `src/app/api/platforms/voicy-credentials/route.ts`（Voicy認証情報取得API）
+- `python-scripts/voicy_automation.py`（API認証情報取得対応）
+- `src/lib/voicyAutomation.ts`（API認証情報取得対応）
+- `src/app/api/platforms/voicy-upload/route.ts`（認証情報自動取得対応）
+- `python-scripts/requirements.txt`（requestsライブラリ追加）
 
-## 機能詳細
-- **ファイル一覧表示**: uploadsフォルダ内の音声・動画ファイルを一覧表示
-- **ファイル検索**: ファイル名での検索機能
-- **ファイル情報表示**: サイズ、更新日時、ファイルタイプの表示
-- **選択機能**: 単一/複数ファイル選択対応
-- **テストモード**: voicy_automation.pyが送信ボタン直前で停止
+## 課題対応（該当する場合）
+- TypeScriptの構文エラー（コメント形式）を修正
+- 認証情報の暗号化・復号化処理を適切に実装
+- エラーハンドリングを強化し、適切なエラーメッセージを提供
 
 ## 注意点・改善提案
-- ファイル選択機能は既存のUI/UXデザインに準拠して実装
-- shadcn/uiコンポーネントを活用して一貫性を保持
-- テスト用のvoicy_automation.py修正により、実際の送信を避けてテストが可能
-- 開発サーバーが起動中（http://localhost:3001）で機能テストが可能
+- API_TOKEN環境変数の設定が必要
+- 認証情報が設定されていない場合の適切なエラーメッセージ表示
+- セキュリティ強化により、ハードコードされた認証情報を完全に削除
 
 ## 累積成果物
 
@@ -87,9 +68,10 @@ uploadsフォルダを参照してWebAppで指定のファイルを読み込む�
 - [x] ファイル選択機能（uploadsフォルダ参照）
 - [x] 実行結果報告・記録システム
 - [x] Spotify RSS Feed 50件制限対応
+- [x] Voicy認証情報のAPI取得機能
 
 ### 作成されたファイル・コンポーネント
-- **API Routes**: `/api/uploads/list`, `/api/platforms/voicy-upload`, `/api/platforms/youtube-upload`
+- **API Routes**: `/api/uploads/list`, `/api/platforms/voicy-upload`, `/api/platforms/youtube-upload`, `/api/platforms/voicy-credentials`
 - **UI Components**: `FileSelector`, `DistributionManager`, `UploadForm`
 - **Services**: `voicyClient.ts`, `youtube-service.ts`, `rss-generator.ts`
 - **Automation**: `voicy_automation.py`, `requirements.txt`, `setup-python.sh`
@@ -100,6 +82,7 @@ uploadsフォルダを参照してWebAppで指定のファイルを読み込む�
 - Pythonスクリプトの実行環境設定
 - ファイルパスの適切な処理
 - UI/UXの一貫性維持
+- ハードコードされた認証情報のセキュリティ問題
 
 ## 技術的知見
 
@@ -112,6 +95,7 @@ uploadsフォルダを参照してWebAppで指定のファイルを読み込む�
 - 環境変数とコマンドライン引数の適切な設定
 - Stealth機能による検出回避
 - スクリーンショットによるデバッグ支援
+- API認証情報取得によるセキュリティ強化
 
 ### UI/UX設計
 - shadcn/uiコンポーネントの一貫した使用
@@ -140,11 +124,19 @@ uploadsフォルダを参照してWebAppで指定のファイルを読み込む�
 ### 復元機能
 - アーカイブからのデータ復元の実装パターン
 
+### 認証情報管理
+- 暗号化・復号化による安全な認証情報保存
+- API経由での認証情報取得
+- セキュリティ強化とエラーハンドリング
+
 ## 課題対応（該当する場合）
 - DELETE API追加時、ストレージ層にメソッドがなかったため新規実装
 - ESLint設定ファイルがなかったため、手動で型・構文エラーを確認
+- ハードコードされた認証情報のセキュリティ問題を解決
 
 ## 注意点・改善提案
 - ファイル削除時は本当に削除してよいか確認ダイアログを表示
 - 再アップロードは新規ファイルとして扱われるため、同名ファイルでも別IDで保存される
-- 今後はAPIの認可・権限管理や、ファイルのバージョン管理も検討推奨 
+- 今後はAPIの認可・権限管理や、ファイルのバージョン管理も検討推奨
+- API_TOKEN環境変数の適切な管理が必要
+- 認証情報の定期的な更新とセキュリティ監査を推奨 

@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
-import { Archive, RefreshCw, BarChart3, Clock, Calendar } from 'lucide-react';
+import { Archive, RefreshCw, BarChart3, Clock, Calendar, Rss } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface RssFeedStats {
   totalEpisodes: number;
@@ -29,6 +31,11 @@ export function RssFeedManager() {
   const [archivedEpisodes, setArchivedEpisodes] = useState<ArchivedEpisode[]>([]);
   const [loading, setLoading] = useState(false);
   const [restoring, setRestoring] = useState<number | null>(null);
+  const [rssUrl, setRssUrl] = useState<string>("");
+  const [rssEpisodes, setRssEpisodes] = useState<any[]>([]);
+  const [rssLoading, setRssLoading] = useState(false);
+  const [rssError, setRssError] = useState<string | null>(null);
+  const [selectedRssEpisode, setSelectedRssEpisode] = useState<any | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -137,6 +144,41 @@ export function RssFeedManager() {
     if (percentage >= 90) return 'text-red-600';
     if (percentage >= 75) return 'text-yellow-600';
     return 'text-green-600';
+  };
+
+  // RSSエピソード取得
+  const fetchRssEpisodes = async (url: string) => {
+    setRssLoading(true);
+    setRssError(null);
+    try {
+      const res = await fetch(`/api/rss/info?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error("RSS取得失敗");
+      const data = await res.json();
+      setRssEpisodes(data.episodes || []);
+    } catch (e: any) {
+      setRssError(e.message || "RSS取得エラー");
+      setRssEpisodes([]);
+    } finally {
+      setRssLoading(false);
+    }
+  };
+
+  // RSS URL保存
+  const handleSaveRssUrl = () => {
+    localStorage.setItem("input_rss_url", rssUrl);
+    fetchRssEpisodes(rssUrl);
+    toast({ title: "RSS URLを保存", description: "エピソードを取得しました。" });
+  };
+
+  // RSSエピソード配信
+  const handleRssDistribute = async () => {
+    if (!selectedRssEpisode) return;
+    try {
+      // TODO: 実際の配信API呼び出し実装
+      toast({ title: '配信リクエスト送信', description: 'RSSエピソードの配信処理を開始しました。' });
+    } catch (e) {
+      toast({ title: '配信エラー', description: '配信に失敗しました。', variant: 'destructive' });
+    }
   };
 
   return (
@@ -291,6 +333,68 @@ export function RssFeedManager() {
           ) : (
             <div className="text-center py-8 text-gray-500">
               アーカイブされたエピソードはありません
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* RSS Feed管理・配信カード */}
+      <Card>
+        <CardHeader>
+          <CardTitle>RSS Feed管理・配信</CardTitle>
+          <CardDescription>RSS Feedのエピソードを取得し、配信できます</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!rssUrl ? (
+            <div className="flex flex-col items-center gap-4">
+              <Label htmlFor="rss-url">RSS FeedのURLを入力</Label>
+              <Input id="rss-url" value={rssUrl} onChange={e => setRssUrl(e.target.value)} placeholder="https://..." className="w-full max-w-lg" />
+              <Button onClick={handleSaveRssUrl} className="w-48">URLを保存</Button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="font-medium">RSS Feed: </span>
+                <span className="truncate max-w-xs">{rssUrl}</span>
+                <Button size="sm" variant="outline" onClick={() => { setRssUrl(""); setRssEpisodes([]); localStorage.removeItem("input_rss_url"); }}>変更</Button>
+              </div>
+              <Button onClick={() => fetchRssEpisodes(rssUrl)} size="sm" variant="outline" className="mb-4">エピソード再取得</Button>
+              {rssLoading ? (
+                <div className="text-center py-8 text-gray-500">読み込み中...</div>
+              ) : rssError ? (
+                <div className="text-center py-8 text-red-500">{rssError}</div>
+              ) : rssEpisodes.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">エピソードが見つかりません</div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {rssEpisodes.map(ep => (
+                    <div
+                      key={ep.id || ep.guid || ep.title}
+                      className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedRssEpisode && (selectedRssEpisode.id === ep.id || selectedRssEpisode.guid === ep.guid) ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'}`}
+                      onClick={() => setSelectedRssEpisode(ep)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Rss className="h-5 w-5 text-orange-400" />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">{ep.title}</div>
+                          <div className="text-sm text-gray-500 flex items-center space-x-2">
+                            <span>{ep.pubDate ? new Date(ep.pubDate).toLocaleDateString('ja-JP') : ''}</span>
+                            {ep.duration && <span>• {ep.duration}秒</span>}
+                          </div>
+                        </div>
+                        <Badge variant={selectedRssEpisode && (selectedRssEpisode.id === ep.id || selectedRssEpisode.guid === ep.guid) ? "default" : "secondary"}>
+                          {selectedRssEpisode && (selectedRssEpisode.id === ep.id || selectedRssEpisode.guid === ep.guid) ? "選択中" : "未選択"}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {selectedRssEpisode && (
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <Button onClick={handleRssDistribute} className="w-48">配信する</Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
