@@ -1,6 +1,9 @@
 # Use the official Node.js runtime as the base image
 FROM node:18-alpine AS base
 
+# Install Python and pip
+RUN apk add --no-cache python3 py3-pip
+
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
@@ -14,10 +17,15 @@ RUN npm ci
 # Install Playwright browsers
 RUN npx playwright install --with-deps chromium
 
+# Install Python dependencies for voicy_automation.py
+COPY python-scripts/requirements.txt ./python-requirements.txt
+RUN pip3 install -r python-requirements.txt
+
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /usr/local/lib/python3.*/site-packages /usr/local/lib/python3.*/site-packages
 COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
@@ -51,6 +59,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Copy Playwright browsers from deps stage
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/playwright/.cache /app/node_modules/playwright/.cache
+
+# Copy Python dependencies and scripts
+COPY --from=deps --chown=nextjs:nodejs /usr/local/lib/python3.*/site-packages /usr/local/lib/python3.*/site-packages
+COPY --from=builder --chown=nextjs:nodejs /app/python-scripts ./python-scripts
 
 USER nextjs
 
