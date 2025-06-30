@@ -94,14 +94,12 @@ export async function POST(request: NextRequest) {
       audioFiles,
       reservationDate,
       reservationTime,
-      browserlessWSEndpoint,
-      usePythonScript = false // Python版を使用するかどうか（デフォルト: false）
+      browserlessWSEndpoint
     } = body
 
     console.log('🔍 Validating parameters...')
     console.log('  - title:', title ? '✅ provided' : '❌ missing')
     console.log('  - audioFiles:', audioFiles ? `✅ provided (${audioFiles.length} files)` : '❌ missing')
-    console.log('  - usePythonScript:', usePythonScript ? '✅ enabled' : '❌ disabled')
 
     if (!title || !audioFiles || !Array.isArray(audioFiles)) {
       console.log('❌ Missing required parameters')
@@ -150,8 +148,7 @@ export async function POST(request: NextRequest) {
       audioFiles: actualAudioFiles,
       reservationDate: reservationDate || new Date().toISOString().split('T')[0].replace(/-/g, '/'),
       reservationTime: reservationTime || '06:00',
-      browserlessWSEndpoint,
-      usePythonScript
+      browserlessWSEndpoint
     })
 
     console.log('📤 Upload result:', result)
