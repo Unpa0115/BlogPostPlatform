@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { registerUser, loginUser } from '@/lib/auth'
+import { createTables } from '@/lib/database'
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,11 +21,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // データベーステーブルの初期化
+    try {
+      await createTables()
+      console.log('Database tables initialized successfully')
+    } catch (dbError) {
+      console.error('Database initialization error:', dbError)
+      return NextResponse.json(
+        { error: 'Database initialization failed' },
+        { status: 500 }
+      )
+    }
+
     // ユーザー登録
     const user = await registerUser(email, password)
+    console.log('User registered:', user)
 
     // 登録後すぐにログイン
     const loginResult = await loginUser(email, password)
+    console.log('Login result:', loginResult)
 
     if (!loginResult) {
       return NextResponse.json(

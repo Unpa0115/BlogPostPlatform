@@ -19,9 +19,19 @@ if (isBuildTime) {
   }
 } else if (process.env.NODE_ENV === 'production') {
   // 本番環境: Railway PostgreSQL
+  if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL is not set in production environment')
+    throw new Error('DATABASE_URL is required in production')
+  }
+  
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
+  })
+  
+  // 接続テスト
+  db.on('error', (err: any) => {
+    console.error('Unexpected error on idle client', err)
   })
 } else {
   // 開発環境: SQLite
