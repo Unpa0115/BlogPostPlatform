@@ -2,10 +2,22 @@ import { Pool } from 'pg'
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 
+// ビルド時にはデータベース接続を避ける
+const isBuildTime = process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL
+
 // 開発環境ではSQLite、本番環境ではPostgreSQLを使用
 let db: any
 
-if (process.env.NODE_ENV === 'production') {
+if (isBuildTime) {
+  // ビルド時: ダミーオブジェクト
+  db = {
+    query: async () => ({ rows: [] }),
+    get: async () => null,
+    all: async () => [],
+    run: async () => ({ lastID: 0, changes: 0 }),
+    exec: async () => {},
+  }
+} else if (process.env.NODE_ENV === 'production') {
   // 本番環境: Railway PostgreSQL
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
