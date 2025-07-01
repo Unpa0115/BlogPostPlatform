@@ -7,7 +7,7 @@ import { db } from '@/lib/database'
 import { PlatformCredentials } from '@/lib/encryption'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
-  ? '/tmp/uploads'  // Railway環境では/tmpディレクトリを使用
+  ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
 async function getVoicyCredentials(userId: string): Promise<{ email: string; password: string }> {
