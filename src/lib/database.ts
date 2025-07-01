@@ -322,13 +322,18 @@ export const createTables = async () => {
 // 簡易版データベース接続テスト（API互換性のため）
 export const testConnectionSimple = async () => {
   try {
+    console.log('=== SIMPLE DATABASE CONNECTION TEST ===')
     if (process.env.NODE_ENV === 'production') {
-      await db.query('SELECT 1')
-      return true
+      console.log('Testing PostgreSQL simple connection...')
+      const result = await db.query('SELECT 1 as test')
+      console.log('PostgreSQL simple test result:', result)
+      return result.rows && result.rows.length > 0
     } else {
+      console.log('Testing SQLite simple connection...')
       const sqliteDb = await db
-      await sqliteDb.get('SELECT 1')
-      return true
+      const result = await sqliteDb.get('SELECT 1 as test')
+      console.log('SQLite simple test result:', result)
+      return !!result
     }
   } catch (error) {
     console.error('Simple database connection test failed:', error)
@@ -346,6 +351,13 @@ export const testConnection = async () => {
       // PostgreSQL接続テスト
       console.log('Testing PostgreSQL connection...')
       const result = await db.query('SELECT NOW() as current_time, version() as db_version')
+      console.log('PostgreSQL query result:', result)
+      console.log('PostgreSQL rows:', result.rows)
+      
+      if (!result.rows || result.rows.length === 0) {
+        throw new Error('No data returned from PostgreSQL query')
+      }
+      
       console.log('PostgreSQL connection successful:', result.rows[0])
       
       // テーブル存在確認
