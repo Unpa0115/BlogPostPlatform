@@ -46,11 +46,14 @@ export const createTables = async () => {
   try {
     console.log('=== CREATE TABLES START ===')
     console.log('Environment:', process.env.NODE_ENV)
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
     
     if (process.env.NODE_ENV === 'production') {
       console.log('Creating PostgreSQL tables...')
+      console.log('Database pool type:', typeof db)
       
       // PostgreSQL用のテーブル作成
+      console.log('Creating users table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS users (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -62,6 +65,7 @@ export const createTables = async () => {
       `)
       console.log('Users table created/verified')
 
+      console.log('Creating audio_files table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS audio_files (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -78,6 +82,7 @@ export const createTables = async () => {
       `)
       console.log('Audio files table created/verified')
 
+      console.log('Creating jobs table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS jobs (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,6 +100,7 @@ export const createTables = async () => {
       `)
       console.log('Jobs table created/verified')
 
+      console.log('Creating distribution_platforms table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS distribution_platforms (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -111,6 +117,7 @@ export const createTables = async () => {
       `)
       console.log('Distribution platforms table created/verified')
 
+      console.log('Creating rss_feeds table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS rss_feeds (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -125,6 +132,7 @@ export const createTables = async () => {
       `)
       console.log('RSS feeds table created/verified')
 
+      console.log('Creating platform_settings table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS platform_settings (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -137,6 +145,7 @@ export const createTables = async () => {
       `)
       console.log('Platform settings table created/verified')
 
+      console.log('Creating youtube_tokens table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS youtube_tokens (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -154,6 +163,7 @@ export const createTables = async () => {
       `)
       console.log('YouTube tokens table created/verified')
 
+      console.log('Creating auth_notifications table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS auth_notifications (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -171,6 +181,7 @@ export const createTables = async () => {
       console.log('Auth notifications table created/verified')
 
       // インデックス作成
+      console.log('Creating indexes...')
       await db.query(`CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_jobs_audio_file_id ON jobs(audio_file_id)`)
@@ -314,7 +325,12 @@ export const createTables = async () => {
   } catch (error) {
     console.error('=== CREATE TABLES ERROR ===')
     console.error('Create tables error:', error)
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      code: (error as any)?.code,
+      detail: (error as any)?.detail
+    })
     throw error
   }
 }
@@ -323,11 +339,21 @@ export const createTables = async () => {
 export const testConnectionSimple = async () => {
   try {
     console.log('=== SIMPLE DATABASE CONNECTION TEST ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
+    
     if (process.env.NODE_ENV === 'production') {
       console.log('Testing PostgreSQL simple connection...')
+      console.log('Database pool:', typeof db)
+      
       const result = await db.query('SELECT 1 as test')
       console.log('PostgreSQL simple test result:', result)
-      return result.rows && result.rows.length > 0
+      console.log('PostgreSQL rows:', result.rows)
+      console.log('PostgreSQL rowCount:', result.rowCount)
+      
+      const hasRows = result.rows && result.rows.length > 0
+      console.log('Has rows:', hasRows)
+      return hasRows
     } else {
       console.log('Testing SQLite simple connection...')
       const sqliteDb = await db
@@ -337,6 +363,12 @@ export const testConnectionSimple = async () => {
     }
   } catch (error) {
     console.error('Simple database connection test failed:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      code: (error as any)?.code,
+      detail: (error as any)?.detail
+    })
     return false
   }
 }
