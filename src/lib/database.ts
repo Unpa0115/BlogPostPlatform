@@ -44,7 +44,12 @@ if (isBuildTime) {
 // データベーステーブル作成スクリプト
 export const createTables = async () => {
   try {
+    console.log('=== CREATE TABLES START ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    
     if (process.env.NODE_ENV === 'production') {
+      console.log('Creating PostgreSQL tables...')
+      
       // PostgreSQL用のテーブル作成
       await db.query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -55,6 +60,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('Users table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS audio_files (
@@ -70,6 +76,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('Audio files table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS jobs (
@@ -86,6 +93,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('Jobs table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS distribution_platforms (
@@ -101,6 +109,7 @@ export const createTables = async () => {
           UNIQUE(user_id, platform_type)
         )
       `)
+      console.log('Distribution platforms table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS rss_feeds (
@@ -114,6 +123,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('RSS feeds table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS platform_settings (
@@ -125,6 +135,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('Platform settings table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS youtube_tokens (
@@ -141,6 +152,7 @@ export const createTables = async () => {
           UNIQUE(user_id)
         )
       `)
+      console.log('YouTube tokens table created/verified')
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS auth_notifications (
@@ -156,6 +168,7 @@ export const createTables = async () => {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         )
       `)
+      console.log('Auth notifications table created/verified')
 
       // インデックス作成
       await db.query(`CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id)`)
@@ -163,8 +176,10 @@ export const createTables = async () => {
       await db.query(`CREATE INDEX IF NOT EXISTS idx_jobs_audio_file_id ON jobs(audio_file_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_distribution_platforms_user_id ON distribution_platforms(user_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_rss_feeds_user_id ON rss_feeds(user_id)`)
+      console.log('Indexes created/verified')
 
     } else {
+      console.log('Creating SQLite tables...')
       // SQLite用のテーブル作成
       const sqliteDb = await db
       
@@ -177,6 +192,7 @@ export const createTables = async () => {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `)
+      console.log('Users table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS audio_files (
@@ -193,6 +209,7 @@ export const createTables = async () => {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `)
+      console.log('Audio files table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS jobs (
@@ -211,6 +228,7 @@ export const createTables = async () => {
           FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
         )
       `)
+      console.log('Jobs table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS distribution_platforms (
@@ -218,7 +236,7 @@ export const createTables = async () => {
           user_id TEXT NOT NULL,
           platform_type TEXT NOT NULL,
           platform_name TEXT NOT NULL,
-          credentials TEXT NOT NULL DEFAULT '{}',
+          credentials TEXT DEFAULT '{}',
           settings TEXT DEFAULT '{}',
           is_active INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -227,6 +245,7 @@ export const createTables = async () => {
           UNIQUE(user_id, platform_type)
         )
       `)
+      console.log('Distribution platforms table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS rss_feeds (
@@ -241,17 +260,19 @@ export const createTables = async () => {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `)
+      console.log('RSS feeds table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS platform_settings (
           id TEXT PRIMARY KEY,
           platform_type TEXT NOT NULL UNIQUE,
-          settings TEXT NOT NULL DEFAULT '{}',
+          settings TEXT DEFAULT '{}',
           is_active INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `)
+      console.log('Platform settings table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS youtube_tokens (
@@ -269,6 +290,7 @@ export const createTables = async () => {
           UNIQUE(user_id)
         )
       `)
+      console.log('YouTube tokens table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS auth_notifications (
@@ -285,18 +307,14 @@ export const createTables = async () => {
           FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
       `)
-
-      // インデックス作成
-      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id)`)
-      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id)`)
-      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_audio_file_id ON jobs(audio_file_id)`)
-      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_distribution_platforms_user_id ON distribution_platforms(user_id)`)
-      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_rss_feeds_user_id ON rss_feeds(user_id)`)
+      console.log('Auth notifications table created/verified')
     }
-
-    console.log('Database tables created successfully')
+    
+    console.log('=== CREATE TABLES SUCCESS ===')
   } catch (error) {
-    console.error('Error creating database tables:', error)
+    console.error('=== CREATE TABLES ERROR ===')
+    console.error('Create tables error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     throw error
   }
 }
@@ -304,18 +322,65 @@ export const createTables = async () => {
 // データベース接続テスト
 export const testConnection = async () => {
   try {
+    console.log('=== DATABASE CONNECTION TEST START ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
+    
     if (process.env.NODE_ENV === 'production') {
-      const result = await db.query('SELECT NOW()')
+      // PostgreSQL接続テスト
+      console.log('Testing PostgreSQL connection...')
+      const result = await db.query('SELECT NOW() as current_time, version() as db_version')
       console.log('PostgreSQL connection successful:', result.rows[0])
+      
+      // テーブル存在確認
+      const tablesResult = await db.query(`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      `)
+      console.log('Users table exists:', tablesResult.rows.length > 0)
+      
+      return {
+        status: 'connected',
+        database: 'postgresql',
+        currentTime: result.rows[0].current_time,
+        version: result.rows[0].db_version,
+        usersTableExists: tablesResult.rows.length > 0
+      }
     } else {
+      // SQLite接続テスト
+      console.log('Testing SQLite connection...')
       const sqliteDb = await db
-      const result = await sqliteDb.get('SELECT datetime("now") as now')
+      const result = await sqliteDb.get('SELECT datetime("now") as current_time, sqlite_version() as db_version')
       console.log('SQLite connection successful:', result)
+      
+      // テーブル存在確認
+      const tablesResult = await sqliteDb.get(`
+        SELECT name 
+        FROM sqlite_master 
+        WHERE type='table' AND name='users'
+      `)
+      console.log('Users table exists:', !!tablesResult)
+      
+      return {
+        status: 'connected',
+        database: 'sqlite',
+        currentTime: result.current_time,
+        version: result.db_version,
+        usersTableExists: !!tablesResult
+      }
     }
-    return true
   } catch (error) {
-    console.error('Database connection failed:', error)
-    return false
+    console.error('=== DATABASE CONNECTION TEST FAILED ===')
+    console.error('Database connection test error:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    
+    return {
+      status: 'error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    }
   }
 }
 

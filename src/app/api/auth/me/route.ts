@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
-import { testConnection } from '@/lib/database'
+import { testConnection, createTables } from '@/lib/database'
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,15 +47,26 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    if (action === 'init-db') {
+      console.log('Initializing database...')
+      await createTables()
+      const testResult = await testConnection()
+      return NextResponse.json({
+        success: true,
+        message: 'Database initialized successfully',
+        database: testResult
+      })
+    }
+
     return NextResponse.json(
       { error: 'Invalid action' },
       { status: 400 }
     )
 
   } catch (error) {
-    console.error('Database test error:', error)
+    console.error('Database operation error:', error)
     return NextResponse.json(
-      { error: 'Database test failed' },
+      { error: 'Database operation failed' },
       { status: 500 }
     )
   }
