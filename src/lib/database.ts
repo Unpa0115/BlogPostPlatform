@@ -319,7 +319,23 @@ export const createTables = async () => {
   }
 }
 
-// データベース接続テスト
+// 簡易版データベース接続テスト（API互換性のため）
+export const testConnectionSimple = async () => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      await db.query('SELECT 1')
+      return true
+    } else {
+      const sqliteDb = await db
+      await sqliteDb.get('SELECT 1')
+      return true
+    }
+  } catch (error) {
+    console.error('Simple database connection test failed:', error)
+    return false
+  }
+}
+
 export const testConnection = async () => {
   try {
     console.log('=== DATABASE CONNECTION TEST START ===')

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
-import { testConnection, createTables } from '@/lib/database'
+import { testConnection, testConnectionSimple, createTables } from '@/lib/database'
 
 export async function GET(request: NextRequest) {
   try {
     // データベース接続テスト
-    const dbTest = await testConnection()
+    const dbTest = await testConnectionSimple()
     console.log('Database connection test:', dbTest)
 
     // 認証情報の確認
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const { action } = body
 
     if (action === 'test-db') {
-      const result = await testConnection()
+      const result = await testConnectionSimple()
       return NextResponse.json({
         success: true,
         database: result
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (action === 'init-db') {
       console.log('Initializing database...')
       await createTables()
-      const testResult = await testConnection()
+      const testResult = await testConnectionSimple()
       return NextResponse.json({
         success: true,
         message: 'Database initialized successfully',
