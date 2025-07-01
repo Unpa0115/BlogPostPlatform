@@ -16,6 +16,12 @@ async function testDatabaseConnection() {
     
     const result = await response.json();
     console.log('Database test result:', JSON.stringify(result, null, 2));
+    
+    // 詳細なデータベース情報を取得
+    if (result.success && result.database) {
+      console.log('Database details:', result.database);
+    }
+    
     return result;
   } catch (error) {
     console.error('Database test failed:', error);
