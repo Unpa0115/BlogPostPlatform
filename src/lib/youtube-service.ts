@@ -193,7 +193,7 @@ export class YouTubeService {
     }
   }
 
-  private getCategoryId(category: string): string {
+  private getCategoryId(category?: string): string {
     const categoryMap: { [key: string]: string } = {
       'gaming': '20',
       'music': '10',
@@ -205,7 +205,8 @@ export class YouTubeService {
       'travel': '19',
       'default': '22', // People & Blogs
     };
-    return categoryMap[category?.toLowerCase()] || categoryMap.default;
+    const categoryKey = category?.toLowerCase();
+    return categoryKey && categoryMap[categoryKey] ? categoryMap[categoryKey] : categoryMap.default;
   }
 
   async getChannelInfo(): Promise<any> {
