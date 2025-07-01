@@ -1,6 +1,6 @@
 import { chromium, Browser, Page } from 'playwright';
 import { expect } from '@playwright/test';
-import { stealth } from 'playwright-stealth';
+// import { stealth } from 'playwright-stealth';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
@@ -107,7 +107,7 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     const page = await context.newPage();
     
     // Stealth機能を適用
-    await stealth(page);
+    // await stealth(page);
     
     // ネットワークリクエストの監視を追加
     page.on('response', (response) => {
