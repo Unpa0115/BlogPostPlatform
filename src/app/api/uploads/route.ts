@@ -6,7 +6,7 @@ import { storage } from '@/lib/storage'
 import { RssGenerator } from '@/lib/rss-generator'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
-  ? '/mnt/volume/uploads'
+  ? '/tmp/uploads'  // Railway環境では/tmpディレクトリを使用
   : path.join(process.cwd(), 'uploads')
 
 // ファイルアップロード
