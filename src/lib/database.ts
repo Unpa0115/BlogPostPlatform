@@ -21,18 +21,37 @@ if (isBuildTime) {
   // 本番環境: Railway PostgreSQL
   if (!process.env.DATABASE_URL) {
     console.error('DATABASE_URL is not set in production environment')
-    throw new Error('DATABASE_URL is required in production')
+    console.error('Please set DATABASE_URL in Railway environment variables')
+    
+    // 一時的な対処: エラーを投げる代わりにダミーオブジェクトを返す
+    db = {
+      query: async () => {
+        throw new Error('DATABASE_URL is not configured. Please set it in Railway environment variables.')
+      },
+      get: async () => {
+        throw new Error('DATABASE_URL is not configured. Please set it in Railway environment variables.')
+      },
+      all: async () => {
+        throw new Error('DATABASE_URL is not configured. Please set it in Railway environment variables.')
+      },
+      run: async () => {
+        throw new Error('DATABASE_URL is not configured. Please set it in Railway environment variables.')
+      },
+      exec: async () => {
+        throw new Error('DATABASE_URL is not configured. Please set it in Railway environment variables.')
+      },
+    }
+  } else {
+    db = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    })
+    
+    // 接続テスト
+    db.on('error', (err: any) => {
+      console.error('Unexpected error on idle client', err)
+    })
   }
-  
-  db = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-  })
-  
-  // 接続テスト
-  db.on('error', (err: any) => {
-    console.error('Unexpected error on idle client', err)
-  })
 } else {
   // 開発環境: SQLite
   db = open({

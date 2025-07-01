@@ -4,7 +4,7 @@ import path from 'path'
 import fs from 'fs/promises'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
-  ? '/mnt/volume/uploads'
+  ? '/tmp/uploads'
   : path.join(process.cwd(), 'uploads')
 
 export async function POST(request: NextRequest) {
