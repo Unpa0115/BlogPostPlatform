@@ -30,104 +30,127 @@ function getJwtSecret(): string {
 
 // ユーザー登録
 export async function registerUser(email: string, password: string): Promise<User> {
-  const hashedPassword = await bcrypt.hash(password, 12)
-  
-  if (process.env.NODE_ENV === 'production') {
-    // PostgreSQL
-    const result = await db.query(
-      'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at, updated_at',
-      [email, hashedPassword]
-    )
-    return result.rows[0]
-  } else {
-    // SQLite
-    const sqliteDb = await db
-    const userId = generateUUID()
-    const now = new Date().toISOString()
+  try {
+    const hashedPassword = await bcrypt.hash(password, 12)
     
-    await sqliteDb.run(
-      'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [userId, email, hashedPassword, now, now]
-    )
-    
-    return {
-      id: userId,
-      email,
-      created_at: new Date(now),
-      updated_at: new Date(now)
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      console.log('Registering user in PostgreSQL:', email)
+      const result = await db.query(
+        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at, updated_at',
+        [email, hashedPassword]
+      )
+      console.log('User registered successfully:', result.rows[0])
+      return result.rows[0]
+    } else {
+      // SQLite
+      console.log('Registering user in SQLite:', email)
+      const sqliteDb = await db
+      const userId = generateUUID()
+      const now = new Date().toISOString()
+      
+      await sqliteDb.run(
+        'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        [userId, email, hashedPassword, now, now]
+      )
+      
+      const user = {
+        id: userId,
+        email,
+        created_at: new Date(now),
+        updated_at: new Date(now)
+      }
+      console.log('User registered successfully:', user)
+      return user
     }
+  } catch (error) {
+    console.error('Error in registerUser:', error)
+    throw error
   }
 }
 
 // ユーザーログイン
 export async function loginUser(email: string, password: string): Promise<{ user: User; token: string } | null> {
-  if (process.env.NODE_ENV === 'production') {
-    // PostgreSQL
-    const result = await db.query(
-      'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = $1',
-      [email]
-    )
-    
-    if (result.rows.length === 0) {
-      return null
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      console.log('Logging in user in PostgreSQL:', email)
+      const result = await db.query(
+        'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = $1',
+        [email]
+      )
+      
+      if (result.rows.length === 0) {
+        console.log('User not found in PostgreSQL:', email)
+        return null
+      }
+      
+      const user = result.rows[0] as AuthUser
+      const isValidPassword = await bcrypt.compare(password, user.password_hash)
+      
+      if (!isValidPassword) {
+        console.log('Invalid password for user:', email)
+        return null
+      }
+      
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        getJwtSecret(),
+        { expiresIn: '7d' }
+      )
+      
+      console.log('User logged in successfully:', email)
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          created_at: user.created_at,
+          updated_at: user.updated_at,
+        },
+        token,
+      }
+    } else {
+      // SQLite
+      console.log('Logging in user in SQLite:', email)
+      const sqliteDb = await db
+      const result = await sqliteDb.get(
+        'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?',
+        [email]
+      )
+      
+      if (!result) {
+        console.log('User not found in SQLite:', email)
+        return null
+      }
+      
+      const user = result as AuthUser
+      const isValidPassword = await bcrypt.compare(password, user.password_hash)
+      
+      if (!isValidPassword) {
+        console.log('Invalid password for user:', email)
+        return null
+      }
+      
+      const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        getJwtSecret(),
+        { expiresIn: '7d' }
+      )
+      
+      console.log('User logged in successfully:', email)
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          created_at: new Date(user.created_at),
+          updated_at: new Date(user.updated_at),
+        },
+        token,
+      }
     }
-    
-    const user = result.rows[0] as AuthUser
-    const isValidPassword = await bcrypt.compare(password, user.password_hash)
-    
-    if (!isValidPassword) {
-      return null
-    }
-    
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      getJwtSecret(),
-      { expiresIn: '7d' }
-    )
-    
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        created_at: user.created_at,
-        updated_at: user.updated_at,
-      },
-      token,
-    }
-  } else {
-    // SQLite
-    const sqliteDb = await db
-    const result = await sqliteDb.get(
-      'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?',
-      [email]
-    )
-    
-    if (!result) {
-      return null
-    }
-    
-    const user = result as AuthUser
-    const isValidPassword = await bcrypt.compare(password, user.password_hash)
-    
-    if (!isValidPassword) {
-      return null
-    }
-    
-    const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      getJwtSecret(),
-      { expiresIn: '7d' }
-    )
-    
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        created_at: new Date(user.created_at),
-        updated_at: new Date(user.updated_at),
-      },
-      token,
-    }
+  } catch (error) {
+    console.error('Error in loginUser:', error)
+    throw error
   }
 }
 
