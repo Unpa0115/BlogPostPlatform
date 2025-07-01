@@ -3,7 +3,7 @@ import fs from 'fs/promises'
 import path from 'path'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
-  ? '/tmp/uploads'  // Railway環境では/tmpディレクトリを使用
+  ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
 export async function GET(request: NextRequest) {
