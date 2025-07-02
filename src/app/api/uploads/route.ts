@@ -9,6 +9,30 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
+// ディレクトリ作成と権限設定のヘルパー関数
+async function ensureUploadDirectory() {
+  try {
+    // ディレクトリの存在確認
+    await fs.access(UPLOAD_DIR)
+    console.log(`✅ Upload directory exists: ${UPLOAD_DIR}`)
+  } catch (error) {
+    console.log(`📁 Creating upload directory: ${UPLOAD_DIR}`)
+    try {
+      // ディレクトリを作成
+      await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o755 })
+      console.log(`✅ Upload directory created: ${UPLOAD_DIR}`)
+    } catch (mkdirError) {
+      console.error(`❌ Failed to create upload directory: ${mkdirError}`)
+      // 代替ディレクトリを試す
+      const fallbackDir = '/tmp/uploads'
+      console.log(`🔄 Trying fallback directory: ${fallbackDir}`)
+      await fs.mkdir(fallbackDir, { recursive: true, mode: 0o755 })
+      return fallbackDir
+    }
+  }
+  return UPLOAD_DIR
+}
+
 // ファイルアップロード
 export async function POST(request: NextRequest) {
   try {
@@ -47,20 +71,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large' }, { status: 400 })
     }
 
+    // アップロードディレクトリの確保
+    const uploadDir = await ensureUploadDirectory()
+    console.log(`📁 Using upload directory: ${uploadDir}`)
+
     // ファイル名生成（ユーザーID＋タイムスタンプ＋元ファイル名）
     const timestamp = Date.now()
     const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
     const fileName = `${user.id}_${timestamp}_${safeFileName}`
-    const filePath = path.join(UPLOAD_DIR, fileName)
+    const filePath = path.join(uploadDir, fileName)
     const metadataPath = filePath + '.metadata.json'
 
-    // ディレクトリ作成
-    await fs.mkdir(UPLOAD_DIR, { recursive: true })
+    console.log(`📝 Saving file to: ${filePath}`)
+
     // ファイル保存
     const buffer = Buffer.from(await file.arrayBuffer())
-    await fs.writeFile(filePath, buffer)
+    await fs.writeFile(filePath, buffer, { mode: 0o644 })
+    console.log(`✅ File saved successfully: ${fileName}`)
+
     // メタデータ保存
-    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2))
+    await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), { mode: 0o644 })
+    console.log(`✅ Metadata saved: ${fileName}.metadata.json`)
 
     // DBにアップロード情報を保存
     const upload = await storage.createUpload({

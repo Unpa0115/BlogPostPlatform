@@ -199,6 +199,25 @@ export const createTables = async () => {
       `)
       console.log('Auth notifications table created/verified')
 
+      console.log('Creating uploads table...')
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS uploads (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          file_path TEXT NOT NULL,
+          processed_file_path TEXT,
+          file_size BIGINT NOT NULL,
+          mime_type VARCHAR(100) NOT NULL,
+          status VARCHAR(20) DEFAULT 'uploading' CHECK (status IN ('uploading', 'processing', 'completed', 'error')),
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `)
+      console.log('Uploads table created/verified')
+
       // インデックス作成
       console.log('Creating indexes...')
       await db.query(`CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id)`)
@@ -206,6 +225,9 @@ export const createTables = async () => {
       await db.query(`CREATE INDEX IF NOT EXISTS idx_jobs_audio_file_id ON jobs(audio_file_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_distribution_platforms_user_id ON distribution_platforms(user_id)`)
       await db.query(`CREATE INDEX IF NOT EXISTS idx_rss_feeds_user_id ON rss_feeds(user_id)`)
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_uploads_user_id ON uploads(user_id)`)
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_uploads_status ON uploads(status)`)
+      await db.query(`CREATE INDEX IF NOT EXISTS idx_uploads_created_at ON uploads(created_at)`)
       console.log('Indexes created/verified')
 
     } else {
@@ -338,6 +360,31 @@ export const createTables = async () => {
         )
       `)
       console.log('Auth notifications table created/verified')
+
+      await sqliteDb.exec(`
+        CREATE TABLE IF NOT EXISTS uploads (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          file_path TEXT NOT NULL,
+          processed_file_path TEXT,
+          file_size INTEGER NOT NULL,
+          mime_type TEXT NOT NULL,
+          status TEXT DEFAULT 'uploading',
+          metadata TEXT DEFAULT '{}',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+      `)
+      console.log('Uploads table created/verified')
+
+      // インデックス作成
+      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_uploads_user_id ON uploads(user_id)`)
+      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_uploads_status ON uploads(status)`)
+      await sqliteDb.exec(`CREATE INDEX IF NOT EXISTS idx_uploads_created_at ON uploads(created_at)`)
+      console.log('Uploads indexes created/verified')
     }
     
     console.log('=== CREATE TABLES SUCCESS ===')
@@ -465,9 +512,27 @@ export const testConnection = async () => {
 
 // データベース初期化
 export const initializeDatabase = async () => {
-  const isConnected = await testConnection()
-  if (isConnected) {
-    await createTables()
+  try {
+    console.log('=== INITIALIZE DATABASE START ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
+    
+    // 接続テスト
+    const connectionTest = await testConnection()
+    console.log('Connection test result:', connectionTest)
+    
+    if (connectionTest && connectionTest.status === 'connected') {
+      console.log('Database connection successful, creating tables...')
+      await createTables()
+      console.log('=== INITIALIZE DATABASE SUCCESS ===')
+    } else {
+      console.error('Database connection failed:', connectionTest)
+      throw new Error('Database connection failed')
+    }
+  } catch (error) {
+    console.error('=== INITIALIZE DATABASE ERROR ===')
+    console.error('Initialize database error:', error)
+    throw error
   }
 }
 
@@ -477,5 +542,13 @@ export { db }
 // アプリケーション起動時にデータベースを初期化
 if (typeof window === 'undefined') {
   // サーバーサイドでのみ実行
-  initializeDatabase().catch(console.error)
+  console.log('=== DATABASE INITIALIZATION START ===')
+  initializeDatabase()
+    .then(() => {
+      console.log('=== DATABASE INITIALIZATION SUCCESS ===')
+    })
+    .catch((error) => {
+      console.error('=== DATABASE INITIALIZATION FAILED ===')
+      console.error('Initialization error:', error)
+    })
 } 
