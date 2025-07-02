@@ -117,6 +117,49 @@ RailwayでのDockerビルドでメモリ不足エラー（exit code: 137）が�
 - Railwayでの安定したデプロイが期待できる
 - 必要に応じて、将来的にPython版を別サービスとして分離することも可能
 
+### [2025-07-02 05:30] - Railwayデプロイ後のデータベースと暗号化エラーの解決
+
+# 実行結果報告
+
+## 概要
+Railwayデプロイ後に発生したPostgreSQLテーブル不存在エラーと暗号化マスターキー未設定エラーを解決しました。`uploads`テーブルの追加と`ENCRYPTION_MASTER_KEY`環境変数の設定により、アップロード機能とプラットフォームCredentialsの暗号化機能が正常に動作するようになりました。
+
+## 実行ステップ
+1. PostgreSQLテーブル不存在エラー（relation "uploads" does not exist）の調査
+2. `uploads`テーブルのPostgreSQLスキーマへの追加
+3. `ENCRYPTION_MASTER_KEY`環境変数の生成とRailway設定
+4. 暗号化機能の動作確認用APIエンドポイントの作成
+5. PostgreSQL制約エラー（distribution_platforms_platform_type_check）の解決
+6. `openai`プラットフォームタイプの制約への追加
+7. 制約更新機能の実装と実行
+
+## 最終成果物
+- **修正されたdatabase.ts**: PostgreSQL用の`uploads`テーブル定義を追加
+- **設定されたENCRYPTION_MASTER_KEY**: 安全な暗号化マスターキーをRailway環境変数に設定
+- **作成されたtest-encryption API**: 暗号化機能の動作確認用エンドポイント
+- **修正された制約**: `distribution_platforms`テーブルに`openai`プラットフォームタイプを追加
+- **作成されたupdate-constraints API**: 制約更新用エンドポイント
+- **正常動作するアップロード機能**: ファイルアップロードとRSS Feed生成が正常に動作
+
+## 課題対応（該当する場合）
+- **問題1**: PostgreSQLテーブル不存在エラー（relation "uploads" does not exist）
+- **原因**: `uploads`テーブルがPostgreSQLスキーマに定義されていなかった
+- **対策**: PostgreSQL用の`uploads`テーブル定義を`database.ts`に追加
+
+- **問題2**: 暗号化マスターキー未設定エラー（ENCRYPTION_MASTER_KEY environment variable is required in production）
+- **原因**: Railway環境で`ENCRYPTION_MASTER_KEY`環境変数が設定されていなかった
+- **対策**: 安全な暗号化マスターキーを生成し、Railway環境変数に設定
+
+- **問題3**: PostgreSQL制約エラー（distribution_platforms_platform_type_check）
+- **原因**: `openai`プラットフォームタイプが制約に含まれていなかった
+- **対策**: 制約に`openai`を追加し、制約更新機能を実装
+
+## 注意点・改善提案
+- アップロード機能は正常に動作し、RSS Feed生成も成功している
+- 暗号化機能のテストが全て成功し、セキュリティが確保されている
+- 制約更新により、OpenAIプラットフォームCredentialsの保存が可能になった
+- 今後のプラットフォーム追加時は、制約の更新を忘れずに行う必要がある
+
 ## 累積成果物
 
 ### 実装済み機能
@@ -137,6 +180,9 @@ RailwayでのDockerビルドでメモリ不足エラー（exit code: 137）が�
 - [x] Dockerビルドエラーの解決
 - [x] メモリ不足エラーの対応
 - [x] VoicyAutomationのTypeScript版への移行決定
+- [x] Railwayデプロイ後のデータベースエラー解決
+- [x] 暗号化機能の設定と動作確認
+- [x] PostgreSQL制約エラーの解決
 
 ### 作成されたファイル・コンポーネント
 - **API Routes**: `/api/uploads/list`, `/api/platforms/voicy-upload`, `/api/platforms/youtube-upload`, `/api/platforms/voicy-credentials`
@@ -154,6 +200,9 @@ RailwayでのDockerビルドでメモリ不足エラー（exit code: 137）が�
 - ハードコードされた認証情報のセキュリティ問題
 - DockerビルドエラーとPython環境の統合
 - メモリ不足エラーとTypeScript版への移行
+- PostgreSQLテーブル不存在エラー（uploadsテーブル）
+- 暗号化マスターキー未設定エラー
+- PostgreSQL制約エラー（openaiプラットフォームタイプ）
 
 ## 技術的知見
 
