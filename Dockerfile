@@ -13,6 +13,9 @@ RUN npm ci
 # アプリケーションコードをコピー
 COPY . .
 
+# 型定義ファイルの確認
+RUN ls -la src/types/ || echo "types directory not found"
+
 # Next.jsビルド
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
