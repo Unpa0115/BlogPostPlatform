@@ -36,13 +36,23 @@ export class YouTubeClient {
 
   setCredentials(clientId: string, clientSecret: string) {
     const baseUrl = process.env.NODE_ENV === 'production'
-      ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
+      ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
       : 'http://localhost:3000'
+    
+    const redirectUri = `${baseUrl}/api/platforms/youtube/callback`
+    
+    console.log('=== YouTube OAuth Configuration ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('Base URL:', baseUrl)
+    console.log('Redirect URI:', redirectUri)
+    console.log('Client ID:', clientId ? '***' + clientId.slice(-4) : 'missing')
+    console.log('Client Secret:', clientSecret ? '***' + clientSecret.slice(-4) : 'missing')
+    console.log('====================================')
     
     this.oauth2Client = new google.auth.OAuth2(
       clientId,
       clientSecret,
-      `${baseUrl}/api/platforms/youtube/callback`
+      redirectUri
     )
   }
 
@@ -105,19 +115,21 @@ export class YouTubeClient {
     try {
       // Create a new OAuth2Client instance for this upload to ensure clean state
       const baseUrl = process.env.NODE_ENV === 'production'
-        ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
+        ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
         : 'http://localhost:3000'
+      
+      const redirectUri = `${baseUrl}/api/platforms/youtube/callback`
       
       console.log('Creating OAuth2Client with:', {
         clientId: options.clientId ? '***' : 'missing',
         clientSecret: options.clientSecret ? '***' : 'missing',
-        redirectUri: `${baseUrl}/api/platforms/youtube/callback`
+        redirectUri: redirectUri
       })
       
       const oauth2Client = new google.auth.OAuth2(
         options.clientId,
         options.clientSecret,
-        `${baseUrl}/api/platforms/youtube/callback`
+        redirectUri
       )
       
       // Set credentials with refresh token
@@ -228,10 +240,14 @@ export class YouTubeClient {
 
   async getChannelInfo(refreshToken: string, clientId: string, clientSecret: string): Promise<any> {
     try {
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
+        : 'http://localhost:3000'
+      
       const oauth2Client = new google.auth.OAuth2(
         clientId,
         clientSecret,
-        `${process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com' : 'http://localhost:3000'}/api/platforms/youtube/callback`
+        `${baseUrl}/api/platforms/youtube/callback`
       )
 
       oauth2Client.setCredentials({
@@ -257,10 +273,14 @@ export class YouTubeClient {
 
   async revokeAccess(refreshToken: string, clientId: string, clientSecret: string): Promise<void> {
     try {
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
+        : 'http://localhost:3000'
+      
       const oauth2Client = new google.auth.OAuth2(
         clientId,
         clientSecret,
-        `${process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com' : 'http://localhost:3000'}/api/platforms/youtube/callback`
+        `${baseUrl}/api/platforms/youtube/callback`
       )
 
       oauth2Client.setCredentials({

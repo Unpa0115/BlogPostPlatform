@@ -40,13 +40,21 @@ export class YouTubeService {
     
     // Next.js環境でのコールバックURL設定
     const baseUrl = process.env.NODE_ENV === 'production' 
-      ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
+      ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
       : 'http://localhost:3000';
+    
+    const redirectUri = `${baseUrl}/api/platforms/youtube/callback`
+    
+    console.log('=== YouTube Service OAuth Configuration ===')
+    console.log('Environment:', process.env.NODE_ENV)
+    console.log('Base URL:', baseUrl)
+    console.log('Redirect URI:', redirectUri)
+    console.log('==========================================')
     
     this.oauth2Client = new google.auth.OAuth2(
       clientId,
       clientSecret,
-      `${baseUrl}/api/platforms/youtube/callback`
+      redirectUri
     );
   }
 
@@ -116,13 +124,15 @@ export class YouTubeService {
 
       // Create a new OAuth2Client instance for this upload to ensure clean state
       const baseUrl = process.env.NODE_ENV === 'production' 
-        ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
+        ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
         : 'http://localhost:3000';
+
+      const redirectUri = `${baseUrl}/api/platforms/youtube/callback`
 
       const oauth2Client = new google.auth.OAuth2(
         platformSettings.settings.clientId,
         platformSettings.settings.clientSecret,
-        `${baseUrl}/api/platforms/youtube/callback`
+        redirectUri
       );
       
       // Set credentials with refresh token
