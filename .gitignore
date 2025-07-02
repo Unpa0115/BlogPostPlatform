@@ -44,3 +44,19 @@ next-env.d.ts
 # Replit旧コード（ビルドエラー防止）
 /client_replit
 /server_replit
+
+# アップロードファイル（デプロイサイズ削減のため）
+/uploads/
+/datasource/
+
+# データベースファイル
+*.db
+*.sqlite
+*.sqlite3
+
+# ログファイル
+*.log
+
+# 一時ファイル
+*.tmp
+*.temp
