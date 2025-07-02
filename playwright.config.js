@@ -12,9 +12,18 @@ module.exports = defineConfig({
         headless: true,
         // リソース節約
         viewport: { width: 1280, height: 720 },
+        // 追加のブラウザ引数（メモリ節約）
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu'
+        ],
       },
     },
-    // Firefox、Safariは削除
   ],
   
   // 同時実行数を制限（メモリ節約）

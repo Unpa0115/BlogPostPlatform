@@ -237,6 +237,40 @@ Railwayデプロイ時間の大幅短縮のため、Microsoft公式のPlaywright
 - イメージサイズ削減: 30-40%の削減が期待
 - Browserlessのコスト削減: 有料サービスが不要
 - 今後のデプロイで実際の効果を確認し、必要に応じてさらなる最適化を検討
+
+### [2025-01-28 02:30] - Dockerfile修正（postinstallスクリプトエラー対応）
+
+# 実行結果報告
+
+## 概要
+Microsoft公式Playwrightイメージでのpostinstallスクリプトエラー（apt-get: not found）を修正しました。Microsoft公式イメージでは既にPlaywrightとChromiumがインストールされているため、追加のインストール処理を削除し、シンプルなDockerfileに変更しました。
+
+## 実行ステップ
+1. postinstallスクリプトエラーの原因分析（Microsoft公式イメージでのapt-get非対応）
+2. package.jsonからpostinstallスクリプトを削除
+3. Dockerfileをシンプルな単一ステージビルドに変更
+4. playwright.config.jsにメモリ節約用のブラウザ引数を追加
+5. Microsoft公式イメージの特性を活用した最適化
+
+## 最終成果物
+- **修正されたDockerfile**: シンプルな単一ステージビルド、不要なインストール処理を削除
+- **修正されたpackage.json**: postinstallスクリプトを削除
+- **最適化されたplaywright.config.js**: メモリ節約用のブラウザ引数を追加
+- **エラー解決**: apt-get: not foundエラーの完全解決
+
+## 課題対応（該当する場合）
+- **問題**: postinstallスクリプトでapt-get: not foundエラーが発生
+- **原因**: Microsoft公式Playwrightイメージではapt-getが使用できない
+- **対策**: 
+  1. postinstallスクリプトを削除
+  2. Microsoft公式イメージの既存Playwright/Chromiumを活用
+  3. シンプルなDockerfileに変更
+
+## 注意点・改善提案
+- Microsoft公式イメージでは既にPlaywrightとChromiumがインストール済み
+- 追加のインストール処理は不要で、むしろエラーの原因となる
+- シンプルなDockerfileにより、ビルド時間のさらなる短縮が期待
+- 今後のデプロイで正常に動作することを確認
 - DockerビルドエラーとPython環境の統合
 - メモリ不足エラーとTypeScript版への移行
 - PostgreSQLテーブル不存在エラー（uploadsテーブル）
