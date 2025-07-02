@@ -7,8 +7,8 @@ WORKDIR /app
 # package.jsonを先にコピー（キャッシュ効率化）
 COPY package*.json ./
 
-# 依存関係をインストール
-RUN npm ci --only=production
+# 全依存関係をインストール（ビルド用）
+RUN npm ci
 
 # アプリケーションコードをコピー
 COPY . .
@@ -16,6 +16,9 @@ COPY . .
 # Next.jsビルド
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
+
+# 本番用依存関係のみに変更（devDependenciesを削除）
+RUN npm ci --only=production
 
 # 不要なファイルを削除してサイズ削減
 RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

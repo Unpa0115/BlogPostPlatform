@@ -271,6 +271,37 @@ Microsoft公式Playwrightイメージでのpostinstallスクリプトエラー�
 - 追加のインストール処理は不要で、むしろエラーの原因となる
 - シンプルなDockerfileにより、ビルド時間のさらなる短縮が期待
 - 今後のデプロイで正常に動作することを確認
+
+### [2025-01-28 03:00] - TypeScript型定義エラーの修正
+
+# 実行結果報告
+
+## 概要
+Next.jsビルド時のTypeScript型定義エラー（bcryptjs）を修正しました。devDependenciesが本番ビルドに含まれていないため、型定義ファイルが不足していた問題を解決しました。
+
+## 実行ステップ
+1. TypeScript型定義エラーの原因分析（bcryptjs型定義不足）
+2. package.jsonの依存関係確認（@types/bcryptjsがdevDependenciesに存在）
+3. Dockerfileの修正（ビルド時は全依存関係、実行時は本番用のみ）
+4. マルチステージビルドの最適化（ビルド後devDependenciesを削除）
+
+## 最終成果物
+- **修正されたDockerfile**: ビルド時は全依存関係、実行時は本番用のみに最適化
+- **解決された型定義エラー**: bcryptjsの型定義ファイルが正常に利用可能
+- **最適化されたイメージサイズ**: ビルド後devDependenciesを削除してサイズ削減
+
+## 課題対応（該当する場合）
+- **問題**: TypeScript型定義エラー（Could not find a declaration file for module 'bcryptjs'）
+- **原因**: Dockerfileで`--only=production`を使用していたため、devDependenciesがインストールされていない
+- **対策**: 
+  1. ビルド時は全依存関係（devDependencies含む）をインストール
+  2. ビルド後に本番用依存関係のみに変更
+  3. 型定義ファイルを利用可能にしつつ、最終イメージサイズを最適化
+
+## 注意点・改善提案
+- ビルド時と実行時で依存関係を分離することで、型安全性とイメージサイズの両方を最適化
+- 今後のデプロイで正常にビルドされることを確認
+- 同様の型定義エラーが他のパッケージで発生した場合も同じ方法で対応可能
 - DockerビルドエラーとPython環境の統合
 - メモリ不足エラーとTypeScript版への移行
 - PostgreSQLテーブル不存在エラー（uploadsテーブル）
