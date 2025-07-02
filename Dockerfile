@@ -1,19 +1,14 @@
-# ビルドステージ
-FROM node:18-alpine AS builder
+# Microsoft公式の軽量Playwrightイメージを使用
+FROM mcr.microsoft.com/playwright:v1.50.0-jammy AS base
+
+# 作業ディレクトリ設定
 WORKDIR /app
+
+# package.jsonを先にコピー（キャッシュ効率化）
 COPY package*.json ./
+
+# 依存関係をインストール
 RUN npm ci --only=production
-
-# 実行ステージ - Microsoft公式の軽量Playwrightイメージを使用
-FROM mcr.microsoft.com/playwright:v1.50.0-jammy AS runner
-WORKDIR /app
-
-# ビルドステージから依存関係をコピー
-COPY --from=builder /app/node_modules ./node_modules
-COPY package*.json ./
-
-# Chromiumのみインストール（Firefox、Safariは除外）
-RUN npx playwright install chromium --with-deps
 
 # アプリケーションコードをコピー
 COPY . .
