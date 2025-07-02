@@ -6,21 +6,40 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
+// ディレクトリ作成と権限設定のヘルパー関数
+async function ensureUploadDirectory() {
+  try {
+    // ディレクトリの存在確認
+    await fs.access(UPLOAD_DIR)
+    console.log(`✅ Upload directory exists: ${UPLOAD_DIR}`)
+  } catch (error) {
+    console.log(`📁 Creating upload directory: ${UPLOAD_DIR}`)
+    try {
+      // ディレクトリを作成
+      await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o755 })
+      console.log(`✅ Upload directory created: ${UPLOAD_DIR}`)
+    } catch (mkdirError) {
+      console.error(`❌ Failed to create upload directory: ${mkdirError}`)
+      // 代替ディレクトリを試す
+      const fallbackDir = '/tmp/uploads'
+      console.log(`🔄 Trying fallback directory: ${fallbackDir}`)
+      await fs.mkdir(fallbackDir, { recursive: true, mode: 0o755 })
+      return fallbackDir
+    }
+  }
+  return UPLOAD_DIR
+}
+
 export async function GET(request: NextRequest) {
   try {
     console.log('🔍 Uploads list API called')
-    console.log('📁 Upload directory:', UPLOAD_DIR)
     
-    // ディレクトリの存在確認
-    try {
-      await fs.access(UPLOAD_DIR)
-    } catch (error) {
-      console.log('❌ Upload directory not found, creating...')
-      await fs.mkdir(UPLOAD_DIR, { recursive: true })
-    }
+    // アップロードディレクトリの確保
+    const uploadDir = await ensureUploadDirectory()
+    console.log('📁 Upload directory:', uploadDir)
     
     // ファイル一覧を取得
-    const files = await fs.readdir(UPLOAD_DIR)
+    const files = await fs.readdir(uploadDir)
     
     // ファイル情報を取得
     const fileList = await Promise.all(
@@ -30,7 +49,7 @@ export async function GET(request: NextRequest) {
           return ['.mp3', '.wav', '.m4a', '.mp4', '.mov'].includes(ext)
         })
         .map(async (file) => {
-          const filePath = path.join(UPLOAD_DIR, file)
+          const filePath = path.join(uploadDir, file)
           const stats = await fs.stat(filePath)
           
           return {
@@ -64,12 +83,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ファイルサイズフォーマット関数
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes'
-  
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 } 

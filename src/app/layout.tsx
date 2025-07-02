@@ -6,6 +6,9 @@ import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/contexts/auth-context'
 import Link from 'next/link'
 
+// データベース初期化を確実に実行
+import '@/lib/database'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
