@@ -63,4 +63,14 @@ server_replit/
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Railway deployment optimization
+datasource/
+*.log
+*.sqlite*
+.env.example
+railway-deployment-troubleshooting.md
+python-scripts/
+scripts/
+debug-auth.js 
