@@ -73,4 +73,19 @@ datasource/
 railway-deployment-troubleshooting.md
 python-scripts/
 scripts/
-debug-auth.js 
+debug-auth.js
+
+# イメージサイズ削減のための追加除外
+node_modules/.cache
+.next/cache
+.git
+.github
+.vscode
+.idea
+*.md
+*.txt
+*.log
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db 
