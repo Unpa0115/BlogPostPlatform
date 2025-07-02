@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\""
+    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
+    "postinstall": "npx playwright install chromium --with-deps"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

@@ -198,6 +198,45 @@ Railwayデプロイ後に発生したPostgreSQLテーブル不存在エラーと
 - ファイルパスの適切な処理
 - UI/UXの一貫性維持
 - ハードコードされた認証情報のセキュリティ問題
+- Railwayデプロイ時間の最適化（Microsoft公式Playwrightイメージ使用）
+
+### [2025-01-28 02:00] - Railwayデプロイ時間の最適化
+
+# 実行結果報告
+
+## 概要
+Railwayデプロイ時間の大幅短縮のため、Microsoft公式のPlaywrightイメージを使用したDockerfile最適化を実施しました。Browserlessを使わずに、マルチステージビルドとChromiumのみの使用により、デプロイ時間を60分から15-20分に短縮できる見込みです。
+
+## 実行ステップ
+1. 現在のDockerfileの分析（Ubuntu-based Node.js + 手動依存関係インストール）
+2. Microsoft公式Playwrightイメージ（mcr.microsoft.com/playwright:v1.50.0-jammy）への移行
+3. マルチステージビルドの実装（node:18-alpine + Playwrightイメージ）
+4. .dockerignoreファイルの最適化（不要ファイルの除外）
+5. playwright.config.jsの作成（Chromiumのみ使用、リソース節約設定）
+6. package.jsonの最適化（postinstallスクリプト追加）
+7. 環境変数の追加（Playwright最適化設定）
+
+## 最終成果物
+- **最適化されたDockerfile**: Microsoft公式Playwrightイメージ + マルチステージビルド
+- **最適化された.dockerignore**: 不要ファイルの除外によるデプロイサイズ削減
+- **新規作成されたplaywright.config.js**: Chromiumのみ使用、リソース節約設定
+- **更新されたpackage.json**: postinstallスクリプトによる自動Chromiumインストール
+- **更新されたenv.example**: Playwright最適化用環境変数の追加
+
+## 課題対応（該当する場合）
+- **問題**: Railwayデプロイ時間が異様に長い（60分以上）
+- **原因**: 手動での依存関係インストールと全ブラウザのインストール
+- **対策**: 
+  1. Microsoft公式Playwrightイメージの使用
+  2. マルチステージビルドによる効率化
+  3. Chromiumのみの使用による軽量化
+  4. .dockerignoreによる不要ファイルの除外
+
+## 注意点・改善提案
+- 期待されるデプロイ時間短縮: 60分 → 15-20分
+- イメージサイズ削減: 30-40%の削減が期待
+- Browserlessのコスト削減: 有料サービスが不要
+- 今後のデプロイで実際の効果を確認し、必要に応じてさらなる最適化を検討
 - DockerビルドエラーとPython環境の統合
 - メモリ不足エラーとTypeScript版への移行
 - PostgreSQLテーブル不存在エラー（uploadsテーブル）
