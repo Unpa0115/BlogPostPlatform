@@ -124,7 +124,7 @@ export const createTables = async () => {
         CREATE TABLE IF NOT EXISTS distribution_platforms (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          platform_type VARCHAR(20) NOT NULL CHECK (platform_type IN ('voicy', 'youtube', 'spotify')),
+          platform_type VARCHAR(20) NOT NULL CHECK (platform_type IN ('voicy', 'youtube', 'spotify', 'openai')),
           platform_name VARCHAR(255) NOT NULL,
           credentials JSONB NOT NULL DEFAULT '{}',
           settings JSONB DEFAULT '{}',
@@ -510,6 +510,39 @@ export const testConnection = async () => {
   }
 }
 
+// 制約更新関数
+export const updateConstraints = async () => {
+  try {
+    console.log('=== UPDATE CONSTRAINTS START ===')
+    
+    if (process.env.NODE_ENV === 'production') {
+      console.log('Updating PostgreSQL constraints...')
+      
+      // 既存の制約を削除して新しい制約を追加
+      await db.query(`
+        ALTER TABLE distribution_platforms 
+        DROP CONSTRAINT IF EXISTS distribution_platforms_platform_type_check
+      `)
+      
+      await db.query(`
+        ALTER TABLE distribution_platforms 
+        ADD CONSTRAINT distribution_platforms_platform_type_check 
+        CHECK (platform_type IN ('voicy', 'youtube', 'spotify', 'openai'))
+      `)
+      
+      console.log('Constraints updated successfully')
+    } else {
+      console.log('SQLite does not support constraint updates, skipping...')
+    }
+    
+    console.log('=== UPDATE CONSTRAINTS SUCCESS ===')
+  } catch (error) {
+    console.error('=== UPDATE CONSTRAINTS ERROR ===')
+    console.error('Update constraints error:', error)
+    throw error
+  }
+}
+
 // データベース初期化
 export const initializeDatabase = async () => {
   try {
@@ -524,6 +557,10 @@ export const initializeDatabase = async () => {
     if (connectionTest && connectionTest.status === 'connected') {
       console.log('Database connection successful, creating tables...')
       await createTables()
+      
+      // 制約の更新
+      await updateConstraints()
+      
       console.log('=== INITIALIZE DATABASE SUCCESS ===')
     } else {
       console.error('Database connection failed:', connectionTest)
