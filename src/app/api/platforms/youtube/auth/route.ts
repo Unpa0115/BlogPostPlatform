@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const clientId = searchParams.get('clientId')
     const clientSecret = searchParams.get('clientSecret')
+    const userId = searchParams.get('userId')
 
     if (!clientId || !clientSecret) {
       return NextResponse.json({ 
@@ -16,12 +17,13 @@ export async function GET(request: NextRequest) {
     // YouTubeクライアントを設定
     youtubeClient.setCredentials(clientId, clientSecret)
     
-    // 認証URLを生成
-    const authUrl = youtubeClient.generateAuthUrl()
+    // 認証URLを生成（ユーザーIDを含む）
+    const authUrl = youtubeClient.generateAuthUrl(userId || undefined)
     
     return NextResponse.json({ 
       authUrl,
-      message: 'Please visit this URL to authorize YouTube access'
+      message: 'Please visit this URL to authorize YouTube access',
+      userId: userId || 'default'
     })
   } catch (error) {
     console.error('YouTube auth error:', error)

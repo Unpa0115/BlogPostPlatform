@@ -134,8 +134,8 @@ export default function PlatformsPage() {
           description: "クライアントIDとシークレットが保存されました。認証フローを開始します。",
         })
 
-        // OAuth認証URLを取得
-        const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}`, {
+        // OAuth認証URLを取得（ユーザーIDを含む）
+        const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}&userId=${encodeURIComponent(user?.id || '')}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
