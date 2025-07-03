@@ -4,11 +4,12 @@ import { getUserById } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    // デフォルトユーザーID
-    const defaultUserId = '10699750-312a-4f82-ada7-c8e5cf9b1fa8'
+    // クエリパラメータから userId を取得（なければデフォルト）
+    const { searchParams } = new URL(request.url)
+    const userId = searchParams.get('userId') || '10699750-312a-4f82-ada7-c8e5cf9b1fa8'
     
     // ユーザー情報を取得
-    const user = await getUserById(defaultUserId)
+    const user = await getUserById(userId)
     
     // YouTubeプラットフォーム設定を取得
     const youtubePlatform = await db.query(
@@ -22,14 +23,14 @@ export async function GET(request: NextRequest) {
       if (process.env.NODE_ENV === 'production') {
         const tokenResult = await db.query(
           'SELECT * FROM youtube_tokens WHERE user_id = $1',
-          [defaultUserId]
+          [userId]
         )
         youtubeToken = tokenResult.rows[0] || null
       } else {
         const sqliteDb = await db
         youtubeToken = await sqliteDb.get(
           'SELECT * FROM youtube_tokens WHERE user_id = ?',
-          [defaultUserId]
+          [userId]
         )
       }
     } catch (error) {
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
         created_at: user.created_at,
         exists: true
       } : {
-        id: defaultUserId,
+        id: userId,
         exists: false,
         message: 'User not found'
       },
