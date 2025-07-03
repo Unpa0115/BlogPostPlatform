@@ -5,10 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "NODE_OPTIONS='--max-old-space-size=768' next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\""
+    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
+    "health": "curl -s http://localhost:3000/api/health | jq",
+    "railway:health": "curl -s https://blogpostplatform-production.up.railway.app/api/health | jq",
+    "monitor": "node scripts/monitor-health.js",
+    "railway:monitor": "RAILWAY_URL=https://blogpostplatform-production.up.railway.app node scripts/monitor-health.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

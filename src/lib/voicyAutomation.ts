@@ -30,6 +30,37 @@ export interface VoicyAutomationOptions {
 const DATASOURCE_FOLDER = (title: string) => path.join("datasource", title);
 const SCREENSHOTS_FOLDER = "screenshots/voicy";
 
+// Playwright設定を軽量化
+const PLAYWRIGHT_CONFIG = {
+  headless: true,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--disable-gpu',
+    '--disable-extensions',
+    '--disable-plugins',
+    '--disable-images',
+    '--disable-javascript',
+    '--disable-default-apps',
+    '--disable-background-networking',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding',
+    '--disable-features=TranslateUI',
+    '--disable-component-extensions-with-background-pages',
+    '--memory-pressure-off',
+    '--max_old_space_size=512',
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--single-process'
+  ],
+  timeout: 30000,
+  ignoreDefaultArgs: ['--disable-extensions'],
+  executablePath: process.env.CHROMIUM_PATH || undefined,
+}
+
 async function getVoicyCredentials(): Promise<{ email: string; password: string }> {
   // 環境変数から直接認証情報を取得（API_TOKENは不要）
   try {
@@ -74,22 +105,37 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     const { email, password } = await getVoicyCredentials();
     console.log(`✅ 認証情報取得成功: ${email}`);
     
-    // ブラウザを起動（Playwright 1.53.1対応）
-    browser = await chromium.launch({ 
-      headless: true, // 本番環境ではheadless=true
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu'
-      ]
-    });
+    // ブラウザを起動（軽量設定）
+    console.log('Starting browser...')
+    browser = await chromium.launch(PLAYWRIGHT_CONFIG)
     
-    const context = await browser.newContext();
-    const page = await context.newPage();
+    const context = await browser.newContext({
+      viewport: { width: 1280, height: 720 },
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      // 軽量化のため、画像やCSS、フォントをブロック
+      extraHTTPHeaders: {
+        'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+      }
+    })
+    
+    // 不要なリソースをブロック
+    await context.route('**/*', route => {
+      const resourceType = route.request().resourceType()
+      if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
+        route.abort()
+      } else {
+        route.continue()
+      }
+    })
+    
+    const page = await context.newPage()
+    
+    // メモリ使用量を監視
+    const memoryUsage = process.memoryUsage()
+    console.log('Memory usage before upload:', {
+      rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB',
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+    })
     
     // Stealth機能を適用
     // await stealth(page);
@@ -332,6 +378,14 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       }
     }
     console.log("Took a screenshot of the error state.");
+
+    // エラー時もメモリ使用量を確認
+    const memoryUsage = process.memoryUsage()
+    console.log('Memory usage on error:', {
+      rss: Math.round(memoryUsage.rss / 1024 / 1024) + 'MB',
+      heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024) + 'MB',
+    })
+    
     return false;
 
   } finally {
@@ -339,4 +393,6 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       await browser.close();
     }
   }
-} 
+}
+
+// 既存のuploadToVoicy関数は他の場所で定義されています 
