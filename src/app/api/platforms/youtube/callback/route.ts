@@ -41,12 +41,17 @@ export async function GET(request: NextRequest) {
     let user: any = null
     let userEmail: string | undefined
 
+    console.log('=== YouTube Callback User Debug ===')
+    console.log('State parameter:', state)
+    console.log('Code parameter:', code ? 'present' : 'missing')
+
     // 1. stateパラメータからユーザーIDを取得（推奨）
     if (state) {
       userId = state
       user = await getUserById(userId)
       userEmail = user?.email
       console.log('Using user ID from state parameter:', userId)
+      console.log('User found from state:', !!user)
     }
 
     // 2. それでもなければデフォルトユーザーIDを使用
@@ -55,6 +60,7 @@ export async function GET(request: NextRequest) {
       user = await getUserById(userId)
       userEmail = user?.email
       console.log('Using default user ID:', userId)
+      console.log('User found from default:', !!user)
     }
 
     // 3. 最終的なユーザー存在確認
