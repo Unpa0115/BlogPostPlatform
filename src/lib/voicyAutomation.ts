@@ -31,40 +31,16 @@ const DATASOURCE_FOLDER = (title: string) => path.join("datasource", title);
 const SCREENSHOTS_FOLDER = "screenshots/voicy";
 
 async function getVoicyCredentials(): Promise<{ email: string; password: string }> {
-  // APIからVoicy認証情報を取得
+  // 環境変数から直接認証情報を取得（API_TOKENは不要）
   try {
-    if (!API_TOKEN) {
-      throw new Error("API_TOKEN環境変数が設定されていません");
+    const email = process.env.VOICY_EMAIL;
+    const password = process.env.VOICY_PASSWORD;
+    
+    if (!email || !password) {
+      throw new Error("VOICY_EMAILまたはVOICY_PASSWORD環境変数が設定されていません");
     }
     
-    const headers = {
-      'Authorization': `Bearer ${API_TOKEN}`,
-      'Content-Type': 'application/json'
-    };
-    
-    const response = await fetch(`${API_BASE_URL}/api/platforms/voicy-credentials`, { headers });
-    
-    if (response.status === 200) {
-      const data = await response.json();
-      if (data.success && data.data) {
-        const credentials = data.data;
-        return {
-          email: credentials.email,
-          password: credentials.password
-        };
-      } else {
-        throw new Error("APIレスポンスの形式が正しくありません");
-      }
-    } else if (response.status === 404) {
-      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
-    } else if (response.status === 401) {
-      throw new Error("API認証に失敗しました。トークンを確認してください。");
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.message || `HTTP ${response.status}`;
-      throw new Error(`API呼び出しエラー: ${errorMessage}`);
-    }
-      
+    return { email, password };
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`認証情報取得エラー: ${error.message}`);

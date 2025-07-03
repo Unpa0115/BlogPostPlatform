@@ -66,6 +66,22 @@ export async function GET(request: NextRequest) {
     // 3. 最終的なユーザー存在確認
     if (!user) {
       console.error('No valid user found for YouTube authentication')
+      console.log('Available users in database:')
+      
+      // データベース内のユーザー一覧を確認（デバッグ用）
+      try {
+        if (process.env.NODE_ENV === 'production') {
+          const allUsers = await db.query('SELECT id, email FROM users LIMIT 5')
+          console.log('PostgreSQL users:', allUsers.rows)
+        } else {
+          const sqliteDb = await db
+          const allUsers = await sqliteDb.all('SELECT id, email FROM users LIMIT 5')
+          console.log('SQLite users:', allUsers)
+        }
+      } catch (error) {
+        console.log('Failed to fetch users for debug:', error)
+      }
+      
       return NextResponse.json({
         error: 'No valid user found for YouTube authentication',
         details: 'ユーザーが見つかりません。ログイン状態で再度お試しください'
