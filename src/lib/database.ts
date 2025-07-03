@@ -164,6 +164,23 @@ export const createTables = async () => {
       `)
       console.log('Platform settings table created/verified')
 
+      console.log('Creating platform_credentials table...')
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS platform_credentials (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          platform_type VARCHAR(20) NOT NULL UNIQUE,
+          client_id TEXT,
+          client_secret TEXT,
+          access_token TEXT,
+          refresh_token TEXT,
+          expires_at TIMESTAMP WITH TIME ZONE,
+          is_active BOOLEAN DEFAULT false,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        )
+      `)
+      console.log('Platform credentials table created/verified')
+
       console.log('Creating youtube_tokens table...')
       await db.query(`
         CREATE TABLE IF NOT EXISTS youtube_tokens (
@@ -325,6 +342,22 @@ export const createTables = async () => {
         )
       `)
       console.log('Platform settings table created/verified')
+
+      await sqliteDb.exec(`
+        CREATE TABLE IF NOT EXISTS platform_credentials (
+          id TEXT PRIMARY KEY,
+          platform_type TEXT NOT NULL UNIQUE,
+          client_id TEXT,
+          client_secret TEXT,
+          access_token TEXT,
+          refresh_token TEXT,
+          expires_at DATETIME,
+          is_active INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      console.log('Platform credentials table created/verified')
 
       await sqliteDb.exec(`
         CREATE TABLE IF NOT EXISTS youtube_tokens (

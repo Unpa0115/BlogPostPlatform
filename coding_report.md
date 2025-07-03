@@ -493,4 +493,58 @@ Microsoft公式Playwrightイメージの必要性を確認し、最適化を実�
 - 認証情報の定期的な更新とセキュリティ監査を推奨
 - TypeScript版は同等の機能を提供し、メモリ効率が大幅に向上
 - 単一言語環境により、デバッグとメンテナンスが容易
-- Railwayでの安定したデプロイが期待できる 
+- Railwayでの安定したデプロイが期待できる
+
+### [2025-01-28 05:00] - YouTube認証・platform_credentialsテーブル実装とアップロードUI改善
+
+# 実行結果報告
+
+## 概要
+YouTube認証システムの「platform_credentials」テーブル不存在エラーを解決し、認証状態確認APIとコールバックAPIの両方で統一したテーブルを使用するように実装しました。また、アップロードフォームのローディングUIを改善し、ユーザーエクスペリエンスを向上させました。
+
+## 実行ステップ
+1. **platform_credentialsテーブル不存在エラーの調査**
+   - YouTube debug APIで「relation "platform_credentials" does not exist」エラーを確認
+   - 既存のdatabase.tsでplatform_credentialsテーブル定義が不足していることを特定
+
+2. **platform_credentialsテーブルの作成**
+   - PostgreSQLとSQLite両環境に対応したテーブル定義を追加
+   - マイグレーション実行によるテーブル作成
+
+3. **YouTube認証APIの修正**
+   - コールバックAPIでplatform_credentialsテーブルに認証情報を保存
+   - debug APIでplatform_credentialsテーブルから認証情報を取得
+   - 環境別（production/development）の適切な処理分岐
+
+4. **アップロードUIの改善**
+   - アップロード中のローディングインジケーターを追加
+   - プログレスバーの視覚的改善
+   - ユーザーフレンドリーなメッセージ表示
+
+5. **動作確認とテスト**
+   - データベース初期化APIの実行
+   - YouTube debug APIの正常動作確認
+   - アップロードUIの動作確認
+
+## 最終成果物
+- **新規作成されたplatform_credentialsテーブル**: PostgreSQL/SQLite両対応
+- **修正されたYouTube認証コールバックAPI**: platform_credentialsテーブルへの保存機能
+- **修正されたYouTube debug API**: platform_credentialsテーブルからの取得機能
+- **改善されたアップロードUI**: ローディングインジケーターとプログレスバー
+- **解消された500エラー**: platform_credentialsテーブル不存在エラーの解決
+
+## 課題対応（該当する場合）
+- **問題**: YouTube認証状態確認で「relation "platform_credentials" does not exist」エラー
+- **原因**: platform_credentialsテーブルがデータベースに存在しない
+- **対策**: 
+  1. database.tsにplatform_credentialsテーブル定義を追加
+  2. マイグレーション実行によるテーブル作成
+  3. 認証APIでplatform_credentialsテーブルを使用するように修正
+  4. 環境別の適切な処理分岐を実装
+
+## 注意点・改善提案
+- platform_credentialsテーブルにより、認証情報の一元管理が可能
+- 環境別の処理分岐により、開発・本番環境での安定動作を保証
+- アップロードUIの改善により、ユーザーエクスペリエンスが向上
+- 今後は他のプラットフォーム（Voicy、Spotify）でも同様のテーブル構造を検討
+- 認証情報の暗号化保存も検討推奨 

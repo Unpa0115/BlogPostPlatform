@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, Rss, AudioLines, FileAudio } from "lucide-react"
+import { Upload, Rss, AudioLines, FileAudio, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { FileSelector } from './file-selector'
 import { Badge } from "@/components/ui/badge"
@@ -269,22 +269,40 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
                   disabled={isUploading}
                   className="w-full"
                 >
-                  {isUploading ? "アップロード中..." : "アップロード"}
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      アップロード中...
+                    </>
+                  ) : (
+                    "アップロード"
+                  )}
                 </Button>
               </div>
             )}
 
-            {uploadProgress > 0 && uploadProgress < 100 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+            {isUploading && (
+              <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                   <span className="font-medium text-gray-700">
-                    アップロード中...
-                  </span>
-                  <span className="text-gray-500">
-                    {Math.round(uploadProgress)}%
+                    ファイルをアップロード中...
                   </span>
                 </div>
-                <Progress value={uploadProgress} className="w-full" />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">
+                      進捗状況
+                    </span>
+                    <span className="text-gray-500">
+                      {Math.round(uploadProgress)}%
+                    </span>
+                  </div>
+                  <Progress value={uploadProgress} className="w-full" />
+                </div>
+                <div className="text-xs text-gray-500">
+                  大きなファイルの場合、アップロードに時間がかかる場合があります。
+                </div>
               </div>
             )}
           </TabsContent>
