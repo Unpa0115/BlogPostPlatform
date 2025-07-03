@@ -48,19 +48,45 @@ export async function GET(request: NextRequest) {
     // 1. stateパラメータからユーザーIDを取得（推奨）
     if (state) {
       userId = state
-      user = await getUserById(userId)
-      userEmail = user?.email
-      console.log('Using user ID from state parameter:', userId)
-      console.log('User found from state:', !!user)
+      console.log('Attempting to get user by ID from state:', userId)
+      try {
+        user = await getUserById(userId)
+        userEmail = user?.email
+        console.log('User found from state:', !!user)
+        console.log('User email from state:', userEmail)
+      } catch (error) {
+        console.error('Error getting user by state ID:', error)
+      }
     }
 
     // 2. それでもなければデフォルトユーザーIDを使用
     if (!userId || !user) {
+      console.log('State user not found, trying default user ID')
       userId = '10699750-312a-4f82-ada7-c8e5cf9b1fa8'
-      user = await getUserById(userId)
-      userEmail = user?.email
-      console.log('Using default user ID:', userId)
-      console.log('User found from default:', !!user)
+      try {
+        user = await getUserById(userId)
+        userEmail = user?.email
+        console.log('Using default user ID:', userId)
+        console.log('User found from default:', !!user)
+        console.log('User email from default:', userEmail)
+      } catch (error) {
+        console.error('Error getting default user:', error)
+      }
+    }
+
+    // 3. データベース内の全ユーザーを確認（デバッグ用）
+    console.log('=== Database Users Debug ===')
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        const allUsers = await db.query('SELECT id, email FROM users LIMIT 10')
+        console.log('PostgreSQL users:', allUsers.rows)
+      } else {
+        const sqliteDb = await db
+        const allUsers = await sqliteDb.all('SELECT id, email FROM users LIMIT 10')
+        console.log('SQLite users:', allUsers)
+      }
+    } catch (error) {
+      console.log('Failed to fetch users for debug:', error)
     }
 
     // 3. 最終的なユーザー存在確認

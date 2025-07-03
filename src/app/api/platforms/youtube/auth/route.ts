@@ -15,6 +15,15 @@ export async function GET(request: NextRequest) {
       hasUserId: !!userId,
       userId: userId
     })
+    
+    // ユーザーIDの詳細確認
+    if (userId) {
+      console.log('User ID received:', userId)
+      console.log('User ID length:', userId.length)
+      console.log('User ID type:', typeof userId)
+    } else {
+      console.log('No user ID provided')
+    }
 
     if (!clientId || !clientSecret) {
       console.log('Missing clientId or clientSecret')

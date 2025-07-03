@@ -39,18 +39,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { uploadId } = await request.json()
+    console.log('=== RSS API POST Debug ===')
+    const body = await request.json()
+    console.log('Request body:', body)
+    
+    const { uploadId } = body
     
     if (!uploadId) {
+      console.log('Missing uploadId')
       return NextResponse.json(
         { error: 'uploadId is required' },
         { status: 400 }
       )
     }
     
+    console.log('Processing uploadId:', uploadId)
+    
     const rssGenerator = new RssGenerator()
     await rssGenerator.addEpisode(uploadId)
     
+    console.log('Episode added successfully')
     return NextResponse.json(
       { message: 'Episode added to unified RSS feed successfully' },
       { status: 200 }
@@ -59,7 +67,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Failed to add episode to RSS feed:', error)
     return NextResponse.json(
-      { error: 'Failed to add episode to RSS feed' },
+      { error: 'Failed to add episode to RSS feed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
