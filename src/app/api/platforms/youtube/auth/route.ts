@@ -8,10 +8,23 @@ export async function GET(request: NextRequest) {
     const clientSecret = searchParams.get('clientSecret')
     const userId = searchParams.get('userId')
 
+    console.log('=== YouTube Auth API Debug ===')
+    console.log('Received parameters:', {
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasUserId: !!userId,
+      userId: userId
+    })
+
     if (!clientId || !clientSecret) {
+      console.log('Missing clientId or clientSecret')
       return NextResponse.json({ 
         error: 'Missing clientId or clientSecret' 
       }, { status: 400 })
+    }
+
+    if (!userId) {
+      console.log('No userId provided, using default')
     }
 
     // YouTubeクライアントを設定
@@ -19,6 +32,8 @@ export async function GET(request: NextRequest) {
     
     // 認証URLを生成（ユーザーIDを含む）
     const authUrl = youtubeClient.generateAuthUrl(userId || undefined)
+    
+    console.log('Generated auth URL with userId:', userId || 'default')
     
     return NextResponse.json({ 
       authUrl,

@@ -52,7 +52,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   
   const { toast } = useToast()
   const { isPlatformConfigured, getPlatformCredentials } = usePlatforms()
-  const { token } = useAuth()
+  const { token, user } = useAuth()
 
   // URLパラメータからYouTube認証結果を確認
   useEffect(() => {
@@ -199,6 +199,12 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   const initiateYouTubeAuth = async () => {
     try {
       console.log('=== YouTube Auth Initiation Debug ===')
+      console.log('User info:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      })
+      
       const credentials = getPlatformCredentials('youtube')
       console.log('Platform credentials:', {
         hasCredentials: !!credentials,
@@ -216,8 +222,18 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         return
       }
 
+      if (!user?.id) {
+        console.log('No user ID available')
+        toast({
+          title: "認証エラー",
+          description: "ユーザー情報が取得できません。ログインし直してください。",
+          variant: "destructive"
+        })
+        return
+      }
+
       console.log('Fetching auth URL...')
-      const response = await fetch(`/api/platforms/youtube/auth?clientId=${credentials.clientId}&clientSecret=${credentials.clientSecret}`)
+      const response = await fetch(`/api/platforms/youtube/auth?clientId=${credentials.clientId}&clientSecret=${credentials.clientSecret}&userId=${encodeURIComponent(user.id)}`)
       console.log('Auth URL response status:', response.status)
       
       if (!response.ok) {
