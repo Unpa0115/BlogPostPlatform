@@ -375,6 +375,16 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
 
   const uploadToSpotify = async (credentials: any) => {
     try {
+      console.log('=== Spotify RSS Generation Debug ===')
+      console.log('Upload ID:', uploadId)
+      console.log('Title:', title)
+      console.log('Description:', description)
+      console.log('File path:', filePath)
+      
+      if (!uploadId) {
+        throw new Error('Upload ID is required for Spotify RSS generation')
+      }
+
       const response = await fetch('/api/rss', {
         method: 'POST',
         headers: {
@@ -382,27 +392,23 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          title,
-          description,
-          siteUrl: credentials.rssFeedUrl,
-          feedUrl: credentials.rssFeedUrl,
-          author: 'Your Name',
-          items: [{
-            title,
-            description,
-            url: filePath,
-            pubDate: new Date().toISOString()
-          }],
-          outputPath: `./public/rss/${uploadId}.xml`
+          uploadId
         })
       })
 
+      console.log('RSS API response status:', response.status)
+
       if (!response.ok) {
-        throw new Error('Spotify RSS generation failed')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Spotify RSS generation failed:', errorData)
+        throw new Error(`Spotify RSS generation failed: ${errorData.error || 'Unknown error'}`)
       }
 
-      return await response.json()
+      const result = await response.json()
+      console.log('Spotify RSS generation result:', result)
+      return result
     } catch (error) {
+      console.error('Spotify RSS generation error:', error)
       throw error
     }
   }

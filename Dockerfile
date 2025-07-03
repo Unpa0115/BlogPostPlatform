@@ -16,12 +16,15 @@ ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 # 実行ステージ - Microsoft公式の軽量Playwrightイメージを使用
-FROM mcr.microsoft.com/playwright:v1.50.0-jammy AS runner
+FROM mcr.microsoft.com/playwright:v1.53.1-jammy AS runner
 WORKDIR /app
 
 # 本番用依存関係のみをインストール
 COPY package*.json ./
 RUN npm ci --only=production
+
+# Playwrightブラウザをインストール
+RUN npx playwright install chromium
 
 # ビルドステージから必要なファイルのみをコピー
 COPY --from=builder /app/.next ./.next

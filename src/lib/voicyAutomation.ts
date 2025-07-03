@@ -74,9 +74,18 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     const { email, password } = await getVoicyCredentials();
     console.log(`✅ 認証情報取得成功: ${email}`);
     
-    // ブラウザを起動
+    // ブラウザを起動（Playwright 1.53.1対応）
     browser = await chromium.launch({ 
-      headless: true // 本番環境ではheadless=true
+      headless: true, // 本番環境ではheadless=true
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ]
     });
     
     const context = await browser.newContext();

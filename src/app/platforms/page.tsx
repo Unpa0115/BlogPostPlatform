@@ -135,6 +135,7 @@ export default function PlatformsPage() {
         })
 
         // OAuth認証URLを取得（ユーザーIDを含む）
+        console.log('Sending YouTube auth request with user ID:', user?.id)
         const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}&userId=${encodeURIComponent(user?.id || '')}`, {
           headers: {
             'Authorization': `Bearer ${token}`
