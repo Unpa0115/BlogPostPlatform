@@ -79,6 +79,86 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
+    // platform_credentialsテーブルに保存
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        const existingCredential = await db.query(
+          'SELECT * FROM platform_credentials WHERE platform_type = $1',
+          ['youtube']
+        )
+
+        if (existingCredential.rows.length > 0) {
+          await db.query(`
+            UPDATE platform_credentials 
+            SET client_id = $1,
+                client_secret = $2,
+                access_token = $3,
+                refresh_token = $4,
+                            is_active = true,
+            updated_at = NOW()
+          WHERE platform_type = 'youtube'
+        `, [
+          process.env.YOUTUBE_CLIENT_ID,
+          process.env.YOUTUBE_CLIENT_SECRET,
+          authResponse.access_token,
+          authResponse.refresh_token
+        ])
+      } else {
+        await db.query(`
+          INSERT INTO platform_credentials (
+            platform_type, client_id, client_secret, access_token, refresh_token, is_active
+          ) VALUES ($1, $2, $3, $4, $5, true)
+        `, [
+          'youtube',
+          process.env.YOUTUBE_CLIENT_ID,
+          process.env.YOUTUBE_CLIENT_SECRET,
+          authResponse.access_token,
+          authResponse.refresh_token
+        ])
+      }
+    } else {
+      const sqliteDb = await db
+      const existingCredential = await sqliteDb.get(
+        'SELECT * FROM platform_credentials WHERE platform_type = ?',
+        ['youtube']
+      )
+
+      if (existingCredential) {
+        await sqliteDb.run(`
+          UPDATE platform_credentials 
+          SET client_id = ?,
+              client_secret = ?,
+              access_token = ?,
+              refresh_token = ?,
+              is_active = 1,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE platform_type = 'youtube'
+        `, [
+          process.env.YOUTUBE_CLIENT_ID,
+          process.env.YOUTUBE_CLIENT_SECRET,
+          authResponse.access_token,
+          authResponse.refresh_token
+        ])
+      } else {
+        await sqliteDb.run(`
+          INSERT INTO platform_credentials (
+            platform_type, client_id, client_secret, access_token, refresh_token, is_active
+          ) VALUES (?, ?, ?, ?, ?, 1)
+        `, [
+          'youtube',
+          process.env.YOUTUBE_CLIENT_ID,
+          process.env.YOUTUBE_CLIENT_SECRET,
+          authResponse.access_token,
+          authResponse.refresh_token
+        ])
+      }
+      }
+      console.log('Platform credentials updated successfully')
+    } catch (error) {
+      console.error('Failed to update platform credentials:', error)
+      // プラットフォーム認証情報の更新に失敗しても、トークンの保存は成功しているので続行
+    }
+
     // 既存のplatform_settingsテーブルにも保存（後方互換性のため）
     try {
       const currentSettings = await db.query(

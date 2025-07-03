@@ -12,10 +12,25 @@ export async function GET(request: NextRequest) {
     const user = await getUserById(userId)
     
     // YouTubeプラットフォーム設定を取得
-    const youtubePlatform = await db.query(
-      'SELECT * FROM platform_credentials WHERE platform_type = $1',
-      ['youtube']
-    )
+    let youtubePlatform = null
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        const platformResult = await db.query(
+          'SELECT * FROM platform_credentials WHERE platform_type = $1',
+          ['youtube']
+        )
+        youtubePlatform = platformResult.rows[0] || null
+      } else {
+        const sqliteDb = await db
+        youtubePlatform = await sqliteDb.get(
+          'SELECT * FROM platform_credentials WHERE platform_type = ?',
+          ['youtube']
+        )
+      }
+    } catch (error) {
+      console.error('Error fetching platform credentials:', error)
+      youtubePlatform = null
+    }
 
     // YouTubeトークン情報を取得
     let youtubeToken = null
