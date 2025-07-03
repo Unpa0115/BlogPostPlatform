@@ -3,7 +3,7 @@ import { youtubeClient } from '@/lib/youtubeClient'
 import { db } from '@/lib/database'
 import { PlatformCredentials } from '@/lib/encryption'
 import { YouTubeTokenManager } from '@/lib/youtube-token-manager'
-import { getUserById, registerUser } from '@/lib/auth'
+import { getUserById, registerUser, verifyAuth } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,34 +36,31 @@ export async function GET(request: NextRequest) {
       hasRefreshToken: !!authResponse.refresh_token
     })
 
-    // ユーザーIDを取得（stateパラメータから、またはデフォルトユーザーIDを使用）
-    let userId = state // stateパラメータにユーザーIDが含まれている場合
-    
+    // 1. JWTからログインユーザーを取得
+    let user = await verifyAuth(request)
+    let userId = user?.id
+    let userEmail = user?.email
+
+    // 2. stateパラメータがあればそれを優先
+    if (!userId && state) {
+      userId = state
+      user = await getUserById(userId)
+      userEmail = user?.email
+    }
+
+    // 3. それでもなければ従来通りデフォルトID
     if (!userId) {
-      // デフォルトユーザーIDを使用（開発環境用）
       userId = '10699750-312a-4f82-ada7-c8e5cf9b1fa8'
+      user = await getUserById(userId)
+      userEmail = user?.email
     }
 
     // ユーザーの存在確認
-    let user = await getUserById(userId)
-    
     if (!user) {
-      console.log(`User ${userId} not found, creating default user...`)
-      
-      // デフォルトユーザーを作成
-      try {
-        user = await registerUser('default@example.com', 'defaultpassword123')
-        userId = user.id
-        console.log(`Default user created with ID: ${userId}`)
-      } catch (error) {
-        console.error('Failed to create default user:', error)
-        return NextResponse.json({ 
-          error: 'Failed to create user',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        }, { status: 500 })
-      }
-    } else {
-      console.log(`User ${userId} found:`, user.email)
+      return NextResponse.json({
+        error: 'No valid user found for YouTube authentication',
+        details: 'ログイン状態で再度お試しください'
+      }, { status: 401 })
     }
 
     // YouTube token管理システムに保存
@@ -133,7 +130,7 @@ export async function GET(request: NextRequest) {
       message: 'YouTube authentication completed successfully',
       hasRefreshToken: !!authResponse.refresh_token,
       userId: userId,
-      userEmail: user.email
+      userEmail: userEmail
     })
 
   } catch (error: any) {

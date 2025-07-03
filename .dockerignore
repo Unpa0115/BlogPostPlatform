@@ -63,7 +63,7 @@ server_replit/
 
 # Temporary files
 *.tmp
-*.temp
+*.temp 
 
 # Railway deployment optimization
 datasource/

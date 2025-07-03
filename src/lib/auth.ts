@@ -31,8 +31,29 @@ function getJwtSecret(): string {
 // ユーザー登録
 export async function registerUser(email: string, password: string): Promise<User> {
   try {
+    // まず既存ユーザーがいればそれを返す
+    if (process.env.NODE_ENV === 'production') {
+      const existing = await db.query(
+        'SELECT id, email, created_at, updated_at FROM users WHERE email = $1',
+        [email]
+      )
+      if (existing.rows.length > 0) {
+        console.log('User already exists, returning existing:', existing.rows[0])
+        return existing.rows[0]
+      }
+    } else {
+      const sqliteDb = await db
+      const existing = await sqliteDb.get(
+        'SELECT id, email, created_at, updated_at FROM users WHERE email = ?',
+        [email]
+      )
+      if (existing) {
+        console.log('User already exists, returning existing:', existing)
+        return existing
+      }
+    }
+    // ... 以降は新規作成 ...
     const hashedPassword = await bcrypt.hash(password, 12)
-    
     if (process.env.NODE_ENV === 'production') {
       // PostgreSQL
       console.log('Registering user in PostgreSQL:', email)
@@ -45,15 +66,13 @@ export async function registerUser(email: string, password: string): Promise<Use
     } else {
       // SQLite
       console.log('Registering user in SQLite:', email)
-      const sqliteDb = await db
       const userId = generateUUID()
       const now = new Date().toISOString()
-      
+      const sqliteDb = await db
       await sqliteDb.run(
         'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
         [userId, email, hashedPassword, now, now]
       )
-      
       const user = {
         id: userId,
         email,
