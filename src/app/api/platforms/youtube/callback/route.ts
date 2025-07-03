@@ -36,32 +36,37 @@ export async function GET(request: NextRequest) {
       hasRefreshToken: !!authResponse.refresh_token
     })
 
-    // 1. JWTからログインユーザーを取得
-    let user = await verifyAuth(request)
-    let userId = user?.id
-    let userEmail = user?.email
+    // ユーザーIDの取得ロジック
+    let userId: string | undefined
+    let user: any = null
+    let userEmail: string | undefined
 
-    // 2. stateパラメータがあればそれを優先
-    if (!userId && state) {
+    // 1. stateパラメータからユーザーIDを取得（推奨）
+    if (state) {
       userId = state
       user = await getUserById(userId)
       userEmail = user?.email
+      console.log('Using user ID from state parameter:', userId)
     }
 
-    // 3. それでもなければ従来通りデフォルトID
-    if (!userId) {
+    // 2. それでもなければデフォルトユーザーIDを使用
+    if (!userId || !user) {
       userId = '10699750-312a-4f82-ada7-c8e5cf9b1fa8'
       user = await getUserById(userId)
       userEmail = user?.email
+      console.log('Using default user ID:', userId)
     }
 
-    // ユーザーの存在確認
+    // 3. 最終的なユーザー存在確認
     if (!user) {
+      console.error('No valid user found for YouTube authentication')
       return NextResponse.json({
         error: 'No valid user found for YouTube authentication',
-        details: 'ログイン状態で再度お試しください'
+        details: 'ユーザーが見つかりません。ログイン状態で再度お試しください'
       }, { status: 401 })
     }
+
+    console.log('YouTube authentication for user:', { userId, userEmail })
 
     // YouTube token管理システムに保存
     try {
@@ -204,20 +209,29 @@ export async function GET(request: NextRequest) {
       // プラットフォーム設定の更新に失敗しても、トークンの保存は成功しているので続行
     }
 
-    // 成功レスポンス
-    return NextResponse.json({
-      success: true,
-      message: 'YouTube authentication completed successfully',
-      hasRefreshToken: !!authResponse.refresh_token,
-      userId: userId,
-      userEmail: userEmail
-    })
+    // 成功時にプラットフォームページにリダイレクト
+    const baseUrl = process.env.NODE_ENV === 'production'
+      ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
+      : 'http://localhost:3000'
+    
+    const redirectUrl = `${baseUrl}/platforms?youtube_auth=success`
+    
+    console.log('Redirecting to:', redirectUrl)
+    
+    return NextResponse.redirect(redirectUrl)
 
   } catch (error: any) {
     console.error('YouTube callback error:', error)
-    return NextResponse.json({ 
-      error: 'Authentication failed',
-      details: error.message
-    }, { status: 500 })
+    
+    // エラー時にもプラットフォームページにリダイレクト
+    const baseUrl = process.env.NODE_ENV === 'production'
+      ? process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app'
+      : 'http://localhost:3000'
+    
+    const redirectUrl = `${baseUrl}/platforms?youtube_auth=error&error=${encodeURIComponent(error.message)}`
+    
+    console.log('Redirecting to error page:', redirectUrl)
+    
+    return NextResponse.redirect(redirectUrl)
   }
 } 

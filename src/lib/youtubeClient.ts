@@ -56,23 +56,31 @@ export class YouTubeClient {
     )
   }
 
-  generateAuthUrl(): string {
+  generateAuthUrl(userId?: string): string {
     const scopes = [
       'https://www.googleapis.com/auth/youtube.upload',
       'https://www.googleapis.com/auth/youtube',
       'https://www.googleapis.com/auth/youtube.force-ssl'
     ]
 
-    const authUrl = this.oauth2Client.generateAuthUrl({
+    const authUrlOptions: any = {
       access_type: 'offline',
       scope: scopes,
       prompt: 'consent'
-    })
+    }
+
+    // stateパラメータとしてユーザーIDを追加
+    if (userId) {
+      authUrlOptions.state = userId
+    }
+
+    const authUrl = this.oauth2Client.generateAuthUrl(authUrlOptions)
 
     console.log('=== YouTube Auth URL Generation ===')
     console.log('Scopes:', scopes)
     console.log('Access type: offline')
     console.log('Prompt: consent')
+    console.log('State (userId):', userId || 'not provided')
     console.log('Generated URL:', authUrl)
     console.log('===================================')
 
