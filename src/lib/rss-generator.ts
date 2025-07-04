@@ -31,11 +31,38 @@ export class RssGenerator {
 
   constructor() {
     // Use Next.js environment for base URL
-    this.baseUrl = process.env.NODE_ENV === 'production'
-      ? process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'
-      : 'http://localhost:3000';
+    this.baseUrl = this.getBaseUrl();
     
     this.ensureFeedDirectory();
+  }
+
+  private getBaseUrl(): string {
+    const nodeEnv = process.env.NODE_ENV;
+    const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
+    
+    if (nodeEnv === 'development' && isLocalhost) {
+      // localhost環境でGitHub Pagesを使用
+      return process.env.GITHUB_PAGES_URL || 'https://your-username.github.io/your-repo-name';
+    } else if (nodeEnv === 'production') {
+      // Railway環境では従来通り
+      return process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app';
+    } else {
+      // その他の環境
+      return 'http://localhost:3000';
+    }
+  }
+
+  private getMediaUrl(episodeId: number): string {
+    const nodeEnv = process.env.NODE_ENV;
+    const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
+    
+    if (nodeEnv === 'development' && isLocalhost) {
+      // localhost環境でGitHub PagesのメディアURL
+      return `${this.baseUrl}/media/${episodeId}`;
+    } else {
+      // Railway環境では従来通り
+      return `${this.baseUrl}/api/rss/media/${episodeId}`;
+    }
   }
 
   async addEpisodeToFeed(episodeData: {
@@ -91,7 +118,7 @@ export class RssGenerator {
     const now = new Date().toUTCString();
     
     const episodeItems = episodes.map(episode => {
-      const fileUrl = `${this.baseUrl}/api/rss/media/${episode.id}`;
+      const fileUrl = this.getMediaUrl(episode.id);
       const pubDate = episode.pubDate.toUTCString();
       
       return `    <item>
@@ -109,7 +136,7 @@ export class RssGenerator {
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>AutoPost Spotify Podcast Feed</title>
-    <link>${this.baseUrl}/rss/spotify-feed.xml</link>
+    <link>${this.getFeedUrl()}</link>
     <description>Automatically generated podcast feed for Spotify synchronization</description>
     <language>ja</language>
     <copyright>© 2025 AutoPost</copyright>
@@ -245,7 +272,16 @@ ${episodeItems}
   }
 
   getFeedUrl(): string {
-    return `${this.baseUrl}/rss/spotify-feed.xml`;
+    const nodeEnv = process.env.NODE_ENV;
+    const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
+    
+    if (nodeEnv === 'development' && isLocalhost) {
+      // localhost環境でGitHub PagesのRSS Feed URL
+      return `${this.baseUrl}/rss/spotify-feed.xml`;
+    } else {
+      // Railway環境では従来通り
+      return `${this.baseUrl}/api/rss`;
+    }
   }
 
   getFeedPath(): string {

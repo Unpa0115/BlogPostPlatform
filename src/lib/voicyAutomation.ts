@@ -1,5 +1,4 @@
 import { chromium, Browser, Page } from 'playwright';
-import { expect } from '@playwright/test';
 // import { stealth } from 'playwright-stealth';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -287,7 +286,7 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     await reservationButton.scrollIntoViewIfNeeded();
     
     console.log("予約ボタンが有効になるのを待ちます...");
-    await expect(reservationButton).toBeEnabled({ timeout: 15000 });
+    await reservationButton.waitFor({ state: "visible", timeout: 15000 });
     
     console.log("予約ボタンをクリックします...");
     await reservationButton.click();
@@ -342,7 +341,7 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     // 最終予約ボタンをクリック
     const finalReserveButton = page.locator("#reserve-playlist-button");
     console.log("最終予約ボタンが有効になるのを待ちます...");
-    await expect(finalReserveButton).toBeEnabled({ timeout: 15000 });
+    await finalReserveButton.waitFor({ state: "visible", timeout: 15000 });
     
     console.log("最終予約ボタンをクリックします...");
     console.log("テストモード。最終ボタンは押す直前で中断します");

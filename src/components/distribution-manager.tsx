@@ -142,51 +142,54 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       fileName = title
     }
     
+    // ファイル名が空の場合は処理をスキップ
+    if (!fileName || fileName === 'Untitled') {
+      return
+    }
+    
     console.log('=== File Format Check Debug ===')
     console.log('fileName:', fileName)
     console.log('filePath:', filePath)
     console.log('title:', title)
     console.log('mimeType:', mimeType)
     
-    if (fileName) {
-      const supportResults = checkAllPlatforms(fileName, mimeType)
-      console.log('Support results:', supportResults)
-      
-      const newPlatformSupport: { [key: string]: PlatformSupport } = {}
-      
-      Object.keys(supportResults).forEach(platform => {
-        const result = supportResults[platform]
-        newPlatformSupport[platform] = {
-          isSupported: result.isSupported,
-          message: result.message,
-          disabled: !result.isSupported
+    const supportResults = checkAllPlatforms(fileName, mimeType)
+    console.log('Support results:', supportResults)
+    
+    const newPlatformSupport: { [key: string]: PlatformSupport } = {}
+    
+    Object.keys(supportResults).forEach(platform => {
+      const result = supportResults[platform]
+      newPlatformSupport[platform] = {
+        isSupported: result.isSupported,
+        message: result.message,
+        disabled: !result.isSupported
+      }
+    })
+    
+    console.log('New platform support:', newPlatformSupport)
+    setPlatformSupport(newPlatformSupport)
+    
+    // 対応していないプラットフォームは自動的にオフにし、対応しているプラットフォームは自動的にオンにする
+    setDistributionTargets(prev => {
+      const newTargets = { ...prev }
+      Object.keys(newPlatformSupport).forEach(platform => {
+        if (!newPlatformSupport[platform].isSupported) {
+          newTargets[platform as keyof typeof prev] = false
+        } else {
+          // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
+          const isConfigured = isPlatformConfigured(platform as 'youtube' | 'voicy' | 'spotify')
+          if (isConfigured) {
+            newTargets[platform as keyof typeof prev] = true
+          } else {
+            // 設定されていない場合はオフのままにする
+            newTargets[platform as keyof typeof prev] = false
+          }
         }
       })
-      
-      console.log('New platform support:', newPlatformSupport)
-      setPlatformSupport(newPlatformSupport)
-      
-      // 対応していないプラットフォームは自動的にオフにし、対応しているプラットフォームは自動的にオンにする
-      setDistributionTargets(prev => {
-        const newTargets = { ...prev }
-        Object.keys(newPlatformSupport).forEach(platform => {
-          if (!newPlatformSupport[platform].isSupported) {
-            newTargets[platform as keyof typeof prev] = false
-          } else {
-            // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
-            const isConfigured = isPlatformConfigured(platform as 'youtube' | 'voicy' | 'spotify')
-            if (isConfigured) {
-              newTargets[platform as keyof typeof prev] = true
-            } else {
-              // 設定されていない場合はオフのままにする
-              newTargets[platform as keyof typeof prev] = false
-            }
-          }
-        })
-        return newTargets
-      })
-    }
-  }, [filePath, title, mimeType, isPlatformConfigured])
+      return newTargets
+    })
+  }, [filePath, title, mimeType])
 
   const platforms = [
     {

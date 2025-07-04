@@ -36,12 +36,26 @@ export function RssFeedManager() {
   const [rssLoading, setRssLoading] = useState(false);
   const [rssError, setRssError] = useState<string | null>(null);
   const [selectedRssEpisode, setSelectedRssEpisode] = useState<any | null>(null);
+  const [currentRssUrl, setCurrentRssUrl] = useState<string>("");
   const { toast } = useToast();
 
   useEffect(() => {
     loadFeedStats();
     loadArchivedEpisodes();
+    loadCurrentRssUrl();
   }, []);
+
+  const loadCurrentRssUrl = async () => {
+    try {
+      const response = await fetch('/api/rss/info');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentRssUrl(data.feedUrl || '');
+      }
+    } catch (error) {
+      console.error('Failed to load current RSS URL:', error);
+    }
+  };
 
   const loadFeedStats = async () => {
     try {
@@ -183,6 +197,33 @@ export function RssFeedManager() {
 
   return (
     <div className="space-y-6">
+      {/* 現在のRSS URL表示 */}
+      {currentRssUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Rss className="h-5 w-5" />
+              現在のRSS Feed URL
+            </CardTitle>
+            <CardDescription>
+              環境別のRSS Feed URL（localhost: GitHub Pages、Railway: 従来通り）
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+              <span className="font-mono text-sm break-all">{currentRssUrl}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigator.clipboard.writeText(currentRssUrl)}
+              >
+                コピー
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 統計情報カード */}
       <Card>
         <CardHeader>
