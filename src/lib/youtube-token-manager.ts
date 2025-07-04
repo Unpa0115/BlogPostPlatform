@@ -295,24 +295,44 @@ export class YouTubeTokenManager {
       const tokenCheck = await this.checkTokenExpiry(userId)
       
       if (tokenCheck.needsReauth) {
-        // 再認証が必要な場合、通知を作成
-        await this.createAuthNotification(
-          userId,
-          'youtube',
-          'REAUTH_REQUIRED',
-          'YouTubeへの投稿を継続するため、再度認証が必要です。',
-          `/platforms?reauth=youtube`
+        // 既存の未読通知をチェック
+        const existingNotifications = await this.getUnreadNotifications(userId)
+        const hasExistingReauthNotification = existingNotifications.some(
+          notification => 
+            notification.platform_type === 'youtube' && 
+            notification.notification_type === 'REAUTH_REQUIRED'
         )
+        
+        // 既存の通知がない場合のみ新しい通知を作成
+        if (!hasExistingReauthNotification) {
+          await this.createAuthNotification(
+            userId,
+            'youtube',
+            'REAUTH_REQUIRED',
+            'YouTubeへの投稿を継続するため、再度認証が必要です。',
+            `/platforms?reauth=youtube`
+          )
+        }
         return true
       } else if (tokenCheck.status === 'warning') {
-        // 警告状態の場合、事前通知を作成
-        await this.createAuthNotification(
-          userId,
-          'youtube',
-          'REAUTH_WARNING',
-          `YouTube認証の期限が${tokenCheck.daysUntilExpiry}日後に切れます。事前に再認証をお勧めします。`,
-          `/platforms?reauth=youtube`
+        // 既存の警告通知をチェック
+        const existingNotifications = await this.getUnreadNotifications(userId)
+        const hasExistingWarningNotification = existingNotifications.some(
+          notification => 
+            notification.platform_type === 'youtube' && 
+            notification.notification_type === 'REAUTH_WARNING'
         )
+        
+        // 既存の警告通知がない場合のみ新しい通知を作成
+        if (!hasExistingWarningNotification) {
+          await this.createAuthNotification(
+            userId,
+            'youtube',
+            'REAUTH_WARNING',
+            `YouTube認証の期限が${tokenCheck.daysUntilExpiry}日後に切れます。事前に再認証をお勧めします。`,
+            `/platforms?reauth=youtube`
+          )
+        }
       }
       
       return false

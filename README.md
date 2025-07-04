@@ -49,6 +49,19 @@ cp env.example .env.local
 - `JWT_SECRET`: JWT署名用シークレット
 - `ENCRYPTION_MASTER_KEY`: Credentials暗号化用マスターキー（32文字以上推奨）
 
+### RSS Feed環境別設定
+
+localhost環境でGitHub PagesのRSS Feedを使用する場合：
+```bash
+LOCALHOST_RSS_ENABLED=true
+GITHUB_PAGES_URL=https://your-username.github.io/your-repo-name
+```
+
+通常のlocalhost環境（従来通り）：
+```bash
+LOCALHOST_RSS_ENABLED=false
+```
+
 ### 2. 依存関係のインストール
 
 ```bash

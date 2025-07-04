@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { spotifyService } from '@/lib/spotify-service';
+import { RssGenerator } from '@/lib/rss-generator';
 
 export async function GET(request: NextRequest) {
   try {
-    const feedInfo = spotifyService.getRssFeedInfo();
+    const rssGenerator = new RssGenerator();
+    const feedUrl = rssGenerator.getFeedUrl();
     
     return NextResponse.json({
       success: true,
-      data: feedInfo
+      data: {
+        feedUrl: feedUrl,
+        environment: process.env.NODE_ENV,
+        localhostEnabled: process.env.LOCALHOST_RSS_ENABLED === 'true'
+      }
     });
     
   } catch (error) {

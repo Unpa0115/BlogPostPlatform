@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
-import { Youtube, Music, Mic, Brain } from "lucide-react"
+import { Youtube, Music, Mic, Brain, Github } from "lucide-react"
 
 interface Platform {
   id: string
@@ -51,6 +51,12 @@ export default function PlatformsPage() {
     apiKey: ""
   })
   const [youtubeDebugInfo, setYoutubeDebugInfo] = useState<any>(null)
+  const [isLocalhost, setIsLocalhost] = useState(false)
+  const [githubRepo, setGithubRepo] = useState({
+    username: "",
+    repoName: ""
+  })
+  const [currentGithubPagesUrl, setCurrentGithubPagesUrl] = useState("")
   const { toast } = useToast()
   const { user, token, loading: authLoading } = useAuth()
   const router = useRouter()
@@ -65,6 +71,27 @@ export default function PlatformsPage() {
       fetchPlatforms()
     }
   }, [user, token, authLoading, router])
+
+  // localhost環境の検知
+  useEffect(() => {
+    const checkLocalhost = () => {
+      const hostname = window.location.hostname
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')
+      setIsLocalhost(isLocal)
+    }
+    
+    checkLocalhost()
+  }, [])
+
+  // GitHub Pages URLの生成
+  useEffect(() => {
+    if (githubRepo.username && githubRepo.repoName) {
+      const githubPagesUrl = `https://${githubRepo.username}.github.io/${githubRepo.repoName}`
+      setCurrentGithubPagesUrl(githubPagesUrl)
+    } else {
+      setCurrentGithubPagesUrl("")
+    }
+  }, [githubRepo.username, githubRepo.repoName])
 
   // YouTube認証結果の確認
   useEffect(() => {
@@ -345,6 +372,40 @@ export default function PlatformsPage() {
       toast({
         title: "エラー",
         description: "OpenAI設定の保存に失敗しました。",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleGithubRepoSave = async () => {
+    if (!githubRepo.username || !githubRepo.repoName) {
+      toast({
+        title: "入力エラー",
+        description: "GitHubユーザー名とリポジトリ名を入力してください。",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      // ローカルストレージに保存（開発用）
+      localStorage.setItem('github_pages_url', currentGithubPagesUrl)
+      localStorage.setItem('github_username', githubRepo.username)
+      localStorage.setItem('github_repo_name', githubRepo.repoName)
+      
+      toast({
+        title: "GitHub Pages設定保存完了",
+        description: `GitHub Pages URL: ${currentGithubPagesUrl}`,
+      })
+      
+      // 環境変数を更新するAPIを呼び出す（実際の実装では適切なAPIエンドポイントを作成）
+      console.log('GitHub Pages URL saved:', currentGithubPagesUrl)
+      
+    } catch (error) {
+      console.error('GitHub Pages save error:', error)
+      toast({
+        title: "エラー",
+        description: "GitHub Pages設定の保存中にエラーが発生しました。",
         variant: "destructive"
       })
     }
@@ -833,6 +894,70 @@ export default function PlatformsPage() {
                 >
                   {savingSpotify ? '検証中...' : 'Spotify設定を保存'}
                 </Button>
+
+                {/* localhost環境でのみ表示されるGitHubリポジトリ選択UI */}
+                {isLocalhost && (
+                  <div className="border-t pt-6 mt-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Badge variant="outline" className="text-xs">localhost実行用</Badge>
+                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                        <Github className="h-4 w-4" />
+                        GitHub Pages設定
+                      </h4>
+                    </div>
+                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-800 mb-4">
+                        localhost環境では、GitHub PagesのRSS Feedを使用できます。任意のGitHubリポジトリを選択してください。
+                      </p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="github-username">GitHubユーザー名</Label>
+                          <Input
+                            id="github-username"
+                            type="text"
+                            value={githubRepo.username}
+                            onChange={(e) => setGithubRepo(prev => ({ ...prev, username: e.target.value }))}
+                            placeholder="your-username"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="github-repo-name">リポジトリ名</Label>
+                          <Input
+                            id="github-repo-name"
+                            type="text"
+                            value={githubRepo.repoName}
+                            onChange={(e) => setGithubRepo(prev => ({ ...prev, repoName: e.target.value }))}
+                            placeholder="your-repo-name"
+                          />
+                        </div>
+                      </div>
+                      {currentGithubPagesUrl && (
+                        <div className="mt-4 p-3 bg-white rounded border">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-gray-700">生成されるURL:</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigator.clipboard.writeText(currentGithubPagesUrl)}
+                            >
+                              コピー
+                            </Button>
+                          </div>
+                          <p className="text-sm font-mono text-gray-600 mt-1 break-all">
+                            {currentGithubPagesUrl}
+                          </p>
+                        </div>
+                      )}
+                      <Button 
+                        onClick={handleGithubRepoSave}
+                        className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+                        disabled={!githubRepo.username || !githubRepo.repoName}
+                      >
+                        GitHub Pages設定を保存
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

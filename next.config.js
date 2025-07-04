@@ -6,8 +6,8 @@ const nextConfig = {
     optimizePackageImports: ['@radix-ui/react-icons'],
     // TypeScriptの型チェックを高速化
     typedRoutes: false,
-    // 不要なフォント最適化を無効化
-    fontLoaders: [],
+    // サーバーコンポーネントの最適化
+    serverComponentsExternalPackages: ['playwright'],
   },
   
   // ビルド時の最適化
@@ -52,9 +52,6 @@ const nextConfig = {
   // 本番環境での最適化
   productionBrowserSourceMaps: false,
   
-  // 不要なtelemetryを無効化
-  telemetry: false,
-  
   // ESLintの設定
   eslint: {
     ignoreDuringBuilds: true,
@@ -67,20 +64,6 @@ const nextConfig = {
   
   // 静的ファイルの最適化
   trailingSlash: false,
-  
-  // APIルートの最適化
-  api: {
-    bodyParser: {
-      sizeLimit: '10mb',
-    },
-    responseLimit: '10mb',
-  },
-  
-  // 環境変数の設定
-  env: {
-    // メモリ制限を環境変数として設定
-    NODE_OPTIONS: '--max-old-space-size=768',
-  },
   
   // セキュリティヘッダーの設定（軽量化）
   headers: async () => {
@@ -117,15 +100,6 @@ const nextConfig = {
   
   // 出力設定
   output: 'standalone',
-  
-  // 実験的な機能（Railway最適化）
-  experimental: {
-    ...nextConfig.experimental,
-    // サーバーコンポーネントの最適化
-    serverComponentsExternalPackages: ['playwright'],
-    // 静的生成の最適化
-    isrMemoryCacheSize: 0,
-  },
 };
 
 module.exports = nextConfig; 

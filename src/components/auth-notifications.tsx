@@ -98,8 +98,8 @@ export function AuthNotifications({ userId }: AuthNotificationsProps) {
   useEffect(() => {
     fetchNotifications()
     
-    // 定期的に通知を更新（5分ごと）
-    const interval = setInterval(fetchNotifications, 5 * 60 * 1000)
+    // 定期的に通知を更新（30分ごと）- 頻繁すぎる更新を防ぐ
+    const interval = setInterval(fetchNotifications, 30 * 60 * 1000)
     
     return () => clearInterval(interval)
   }, [userId])
