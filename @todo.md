@@ -132,10 +132,18 @@
   - Playwright + Stealth による自動化
   - 見積時間: 4時間
 
-- [x] YouTube Data API連携
+- [x] YouTube Data API連携（初回実装）
   - YouTube動画アップロード機能
   - OAuth認証フロー実装
   - 見積時間: 3時間
+
+- [x] YouTube機能のゼロベース再実装（2025/07/05）
+  - 複雑な認証システムの削除とシンプル化
+  - 単一ファイルでのYouTube機能統合（src/lib/youtube.ts）
+  - シンプルなAPIエンドポイント設計（/api/youtube/auth, /api/youtube/callback, /api/youtube/upload）
+  - distribution-managerコンポーネントの簡素化
+  - 認証エラー「invalid_request」問題の根本解決
+  - 見積時間: 2時間
 
 - [x] RSS Feed生成機能
   - Spotify配信用RSS生成
@@ -198,6 +206,40 @@
   - データベーススキーマ統合完了
   - API Routes実装完了（uploads, jobs, stats, platforms）
   - フロントエンドコンポーネント実装完了
+
+## 環境分岐開発方針
+
+### Phase 1: 環境分岐による改善（優先実装）
+- [x] 環境分岐開発方針ルールファイルの作成
+  - .cursor/rules/dev-rules/environment-branching.mdc作成
+  - 開発環境と本番環境の分岐処理方針を定義
+  - 見積時間: 30分
+
+- [ ] Voicy自動化の環境分岐実装
+  - 開発環境: ローカルChrome使用（headless: false）
+  - 本番環境: Browserless.io使用
+  - 環境変数による分岐処理
+  - 見積時間: 1時間
+
+- [ ] データベース接続の環境分岐確認
+  - 開発環境: SQLite
+  - 本番環境: Railway PostgreSQL
+  - 見積時間: 30分
+
+- [ ] ファイルストレージの環境分岐確認
+  - 開発環境: ローカルファイルシステム
+  - 本番環境: Railway Storage
+  - 見積時間: 30分
+
+- [ ] 環境別テストの実装
+  - 開発環境テスト
+  - 本番環境テスト（モック）
+  - 見積時間: 1時間
+
+- [ ] デプロイメント設定の確認
+  - Railway環境変数設定
+  - ビルド設定の確認
+  - 見積時間: 30分
   - ナビゲーション実装完了
   - [x] 配信機能フロントエンド実装完了
     - DistributionManagerコンポーネント作成

@@ -32,7 +32,7 @@ interface Platform {
 
 export default function PlatformsPage() {
   const [platforms, setPlatforms] = useState<Platform[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [savingSpotify, setSavingSpotify] = useState(false)
   const [savingOpenAI, setSavingOpenAI] = useState(false)
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({})
@@ -52,6 +52,7 @@ export default function PlatformsPage() {
   })
   const [youtubeDebugInfo, setYoutubeDebugInfo] = useState<any>(null)
   const [isLocalhost, setIsLocalhost] = useState(false)
+  const [showYoutubeDebug, setShowYoutubeDebug] = useState(false)
   const [githubRepo, setGithubRepo] = useState({
     username: "",
     repoName: ""
@@ -63,7 +64,10 @@ export default function PlatformsPage() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/login')
+      // クライアントサイドでのリダイレクトを遅延させる
+      setTimeout(() => {
+        router.push('/login')
+      }, 100)
       return
     }
 
@@ -97,6 +101,7 @@ export default function PlatformsPage() {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search)
     const youtubeAuth = urlParams.get('youtube_auth')
+    const error = urlParams.get('error')
     
     if (youtubeAuth === 'success') {
       toast({
@@ -110,7 +115,7 @@ export default function PlatformsPage() {
     } else if (youtubeAuth === 'error') {
       toast({
         title: "YouTube認証失敗",
-        description: "YouTubeアカウントの認証に失敗しました。",
+        description: error ? `認証に失敗しました: ${error}` : "YouTubeアカウントの認証に失敗しました。",
         variant: "destructive"
       })
       // URLパラメータをクリア
@@ -118,21 +123,49 @@ export default function PlatformsPage() {
     }
   }, [])
 
+  // 認証済みプラットフォームの設定を初期化
+  useEffect(() => {
+    if (platforms.length > 0) {
+      const youtubePlatform = platforms.find(p => p.platform_type === 'youtube')
+      if (youtubePlatform?.credentials) {
+        setYouTubeCredentials({
+          clientId: youtubePlatform.credentials.clientId || '',
+          clientSecret: youtubePlatform.credentials.clientSecret || ''
+        })
+      }
+    }
+  }, [platforms])
+
   const fetchPlatforms = async () => {
     try {
+      setLoading(true)
       const response = await fetch('/api/platforms', {
         headers: {
           'Authorization': `Bearer ${token}`
-        }
+        },
+        // キャッシュを無効化
+        cache: 'no-store'
       })
       
       if (response.ok) {
         const data = await response.json()
         console.log('Fetched platforms data:', data.data)
         setPlatforms(data.data)
+      } else {
+        console.error('Platforms fetch failed:', response.status, response.statusText)
+        toast({
+          title: "データ取得エラー",
+          description: "プラットフォーム情報の取得に失敗しました。",
+          variant: "destructive"
+        })
       }
     } catch (error) {
       console.error('Failed to fetch platforms:', error)
+      toast({
+        title: "ネットワークエラー",
+        description: "プラットフォーム情報の取得中にエラーが発生しました。",
+        variant: "destructive"
+      })
     } finally {
       setLoading(false)
     }
@@ -140,86 +173,71 @@ export default function PlatformsPage() {
 
   const handleYouTubeAuth = async () => {
     try {
-      // まず、クライアントIDとシークレットを保存
-      const saveResponse = await fetch('/api/platforms', {
-        method: 'POST',
+      console.log('Starting YouTube authentication flow...')
+      
+      // OAuth認証URLを取得
+      const authResponse = await fetch('/api/youtube/auth', {
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          platform_type: 'youtube',
-          platform_name: 'YouTube',
-          credentials: youtubeCredentials,
-          settings: {}
-        })
+        }
       })
 
-      if (saveResponse.ok) {
-        toast({
-          title: "YouTube設定保存完了",
-          description: "クライアントIDとシークレットが保存されました。認証フローを開始します。",
-        })
-
-        // OAuth認証URLを取得（ユーザーIDを含む）
-        console.log('Sending YouTube auth request with user ID:', user?.id)
-        const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}&userId=${encodeURIComponent(user?.id || '')}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-
-        if (authResponse.ok) {
-          const authData = await authResponse.json()
-          console.log('YouTube auth URL generated:', authData.authUrl)
-          
-          // ブラウザで認証URLを開く
-          const newWindow = window.open(authData.authUrl, '_blank', 'width=600,height=700')
-          
-          // 新しいウィンドウが開いたかチェック
-          if (newWindow) {
-            toast({
-              title: "認証フロー開始",
-              description: "新しいウィンドウでGoogle認証を完了してください。認証が完了すると自動的にこのページに戻ります。",
-            })
-          } else {
-            // ポップアップブロッカーが有効な場合
-            toast({
-              title: "ポップアップがブロックされました",
-              description: "以下のURLを新しいタブで開いて認証を完了してください。",
-              variant: "destructive"
-            })
-            
-            // 認証URLをクリップボードにコピー
-            try {
-              await navigator.clipboard.writeText(authData.authUrl)
-              toast({
-                title: "URLをコピーしました",
-                description: "認証URLがクリップボードにコピーされました。新しいタブで貼り付けてください。",
-              })
-            } catch (error) {
-              console.error('Clipboard copy failed:', error)
-            }
-          }
-          
-          // 認証URLをコンソールにも出力（デバッグ用）
-          console.log('YouTube Auth URL:', authData.authUrl)
-        } else {
-          const errorData = await authResponse.json()
-          console.error('YouTube auth URL generation failed:', errorData)
+      if (authResponse.ok) {
+        const authData = await authResponse.json()
+        console.log('YouTube auth URL generated:', authData.authUrl)
+        
+        // ブラウザで認証URLを開く
+        const newWindow = window.open(authData.authUrl, '_blank', 'width=600,height=700')
+        
+        // 新しいウィンドウが開いたかチェック
+        if (newWindow) {
           toast({
-            title: "認証エラー",
-            description: `認証URLの生成に失敗しました: ${errorData.error || 'Unknown error'}`,
+            title: "認証フロー開始",
+            description: "新しいウィンドウでGoogle認証を完了してください。認証が完了すると自動的にこのページに戻ります。",
+          })
+          
+          // ポップアップの監視
+          const checkClosed = setInterval(() => {
+            if (newWindow.closed) {
+              clearInterval(checkClosed)
+              // ポップアップが閉じられたらプラットフォーム一覧を更新
+              fetchPlatforms()
+              toast({
+                title: "認証完了",
+                description: "YouTube認証が完了しました。",
+              })
+            }
+          }, 1000)
+        } else {
+          // ポップアップブロッカーが有効な場合
+          toast({
+            title: "ポップアップがブロックされました",
+            description: "以下のURLを新しいタブで開いて認証を完了してください。",
             variant: "destructive"
           })
+          
+          // 認証URLをクリップボードにコピー
+          try {
+            await navigator.clipboard.writeText(authData.authUrl)
+            toast({
+              title: "URLをコピーしました",
+              description: "認証URLがクリップボードにコピーされました。新しいタブで貼り付けてください。",
+            })
+          } catch (error) {
+            console.error('Clipboard copy failed:', error)
+          }
         }
-
+        
+        // 認証URLをコンソールにも出力（デバッグ用）
+        console.log('YouTube Auth URL:', authData.authUrl)
+        
         await fetchPlatforms()
       } else {
-        const errorData = await saveResponse.json()
+        const errorData = await authResponse.json()
+        console.error('YouTube auth URL generation failed:', errorData)
         toast({
-          title: "エラー",
-          description: `YouTube設定の保存に失敗しました: ${errorData.error || 'Unknown error'}`,
+          title: "認証エラー",
+          description: `認証URLの生成に失敗しました: ${errorData.error || 'Unknown error'}`,
           variant: "destructive"
         })
       }
@@ -478,6 +496,40 @@ export default function PlatformsPage() {
     }
   }
 
+  const fetchYoutubeDebugInfo = async () => {
+    try {
+      const response = await fetch('/api/debug/youtube-config', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setYoutubeDebugInfo(data.config)
+        setShowYoutubeDebug(true)
+        toast({
+          title: "デバッグ情報取得完了",
+          description: "YouTube設定のデバッグ情報を取得しました。",
+        })
+      } else {
+        const errorData = await response.json()
+        toast({
+          title: "デバッグ情報取得エラー",
+          description: `デバッグ情報の取得に失敗しました: ${errorData.error || 'Unknown error'}`,
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('YouTube debug info fetch error:', error)
+      toast({
+        title: "デバッグ情報取得エラー",
+        description: "デバッグ情報の取得中にエラーが発生しました。",
+        variant: "destructive"
+      })
+    }
+  }
+
   const getPlatformStatus = (platformType: string) => {
     const platform = platforms.find(p => p.platform_type === platformType)
     const isConnected = platform && (platform.is_active || platform.id)
@@ -560,11 +612,14 @@ export default function PlatformsPage() {
     }))
   }
 
-  if (authLoading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 py-8">
-          <div className="text-center">Loading...</div>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <div className="text-gray-600">読み込み中...</div>
+          </div>
         </div>
       </div>
     )
@@ -626,31 +681,11 @@ export default function PlatformsPage() {
                   if (connectedPlatform) {
                     return (
                       <div className="space-y-4">
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-medium text-gray-900 mb-3">現在の設定</h4>
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Client ID:</span>
-                              <span className="text-sm font-mono bg-white px-2 py-1 rounded border">
-                                {connectedPlatform.credentials?.clientId || '設定されていません'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-gray-600">Client Secret:</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-mono bg-white px-2 py-1 rounded border">
-                                  {maskSensitiveData(connectedPlatform.credentials?.clientSecret || '', showPasswords['youtube-client-secret'])}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => togglePasswordVisibility('youtube-client-secret')}
-                                  className="text-xs text-blue-600 hover:text-blue-800"
-                                >
-                                  {showPasswords['youtube-client-secret'] ? '隠す' : '表示'}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <h4 className="font-medium text-green-900 mb-2">✓ 認証済み</h4>
+                          <p className="text-sm text-green-700">
+                            YouTubeアカウントが認証されています。動画のアップロードが可能です。
+                          </p>
                         </div>
                         <div className="border-t pt-4">
                           <h4 className="font-medium text-gray-900 mb-3">設定を更新</h4>
@@ -658,14 +693,21 @@ export default function PlatformsPage() {
                       </div>
                     )
                   }
-                  return null
+                  return (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <h4 className="font-medium text-yellow-900 mb-2">⚠️ 未認証</h4>
+                      <p className="text-sm text-yellow-700">
+                        YouTubeアカウントの認証が必要です。下記の設定を入力して認証を完了してください。
+                      </p>
+                    </div>
+                  )
                 })()}
                 <div className="space-y-2">
                   <Label htmlFor="youtube-client-id">Client ID</Label>
                   <Input
                     id="youtube-client-id"
                     type="text"
-                    value={youtubeCredentials.clientId}
+                    value={youtubeCredentials.clientId || getConnectedPlatformData('youtube')?.credentials?.clientId || ''}
                     onChange={(e) => setYouTubeCredentials(prev => ({ ...prev, clientId: e.target.value }))}
                     placeholder="YouTube Client ID"
                   />
@@ -675,7 +717,7 @@ export default function PlatformsPage() {
                   <Input
                     id="youtube-client-secret"
                     type="password"
-                    value={youtubeCredentials.clientSecret}
+                    value={youtubeCredentials.clientSecret || getConnectedPlatformData('youtube')?.credentials?.clientSecret || ''}
                     onChange={(e) => setYouTubeCredentials(prev => ({ ...prev, clientSecret: e.target.value }))}
                     placeholder="YouTube Client Secret"
                   />
@@ -690,13 +732,22 @@ export default function PlatformsPage() {
                 >
                   認証状態を確認
                 </Button>
-                <Button 
-                  onClick={resetYouTubeAuth} 
-                  variant="outline" 
-                  className="w-full"
-                >
-                  認証情報をリセット
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={resetYouTubeAuth} 
+                    variant="outline" 
+                    className="flex-1"
+                  >
+                    認証情報をリセット
+                  </Button>
+                  <Button 
+                    onClick={fetchYoutubeDebugInfo} 
+                    variant="outline" 
+                    className="flex-1"
+                  >
+                    デバッグ情報
+                  </Button>
+                </div>
                 <Button 
                   onClick={async () => {
                     try {
@@ -728,23 +779,76 @@ export default function PlatformsPage() {
                 >
                   認証URLを手動で開く
                 </Button>
-                {youtubeDebugInfo && (
+                {showYoutubeDebug && youtubeDebugInfo && (
                   <div className="p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">認証状態</h4>
-                    <div className="text-sm space-y-1">
-                      <div>Client ID: {youtubeDebugInfo.debug.hasClientId ? '✓' : '✗'}</div>
-                      <div>Client Secret: {youtubeDebugInfo.debug.hasClientSecret ? '✓' : '✗'}</div>
-                      <div>Access Token: {youtubeDebugInfo.debug.hasAccessToken ? '✓' : '✗'}</div>
-                      <div>Refresh Token: {youtubeDebugInfo.debug.hasRefreshToken ? '✓' : '✗'}</div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900">デバッグ情報</h4>
+                      <Button 
+                        onClick={() => setShowYoutubeDebug(false)} 
+                        variant="ghost" 
+                        size="sm"
+                      >
+                        閉じる
+                      </Button>
                     </div>
-                    {!youtubeDebugInfo.debug.hasRefreshToken && (
-                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        <strong>注意:</strong> Refresh Tokenが取得できていません。Google認証を完了してください。
+                    <div className="text-sm space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div><strong>環境:</strong> {youtubeDebugInfo.environment}</div>
+                        <div><strong>App URL:</strong> {youtubeDebugInfo.appUrl || 'NOT SET'}</div>
+                      </div>
+                                              <div className="border-t pt-2">
+                          <div><strong>Client ID:</strong> {youtubeDebugInfo.youtube.clientId.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
+                          {youtubeDebugInfo.youtube.clientId.exists && youtubeDebugInfo.youtube.clientId.hasWhitespace && (
+                            <div className="text-xs text-red-600">⚠️ 改行文字や空白が含まれています</div>
+                          )}
+                          {youtubeDebugInfo.youtube.clientId.exists && (
+                            <div className="text-xs font-mono bg-white p-1 rounded border">
+                              生の値: {youtubeDebugInfo.youtube.clientId.rawPreview}
+                            </div>
+                          )}
+                          <div><strong>Client Secret:</strong> {youtubeDebugInfo.youtube.clientSecret.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
+                          {youtubeDebugInfo.youtube.clientSecret.exists && youtubeDebugInfo.youtube.clientSecret.hasWhitespace && (
+                            <div className="text-xs text-red-600">⚠️ 改行文字や空白が含まれています</div>
+                          )}
+                          {youtubeDebugInfo.youtube.clientSecret.exists && (
+                            <div className="text-xs font-mono bg-white p-1 rounded border">
+                              生の値: {youtubeDebugInfo.youtube.clientSecret.rawPreview}
+                            </div>
+                          )}
+                          <div><strong>API Key:</strong> {youtubeDebugInfo.youtube.apiKey.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
+                        </div>
+                      <div className="border-t pt-2">
+                        <div><strong>リダイレクトURI:</strong></div>
+                        <div className="font-mono text-xs bg-white p-2 rounded border break-all">
+                          {youtubeDebugInfo.redirectUri}
+                        </div>
+                      </div>
+                      <div className="border-t pt-2">
+                        <div><strong>環境変数一覧:</strong></div>
+                        <div className="text-xs space-y-1">
+                          {Object.entries(youtubeDebugInfo.allEnvVars).map(([key, value]) => (
+                            <div key={key} className="flex justify-between">
+                              <span>{key}:</span>
+                              <span className={value === 'SET' ? 'text-green-600' : 'text-red-600'}>{String(value)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {(!youtubeDebugInfo.youtube.clientId.exists || !youtubeDebugInfo.youtube.clientSecret.exists) && (
+                      <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                        <strong>エラー:</strong> YouTube Client IDまたはClient Secretが設定されていません。環境変数を確認してください。
                       </div>
                     )}
-                    {youtubeDebugInfo.debug.hasRefreshToken && (
+                    {(youtubeDebugInfo.youtube.clientId.exists && youtubeDebugInfo.youtube.clientId.hasWhitespace) || 
+                     (youtubeDebugInfo.youtube.clientSecret.exists && youtubeDebugInfo.youtube.clientSecret.hasWhitespace) && (
+                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                        <strong>警告:</strong> Client IDまたはClient Secretに改行文字や空白が含まれています。これが401エラーの原因の可能性があります。
+                      </div>
+                    )}
+                    {youtubeDebugInfo.appUrl === 'NOT SET' && (
                       <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                        <strong>情報:</strong> テスト中のGoogle Cloudプロジェクトでは、Refresh Tokenは7日間で期限切れになります。期限切れの場合は再認証が必要です。
+                        <strong>情報:</strong> NEXT_PUBLIC_APP_URLが設定されていません。本番環境では必要です。
                       </div>
                     )}
                   </div>

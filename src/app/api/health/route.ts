@@ -26,7 +26,16 @@ export async function GET() {
     let dbLatency = 0
     try {
       const dbStart = Date.now()
-      await db.query('SELECT NOW()')
+      
+      if (process.env.NODE_ENV === 'production') {
+        // PostgreSQL
+        await db.query('SELECT NOW()')
+      } else {
+        // SQLite
+        const sqliteDb = await db
+        await sqliteDb.get('SELECT datetime("now") as current_time')
+      }
+      
       dbLatency = Date.now() - dbStart
       dbStatus = 'connected'
     } catch (error) {

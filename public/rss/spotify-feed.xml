@@ -2,23 +2,264 @@
 <rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>AutoPost Spotify Podcast Feed</title>
-    <link>http://localhost:3000/rss/spotify-feed.xml</link>
+    <link>https://yujiyamanaka.github.io/BlogPostPlatform/rss/spotify-feed.xml</link>
     <description>Automatically generated podcast feed for Spotify synchronization</description>
     <language>ja</language>
     <copyright>© 2025 AutoPost</copyright>
-    <lastBuildDate>Sun, 29 Jun 2025 07:26:22 GMT</lastBuildDate>
-    <pubDate>Sun, 29 Jun 2025 07:26:22 GMT</pubDate>
+    <lastBuildDate>Mon, 07 Jul 2025 04:16:57 GMT</lastBuildDate>
+    <pubDate>Mon, 07 Jul 2025 04:16:57 GMT</pubDate>
     <itunes:category text="Technology" />
     <itunes:explicit>no</itunes:explicit>
-    <itunes:image href="http://localhost:3000/podcast-cover.jpg" />
+    <itunes:image href="https://yujiyamanaka.github.io/BlogPostPlatform/podcast-cover.jpg" />
     <itunes:author>AutoPost System</itunes:author>
     <itunes:summary>Automatically generated podcast feed for multi-platform distribution</itunes:summary>
     <item>
-      <title><![CDATA[bell-ringing-05のコピー.mp3]]></title>
-      <description><![CDATA[]]></description>
-      <enclosure url="http://localhost:3000/api/rss/media/5246486" length="99238" type="audio/mpeg" />
-      <guid isPermaLink="false">autopost-5246486a-7e4d-4bfd-91db-109923da8107-1751181982811</guid>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/96263749.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 04:16:45 GMT</pubDate>
+      <guid>autopost-a6389014-96ef-40d6-a74c-431323d0f774-1751861817645</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/96263749.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1061512148.mp3</link>
+      <description></description>
+      <pubDate>Fri, 27 Jun 2025 14:28:23 GMT</pubDate>
+      <guid>autopost-a2834b1b-8d53-4d32-8261-f87a0ceb8d34-1751034503000</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1061512148.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/614317217.mp3</link>
+      <description></description>
+      <pubDate>Fri, 27 Jun 2025 14:27:35 GMT</pubDate>
+      <guid>autopost-a2f9017b-f672-4201-a2cd-7e74e0497af0-1751034455000</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/614317217.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/96263749.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 04:16:45 GMT</pubDate>
+      <guid>autopost-a6389014-96ef-40d6-a74c-431323d0f774-1751861805275</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/96263749.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1128466374.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 04:06:20 GMT</pubDate>
+      <guid>autopost-cee3abe3-c4f8-4c92-ba44-5b67b41b55f6-1751861180491</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1128466374.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1461592246.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 01:21:55 GMT</pubDate>
+      <guid>autopost-8ef55a76-87c5-429d-ae1e-63ee956aab75-1751851315937</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1461592246.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>transcoded.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1627272486.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 00:56:38 GMT</pubDate>
+      <guid>autopost-8795099d-6d72-440f-83cd-185be8bb08b9-1751849798447</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1627272486.mp3" length="502534" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/275728246.mp3</link>
+      <description></description>
+      <pubDate>Mon, 07 Jul 2025 00:30:06 GMT</pubDate>
+      <guid>autopost-4c2399e3-7fda-4eb9-84e2-807aa791991f-1751848206525</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/275728246.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1175823482.mp3</link>
+      <description></description>
+      <pubDate>Sat, 05 Jul 2025 21:29:17 GMT</pubDate>
+      <guid>autopost-6120511f-6b85-4517-b809-806c82ac367d-1751750957299</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1175823482.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1119210101.mp3</link>
+      <description></description>
+      <pubDate>Sat, 05 Jul 2025 21:03:40 GMT</pubDate>
+      <guid>autopost-3513b4cc-4b3f-4449-92f7-e9f846affbc5-1751749420368</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1119210101.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/17857098.mp3</link>
+      <description></description>
+      <pubDate>Sat, 05 Jul 2025 20:57:49 GMT</pubDate>
+      <guid>autopost-d08eefd5-3508-4879-aaae-e2944057644c-1751749069834</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/17857098.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1871822470.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 21:48:38 GMT</pubDate>
+      <guid>autopost-2a5f7030-1135-4e88-9265-9137ec3f5bfe-1751665718658</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1871822470.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1682995471.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 21:30:03 GMT</pubDate>
+      <guid>autopost-4a8e2ee9-d4d2-4421-8fd4-4cc814171175-1751664603466</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1682995471.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/414611002.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 21:06:39 GMT</pubDate>
+      <guid>autopost-d17df081-2345-4e38-84f2-ea6638fd532f-1751663199185</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/414611002.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/394013381.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 20:29:48 GMT</pubDate>
+      <guid>autopost-c89e1a70-7629-4a6b-8e17-938e02a4f605-1751660988819</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/394013381.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1175474623.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 20:25:31 GMT</pubDate>
+      <guid>autopost-122525c4-bccf-4987-8e5c-b67941d10453-1751660731722</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1175474623.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1557737186.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 20:23:06 GMT</pubDate>
+      <guid>autopost-d35da7d6-574f-431c-9521-475055c86728-1751660586817</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1557737186.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1688826455.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 08:47:27 GMT</pubDate>
+      <guid>autopost-22511419-a446-4174-ac73-9c21d93de0ef-1751618847640</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1688826455.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1667479200.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 08:23:32 GMT</pubDate>
+      <guid>autopost-59748564-3f6b-48c5-b62c-2229137e8dd3-1751617412617</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1667479200.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/791313434.mp3</link>
+      <description></description>
+      <pubDate>Fri, 04 Jul 2025 01:57:19 GMT</pubDate>
+      <guid>autopost-6661f10c-70f1-45e5-9fa4-5df1a7323d1e-1751594239802</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/791313434.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1162070231.mp3</link>
+      <description></description>
+      <pubDate>Sun, 29 Jun 2025 07:30:38 GMT</pubDate>
+      <guid>autopost-59669950-8246-458e-ba1c-7c03d81426fe-1751182238448</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1162070231.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/520525283.mp3</link>
+      <description></description>
       <pubDate>Sun, 29 Jun 2025 07:26:22 GMT</pubDate>
+      <guid>autopost-5246486a-7e4d-4bfd-91db-109923da8107-1751181982805</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/520525283.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/406421231.mp3</link>
+      <description></description>
+      <pubDate>Sun, 29 Jun 2025 06:35:48 GMT</pubDate>
+      <guid>autopost-98fbdf42-21ea-4450-85f4-7e889a37c6b6-1751178948081</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/406421231.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1232022822.mp3</link>
+      <description></description>
+      <pubDate>Sat, 28 Jun 2025 00:47:18 GMT</pubDate>
+      <guid>autopost-44e7bab2-54f0-4db2-b251-b3546988208a-1751071638992</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/1232022822.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>bell-ringing-05のコピー.mp3</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/uploads/834811967.mp3</link>
+      <description></description>
+      <pubDate>Fri, 27 Jun 2025 23:33:20 GMT</pubDate>
+      <guid>autopost-11ead308-2cf2-48e7-b275-5a5e94c778a6-1751067200282</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/uploads/834811967.mp3" length="99238" type="audio/mpeg" />
       <itunes:duration>00:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>

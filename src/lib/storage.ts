@@ -8,9 +8,22 @@ let db: any
 
 if (process.env.NODE_ENV === 'production') {
   // 本番環境: Railway PostgreSQL
+  if (!process.env.DATABASE_URL) {
+    console.error('DATABASE_URL is not set in production environment')
+    throw new Error('DATABASE_URL is required in production environment')
+  }
+  
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
+    max: 20, // 接続プールの最大数
+    idleTimeoutMillis: 30000, // アイドル接続のタイムアウト
+    connectionTimeoutMillis: 2000, // 接続タイムアウト
+  })
+  
+  // 接続エラーハンドリング
+  db.on('error', (err: any) => {
+    console.error('Unexpected error on idle client', err)
   })
 } else {
   // 開発環境: SQLite
@@ -740,24 +753,57 @@ export class DatabaseStorage {
   // Upload operations
   async getUpload(id: string): Promise<Upload | undefined> {
     try {
+      console.log(`🔍 Getting upload with ID: ${id}`)
+      console.log(`🔍 ID type: ${typeof id}`)
+      
       if (process.env.NODE_ENV === 'production') {
         const result = await db.query('SELECT * FROM uploads WHERE id = $1', [id])
-        if (result.rows[0]) {
-          result.rows[0].created_at = new Date(result.rows[0].created_at)
-          result.rows[0].updated_at = new Date(result.rows[0].updated_at)
+        console.log(`📊 PostgreSQL query result:`, result)
+        console.log(`📊 Rows found: ${result.rows.length}`)
+        
+        if (result.rows.length === 0) {
+          console.log(`❌ No upload found with ID: ${id}`)
+          return undefined
         }
-        return result.rows[0]
+        
+        const upload = result.rows[0]
+        // PostgreSQLの場合は日付フィールドをDateオブジェクトに変換
+        if (upload.created_at) {
+          upload.created_at = new Date(upload.created_at)
+        }
+        if (upload.updated_at) {
+          upload.updated_at = new Date(upload.updated_at)
+        }
+        console.log(`✅ Upload found:`, upload)
+        return upload
       } else {
         const sqliteDb = await db
         const result = await sqliteDb.get('SELECT * FROM uploads WHERE id = ?', [id])
-        if (result) {
+        console.log(`📊 SQLite query result:`, result)
+        
+        if (!result) {
+          console.log(`❌ No upload found with ID: ${id}`)
+          return undefined
+        }
+        
+        // SQLiteの場合は数値タイムスタンプをDateオブジェクトに変換
+        if (result.created_at) {
           result.created_at = new Date(result.created_at)
+        }
+        if (result.updated_at) {
           result.updated_at = new Date(result.updated_at)
         }
+        
+        console.log(`✅ Upload found:`, result)
         return result
       }
     } catch (error) {
-      console.error('Error getting upload:', error)
+      console.error('❌ Error getting upload:', error)
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        id: id
+      })
       return undefined
     }
   }
@@ -786,7 +832,16 @@ export class DatabaseStorage {
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING *
         `, [upload.user_id, upload.title, upload.description, upload.file_path, upload.processed_file_path, upload.file_size, upload.mime_type, upload.status, JSON.stringify(upload.metadata)])
-        return result.rows[0]
+        
+        const createdUpload = result.rows[0]
+        // PostgreSQLの場合は日付フィールドをDateオブジェクトに変換
+        if (createdUpload.created_at) {
+          createdUpload.created_at = new Date(createdUpload.created_at)
+        }
+        if (createdUpload.updated_at) {
+          createdUpload.updated_at = new Date(createdUpload.updated_at)
+        }
+        return createdUpload
       } else {
         const sqliteDb = await db
         const id = crypto.randomUUID()

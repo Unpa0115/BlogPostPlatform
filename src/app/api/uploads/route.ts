@@ -4,6 +4,7 @@ import path from 'path'
 import { verifyAuth } from '@/lib/auth'
 import { storage } from '@/lib/storage'
 import { RssGenerator } from '@/lib/rss-generator'
+import { safeDateToISOString } from '@/lib/utils'
 
 const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
@@ -94,31 +95,68 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Metadata saved: ${fileName}.metadata.json`)
 
     // DBにアップロード情報を保存
-    const upload = await storage.createUpload({
-      user_id: user.id,
-      title: metadata.title || file.name,
-      description: metadata.description || '',
-      file_path: filePath,
-      file_size: file.size,
-      mime_type: file.type,
-      status: 'completed',
-      metadata: metadata
-    })
+    let upload;
+    try {
+      console.log(`💾 Saving upload to database: ${fileName}`)
+      console.log(`📊 Upload data:`, {
+        user_id: user.id,
+        title: metadata.title || file.name,
+        description: metadata.description || '',
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type,
+        status: 'completed',
+        metadata: metadata
+      })
+      
+      upload = await storage.createUpload({
+        user_id: user.id,
+        title: metadata.title || file.name,
+        description: metadata.description || '',
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type,
+        status: 'completed',
+        metadata: metadata
+      })
+      
+      console.log(`✅ Upload saved to database:`, upload)
+    } catch (dbError) {
+      console.error('❌ DB保存エラー:', dbError)
+      console.error('❌ DB保存エラー詳細:', {
+        message: dbError instanceof Error ? dbError.message : String(dbError),
+        stack: dbError instanceof Error ? dbError.stack : 'No stack trace',
+        code: (dbError as any)?.code,
+        detail: (dbError as any)?.detail
+      })
+      return NextResponse.json({ 
+        error: 'DB保存に失敗しました', 
+        details: dbError instanceof Error ? dbError.message : String(dbError) 
+      }, { status: 500 })
+    }
 
     // uploadオブジェクトの存在チェック
     if (!upload || !upload.id) {
       console.error('❌ Failed to create upload record in database')
+      console.error('❌ Upload object:', upload)
       return NextResponse.json({ error: 'Failed to save upload information' }, { status: 500 })
     }
+
+    console.log(`✅ Upload record created with ID: ${upload.id}`)
 
     // 音声ファイルの場合、統合RSS Feedを更新
     if (file.type.startsWith('audio/')) {
       try {
+        console.log(`🎵 Audio file detected, updating RSS feed for upload ID: ${upload.id}`)
         const rssGenerator = new RssGenerator()
         await rssGenerator.addEpisode(upload.id)
         console.log(`✅ Added audio file to unified RSS feed: ${upload.title}`)
       } catch (error) {
         console.error('❌ Failed to update RSS feed:', error)
+        console.error('❌ RSS feed error details:', {
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : 'No stack trace'
+        })
         // RSS Feed更新の失敗はアップロード自体の失敗にはしない
       }
     }
@@ -131,7 +169,7 @@ export async function POST(request: NextRequest) {
         file_url: `/api/uploads?file=${encodeURIComponent(fileName)}`,
         status: 'completed',
         metadata,
-        created_at: upload.created_at.toISOString(),
+        created_at: safeDateToISOString(upload.created_at) || new Date().toISOString(),
         file_size: file.size
       }
     })

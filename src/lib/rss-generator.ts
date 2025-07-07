@@ -30,10 +30,7 @@ export class RssGenerator {
   private readonly MAX_EPISODES = 50; // Spotify制限
 
   constructor() {
-    // Use Next.js environment for base URL
     this.baseUrl = this.getBaseUrl();
-    
-    this.ensureFeedDirectory();
   }
 
   private getBaseUrl(): string {
@@ -41,14 +38,11 @@ export class RssGenerator {
     const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
     
     if (nodeEnv === 'development' && isLocalhost) {
-      // localhost環境でGitHub Pagesを使用
-      return process.env.GITHUB_PAGES_URL || 'https://your-username.github.io/your-repo-name';
-    } else if (nodeEnv === 'production') {
+      // localhost環境でGitHub PagesのRSS Feed URL
+      return 'https://yujiyamanaka.github.io/BlogPostPlatform';
+    } else {
       // Railway環境では従来通り
       return process.env.NEXT_PUBLIC_APP_URL || 'https://blogpostplatform-production.up.railway.app';
-    } else {
-      // その他の環境
-      return 'http://localhost:3000';
     }
   }
 
@@ -57,11 +51,38 @@ export class RssGenerator {
     const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
     
     if (nodeEnv === 'development' && isLocalhost) {
-      // localhost環境でGitHub PagesのメディアURL
-      return `${this.baseUrl}/media/${episodeId}`;
+      // localhost環境ではGitHub PagesのファイルURL
+      return `${this.baseUrl}/uploads/${episodeId}.mp3`;
     } else {
-      // Railway環境では従来通り
-      return `${this.baseUrl}/api/rss/media/${episodeId}`;
+      // Railway環境ではAPI経由
+      return `${this.baseUrl}/api/uploads/${episodeId}`;
+    }
+  }
+
+  // ファイル名からUUIDを取得するマッピング機能
+  private async getUploadIdByFileName(fileName: string, userId: string): Promise<string | null> {
+    try {
+      // 全アップロードを取得してファイル名で検索
+      const allUploads = await storage.getAllUploads();
+      const upload = allUploads.find(upload => 
+        upload.file_path.includes(fileName) && upload.user_id === userId
+      );
+      
+      return upload?.id || null;
+    } catch (error) {
+      console.error(`Failed to get upload ID for file ${fileName}:`, error);
+      return null;
+    }
+  }
+
+  // UUIDからファイル名を取得するマッピング機能
+  private async getFileNameByUploadId(uploadId: string): Promise<string | null> {
+    try {
+      const upload = await storage.getUpload(uploadId);
+      return upload ? path.basename(upload.file_path) : null;
+    } catch (error) {
+      console.error(`Failed to get file name for upload ID ${uploadId}:`, error);
+      return null;
     }
   }
 
@@ -73,17 +94,25 @@ export class RssGenerator {
     fileSize: number;
     mimeType: string;
   }): Promise<void> {
-    console.log(`📡 Adding episode to unified RSS feed: ${episodeData.title}`);
+    await this.ensureFeedDirectory();
     
-    try {
-      // Generate updated RSS feed
-      await this.regenerateFeed();
-      console.log(`✅ Unified RSS feed updated with episode: ${episodeData.title}`);
-      
-    } catch (error) {
-      console.error('❌ Failed to add episode to unified RSS feed:', error);
-      throw error;
-    }
+    const episode: RssEpisode = {
+      id: Date.now(), // タイムスタンプベースのID
+      title: episodeData.title,
+      description: episodeData.description,
+      filePath: episodeData.filePath,
+      fileSize: episodeData.fileSize,
+      mimeType: episodeData.mimeType,
+      pubDate: new Date(episodeData.publishDate),
+      guid: `autopost-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    };
+
+    const existingEpisodes = await this.getExistingEpisodes();
+    const allEpisodes = [episode, ...existingEpisodes];
+    
+    const { activeEpisodes, archivedEpisodes } = await this.manageEpisodeLimit(allEpisodes);
+    await this.generateFeed(activeEpisodes);
+    await this.saveArchivedEpisodes(archivedEpisodes);
   }
 
   private async ensureFeedDirectory() {
@@ -97,12 +126,12 @@ export class RssGenerator {
   private formatDuration(seconds: number): string {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    const remainingSeconds = seconds % 60;
+    const secs = seconds % 60;
     
     if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }
 
   private escapeXml(text: string): string {
@@ -118,15 +147,14 @@ export class RssGenerator {
     const now = new Date().toUTCString();
     
     const episodeItems = episodes.map(episode => {
-      const fileUrl = this.getMediaUrl(episode.id);
-      const pubDate = episode.pubDate.toUTCString();
-      
+      const mediaUrl = this.getMediaUrl(episode.id);
       return `    <item>
-      <title><![CDATA[${episode.title}]]></title>
-      <description><![CDATA[${episode.description || ''}]]></description>
-      <enclosure url="${fileUrl}" length="${episode.fileSize}" type="${episode.mimeType}" />
-      <guid isPermaLink="false">${episode.guid}</guid>
-      <pubDate>${pubDate}</pubDate>
+      <title>${this.escapeXml(episode.title)}</title>
+      <link>${mediaUrl}</link>
+      <description>${this.escapeXml(episode.description || '')}</description>
+      <pubDate>${episode.pubDate.toUTCString()}</pubDate>
+      <guid>${episode.guid}</guid>
+      <enclosure url="${mediaUrl}" length="${episode.fileSize}" type="${episode.mimeType}" />
       <itunes:duration>${episode.duration || '00:00'}</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>`;
@@ -152,14 +180,53 @@ ${episodeItems}
 </rss>`;
   }
 
-  async addEpisode(uploadId: string): Promise<void> {
+  // ファイル名またはUUIDでエピソードを追加（統一インターフェース）
+  async addEpisode(identifier: string, userId?: string): Promise<void> {
     try {
-      console.log(`🔍 Adding episode to RSS feed: ${uploadId}`)
+      console.log(`🔍 Adding episode to RSS feed: ${identifier}`);
+      console.log(`🔍 Identifier type: ${typeof identifier}`);
+      console.log(`🔍 Identifier value: ${identifier}`);
       
+      let uploadId: string;
+      
+      // ファイル名かUUIDかを判定
+      if (identifier.includes('.mp3') || identifier.includes('.wav') || identifier.includes('.m4a')) {
+        // ファイル名の場合、UUIDを取得
+        if (!userId) {
+          throw new Error('User ID is required when using file name as identifier');
+        }
+        
+        console.log(`📁 File name detected, looking up UUID for: ${identifier}`);
+        const foundUploadId = await this.getUploadIdByFileName(identifier, userId);
+        
+        if (!foundUploadId) {
+          throw new Error(`No upload found for file: ${identifier}`);
+        }
+        
+        uploadId = foundUploadId;
+        console.log(`✅ Found UUID: ${uploadId} for file: ${identifier}`);
+      } else {
+        // UUIDの場合、そのまま使用
+        uploadId = identifier;
+        console.log(`✅ Using UUID directly: ${uploadId}`);
+      }
+      
+      // データベースからアップロード情報を取得
       const upload = await storage.getUpload(uploadId);
-      console.log(`📋 Upload data:`, upload)
+      console.log(`📋 Upload data:`, upload);
       
       if (!upload) {
+        console.error(`❌ Upload not found in database: ${uploadId}`);
+        
+        // データベース内の全アップロードを確認
+        try {
+          const allUploads = await storage.getAllUploads();
+          console.log(`📊 Total uploads in database: ${allUploads.length}`);
+          console.log(`📊 Upload IDs in database:`, allUploads.map(u => u.id).slice(0, 10));
+        } catch (dbError) {
+          console.error(`❌ Failed to check database for uploads:`, dbError);
+        }
+        
         throw new Error(`Upload ${uploadId} not found`);
       }
 
@@ -169,8 +236,12 @@ ${episodeItems}
         return;
       }
 
+      // UUIDをハッシュ値に変換
+      const episodeId = this.generateEpisodeId(upload.id);
+      console.log(`🆔 Generated episode ID: ${episodeId} from UUID: ${upload.id}`);
+
       const episode: RssEpisode = {
-        id: parseInt(upload.id),
+        id: episodeId,
         title: upload.title,
         description: upload.description || undefined,
         filePath: upload.processed_file_path || upload.file_path,
@@ -178,18 +249,20 @@ ${episodeItems}
         mimeType: upload.mime_type,
         pubDate: upload.created_at instanceof Date 
           ? upload.created_at 
+          : typeof upload.created_at === 'number'
+          ? new Date(upload.created_at)
           : new Date(upload.created_at),
         guid: `autopost-${upload.id}-${Date.now()}`,
       };
 
-      console.log(`📝 Episode data:`, episode)
+      console.log(`📝 Episode data:`, episode);
 
       // Get existing episodes from RSS feed
       const existingEpisodes = await this.getExistingEpisodes();
-      console.log(`📚 Found ${existingEpisodes.length} existing episodes`)
+      console.log(`📚 Found ${existingEpisodes.length} existing episodes`);
       
       // Check if episode already exists
-      const episodeExists = existingEpisodes.some(ep => ep.id === parseInt(upload.id));
+      const episodeExists = existingEpisodes.some(ep => ep.guid === episode.guid);
       if (episodeExists) {
         console.log(`Episode ${upload.id} already exists in unified RSS feed`);
         return;
@@ -212,8 +285,23 @@ ${episodeItems}
       
     } catch (error) {
       console.error('❌ Failed to add episode to unified RSS feed:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        identifier: identifier
+      });
       throw error;
     }
+  }
+
+  // UUIDから一意の数値IDを生成
+  private generateEpisodeId(uuid: string): number {
+    // UUIDをハッシュ値に変換
+    const hash = uuid.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    return Math.abs(hash);
   }
 
   private async getExistingEpisodes(): Promise<RssEpisode[]> {
@@ -229,10 +317,15 @@ ${episodeItems}
         // created_atをDateオブジェクトに変換
         const pubDate = upload.created_at instanceof Date 
           ? upload.created_at 
+          : typeof upload.created_at === 'number'
+          ? new Date(upload.created_at)
           : new Date(upload.created_at);
         
+        // UUIDからエピソードIDを生成
+        const episodeId = this.generateEpisodeId(upload.id);
+        
         return {
-          id: parseInt(upload.id),
+          id: episodeId,
           title: upload.title,
           description: upload.description || undefined,
           filePath: upload.processed_file_path || upload.file_path,
@@ -241,7 +334,7 @@ ${episodeItems}
           pubDate: pubDate,
           guid: `autopost-${upload.id}-${pubDate.getTime()}`,
         };
-      }).sort((a, b) => b.pubDate.getTime() - a.pubDate.getTime());
+      });
       
     } catch (error) {
       console.error('Failed to get existing episodes:', error);
@@ -288,9 +381,6 @@ ${episodeItems}
     return this.feedPath;
   }
 
-  /**
-   * エピソード制限を管理し、古いエピソードをアーカイブに移動
-   */
   private async manageEpisodeLimit(allEpisodes: RssEpisode[]): Promise<{
     activeEpisodes: RssEpisode[];
     archivedEpisodes: RssEpisode[];
@@ -302,76 +392,53 @@ ${episodeItems}
       };
     }
 
-    // 最新の50件をアクティブに、残りをアーカイブに
+    // 最新のエピソードをアクティブに、古いものをアーカイブに
     const activeEpisodes = allEpisodes.slice(0, this.MAX_EPISODES);
-    const newArchivedEpisodes = allEpisodes.slice(this.MAX_EPISODES);
+    const archivedEpisodes = allEpisodes.slice(this.MAX_EPISODES);
 
-    // 既存のアーカイブを読み込み
-    const existingArchived = await this.getArchivedEpisodes();
-    const allArchivedEpisodes = [...existingArchived, ...newArchivedEpisodes];
+    console.log(`📊 Episode limit reached: ${allEpisodes.length} total, ${activeEpisodes.length} active, ${archivedEpisodes.length} archived`);
 
-    console.log(`📦 Archiving ${newArchivedEpisodes.length} episodes (${allArchivedEpisodes.length} total archived)`);
-
-    return {
-      activeEpisodes,
-      archivedEpisodes: allArchivedEpisodes
-    };
+    return { activeEpisodes, archivedEpisodes };
   }
 
-  /**
-   * アーカイブされたエピソードを保存
-   */
   private async saveArchivedEpisodes(episodes: RssEpisode[]): Promise<void> {
+    if (episodes.length === 0) return;
+
     try {
-      const archiveData = {
-        lastUpdated: new Date().toISOString(),
-        episodes: episodes.map(ep => ({
-          ...ep,
-          pubDate: ep.pubDate.toISOString()
-        }))
-      };
+      const existingArchived = await this.getArchivedEpisodes();
+      const allArchived = [...existingArchived, ...episodes];
       
-      await fs.writeFile(this.archivePath, JSON.stringify(archiveData, null, 2), 'utf8');
-      console.log(`💾 Archived ${episodes.length} episodes`);
+      await fs.writeFile(this.archivePath, JSON.stringify(allArchived, null, 2), 'utf8');
+      console.log(`📦 Archived ${episodes.length} episodes`);
     } catch (error) {
       console.error('Failed to save archived episodes:', error);
     }
   }
 
-  /**
-   * アーカイブされたエピソードを取得
-   */
   private async getArchivedEpisodes(): Promise<RssEpisode[]> {
     try {
-      const archiveContent = await fs.readFile(this.archivePath, 'utf8');
-      const archiveData = JSON.parse(archiveContent);
-      
-      return archiveData.episodes.map((ep: any) => ({
-        ...ep,
-        pubDate: new Date(ep.pubDate)
-      }));
+      const data = await fs.readFile(this.archivePath, 'utf8');
+      return JSON.parse(data);
     } catch (error) {
-      // アーカイブファイルが存在しない場合は空配列を返す
       return [];
     }
   }
 
-  /**
-   * RSS Feedの統計情報を取得
-   */
   async getFeedStats(): Promise<RssFeedStats> {
     try {
       const activeEpisodes = await this.getExistingEpisodes();
       const archivedEpisodes = await this.getArchivedEpisodes();
       
-      const totalEpisodes = activeEpisodes.length + archivedEpisodes.length;
+      const allEpisodes = [...activeEpisodes, ...archivedEpisodes];
       
       return {
-        totalEpisodes,
+        totalEpisodes: allEpisodes.length,
         activeEpisodes: activeEpisodes.length,
         archivedEpisodes: archivedEpisodes.length,
-        oldestActiveEpisode: activeEpisodes.length > 0 ? activeEpisodes[activeEpisodes.length - 1].pubDate : null,
-        newestActiveEpisode: activeEpisodes.length > 0 ? activeEpisodes[0].pubDate : null
+        oldestActiveEpisode: activeEpisodes.length > 0 ? 
+          activeEpisodes[activeEpisodes.length - 1].pubDate : null,
+        newestActiveEpisode: activeEpisodes.length > 0 ? 
+          activeEpisodes[0].pubDate : null,
       };
     } catch (error) {
       console.error('Failed to get feed stats:', error);
@@ -380,50 +447,35 @@ ${episodeItems}
         activeEpisodes: 0,
         archivedEpisodes: 0,
         oldestActiveEpisode: null,
-        newestActiveEpisode: null
+        newestActiveEpisode: null,
       };
     }
   }
 
-  /**
-   * アーカイブからエピソードを復元（手動操作用）
-   */
   async restoreEpisodeFromArchive(episodeId: number): Promise<boolean> {
     try {
       const archivedEpisodes = await this.getArchivedEpisodes();
       const episodeToRestore = archivedEpisodes.find(ep => ep.id === episodeId);
       
       if (!episodeToRestore) {
-        console.log(`Episode ${episodeId} not found in archive`);
         return false;
       }
 
-      // 現在のアクティブエピソードを取得
-      const activeEpisodes = await this.getExistingEpisodes();
-      
-      // 復元するエピソードを最新として追加
-      const updatedEpisodes = [episodeToRestore, ...activeEpisodes];
-      
-      // 制限管理を実行
-      const { activeEpisodes: newActiveEpisodes, archivedEpisodes: newArchivedEpisodes } = 
-        await this.manageEpisodeLimit(updatedEpisodes);
+      // アーカイブから削除
+      const updatedArchived = archivedEpisodes.filter(ep => ep.id !== episodeId);
+      await fs.writeFile(this.archivePath, JSON.stringify(updatedArchived, null, 2), 'utf8');
 
-      // フィードを更新
-      await this.generateFeed(newActiveEpisodes);
-      await this.saveArchivedEpisodes(newArchivedEpisodes);
-
+      // アクティブエピソードに追加
+      await this.addEpisode(episodeToRestore.guid.split('-')[1]); // UUID部分を抽出
+      
       console.log(`✅ Restored episode ${episodeId} from archive`);
       return true;
-      
     } catch (error) {
       console.error('Failed to restore episode from archive:', error);
       return false;
     }
   }
 
-  /**
-   * アーカイブされたエピソードの一覧を取得
-   */
   async getArchivedEpisodesList(): Promise<RssEpisode[]> {
     return await this.getArchivedEpisodes();
   }

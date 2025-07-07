@@ -43,7 +43,6 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   })
   const [distributionStatus, setDistributionStatus] = useState<DistributionStatus[]>([])
   const [isDistributing, setIsDistributing] = useState(false)
-  const [youtubeAuthUrl, setYoutubeAuthUrl] = useState<string | null>(null)
   const [platformSupport, setPlatformSupport] = useState<{ [key: string]: PlatformSupport }>({
     youtube: { isSupported: true, message: '', disabled: false },
     voicy: { isSupported: true, message: '', disabled: false },
@@ -53,82 +52,6 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   const { toast } = useToast()
   const { isPlatformConfigured, getPlatformCredentials } = usePlatforms()
   const { token, user } = useAuth()
-
-  // URLパラメータからYouTube認証結果を確認
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const youtubeAuth = urlParams.get('youtube_auth')
-    
-    if (youtubeAuth === 'success') {
-      toast({
-        title: "YouTube認証完了",
-        description: "YouTubeアカウントの認証が完了しました。",
-      })
-      // URLパラメータをクリア
-      window.history.replaceState({}, document.title, window.location.pathname)
-      // 認証ステータスを再確認
-      setTimeout(() => {
-        checkYouTubeAuthStatus()
-      }, 1000)
-    } else if (youtubeAuth === 'error') {
-      const errorMessage = urlParams.get('error')
-      const errorDetails = urlParams.get('details')
-      toast({
-        title: "YouTube認証エラー",
-        description: errorMessage || "YouTubeアカウントの認証に失敗しました。",
-        variant: "destructive"
-      })
-      console.error('YouTube auth error:', { errorMessage, errorDetails })
-      // URLパラメータをクリア
-      window.history.replaceState({}, document.title, window.location.pathname)
-    }
-  }, [toast])
-
-  // YouTube認証ステータスをチェック
-  const checkYouTubeAuthStatus = async () => {
-    if (!token) return
-
-    try {
-      console.log('Checking YouTube auth status...')
-      const response = await fetch('/api/auth/youtube/status', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log('YouTube auth status:', data)
-        
-        // 認証ステータスに基づいてUIを更新
-        if (data.tokenStatus.isValid) {
-          toast({
-            title: "YouTube認証確認",
-            description: "YouTube認証が有効です。",
-          })
-        } else if (data.tokenStatus.needsReauth) {
-          toast({
-            title: "YouTube認証が必要",
-            description: "YouTube認証の期限が切れています。再認証してください。",
-            variant: "destructive"
-          })
-        }
-      } else {
-        console.error('Failed to check YouTube auth status:', response.status)
-      }
-    } catch (error) {
-      console.error('Error checking YouTube auth status:', error)
-    }
-  }
-
-  // YouTube認証ステータスを初期化時にチェック
-  useEffect(() => {
-    if (token && user) {
-      checkYouTubeAuthStatus()
-    }
-  }, [token, user])
 
   // ファイル形式に基づいてプラットフォームの対応状況をチェック
   useEffect(() => {
@@ -246,162 +169,71 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
     }
   }
 
-  const initiateYouTubeAuth = async () => {
+  const uploadToYouTube = async (credentials: any) => {
     try {
-      console.log('=== YouTube Auth Initiation ===')
-      console.log('User info:', {
-        hasUser: !!user,
-        userId: user?.id,
-        userEmail: user?.email
-      })
-
-      if (!user?.id) {
-        console.log('No user ID available')
-        toast({
-          title: "認証エラー",
-          description: "ユーザー情報が取得できません。ログインし直してください。",
-          variant: "destructive"
-        })
-        return
-      }
-
-      if (!token) {
-        console.log('No auth token available')
-        toast({
-          title: "認証エラー",
-          description: "認証トークンが取得できません。ログインし直してください。",
-          variant: "destructive"
-        })
-        return
-      }
-
-      console.log('Fetching auth URL...')
-      const response = await fetch('/api/platforms/youtube/auth', {
+      console.log('=== YouTube Upload ===')
+      
+      // まず認証状態を確認
+      const authResponse = await fetch('/api/youtube/auth', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       })
-      
-      console.log('Auth URL response status:', response.status)
-      
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Failed to get auth URL:', errorData)
-        
-        if (response.status === 401) {
-          toast({
-            title: "認証エラー",
-            description: "認証が必要です。ログインし直してください。",
-            variant: "destructive"
-          })
-          return
-        }
-        
-        toast({
-          title: "設定エラー",
-          description: errorData.message || "YouTube認証URLの取得に失敗しました。",
-          variant: "destructive"
-        })
-        return
+
+      if (!authResponse.ok) {
+        // 認証が必要な場合
+        throw new Error('YouTube authentication required')
       }
 
-      const data = await response.json()
-      console.log('Auth URL received:', data.authUrl ? 'URL received' : 'No URL')
-      setYoutubeAuthUrl(data.authUrl)
-      
-      // 認証URLを新しいタブで開く
-      console.log('Opening auth URL in new tab...')
-      window.open(data.authUrl, '_blank')
-      
-      toast({
-        title: "YouTube認証",
-        description: "新しいタブでYouTube認証を完了してください。認証後、このページに戻ってください。",
-      })
-    } catch (error) {
-      console.error('YouTube auth initiation error:', error)
-      toast({
-        title: "認証エラー",
-        description: "YouTube認証の開始に失敗しました。",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const uploadToYouTube = async (credentials: any) => {
-    try {
-      console.log('=== YouTube Upload Debug ===')
-      console.log('Credentials received:', {
-        hasClientId: !!credentials.clientId,
-        hasClientSecret: !!credentials.clientSecret,
-        hasAccessToken: !!credentials.accessToken,
-        hasRefreshToken: !!credentials.refreshToken
-      })
-
-      // refreshTokenが不足している場合は認証を要求
-      if (!credentials.refreshToken) {
-        console.log('Refresh token missing, initiating auth flow')
-        setDistributionStatus(prev => 
-          prev.map(status => 
-            status.platform === 'youtube' 
-              ? { ...status, status: 'auth_required', message: '認証が必要です' }
-              : status
-          )
-        )
-        
-        await initiateYouTubeAuth()
-        return { error: 'Authentication required' }
-      }
-
-      console.log('Proceeding with YouTube upload')
-      const response = await fetch('/api/platforms/youtube-upload', {
+      // アップロードを実行
+      const response = await fetch('/api/youtube/upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          accessToken: credentials.accessToken,
-          refreshToken: credentials.refreshToken,
-          clientId: credentials.clientId,
-          clientSecret: credentials.clientSecret,
           title,
           description,
-          tags: '',
+          tags: [],
           categoryId: '22', // People & Blogs
           privacyStatus: 'private',
           filePath,
-          mimeType
+          mimeType: mimeType || 'video/mp4'
         })
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.log('YouTube upload failed:', errorData)
-        
-        if (errorData.error === 'Missing required parameters' && errorData.missing?.refreshToken) {
-          // refreshTokenが不足している場合
-          console.log('Refresh token still missing after upload attempt')
-          setDistributionStatus(prev => 
-            prev.map(status => 
-              status.platform === 'youtube' 
-                ? { ...status, status: 'auth_required', message: '認証が必要です' }
-                : status
-            )
-          )
-          
-          await initiateYouTubeAuth()
-          return { error: 'Authentication required' }
+        if (errorData.error === 'Authentication required') {
+          // 認証が必要な場合は認証URLを取得
+          const authData = await authResponse.json()
+          window.open(authData.authUrl, '_blank')
+          throw new Error('YouTube authentication required')
         }
-        throw new Error('YouTube upload failed')
+        throw new Error(errorData.message || 'YouTube upload failed')
       }
 
       const result = await response.json()
       console.log('YouTube upload successful:', result)
+      
+      toast({
+        title: "YouTube配信完了",
+        description: `動画が正常にアップロードされました。`,
+      })
+      
       return result
     } catch (error) {
       console.error('YouTube upload error:', error)
+      if (error instanceof Error && error.message === 'YouTube authentication required') {
+        toast({
+          title: "YouTube認証が必要",
+          description: "新しいタブでYouTube認証を完了してください。",
+          variant: "destructive"
+        })
+      }
       throw error
     }
   }
@@ -450,16 +282,53 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         throw new Error('Upload ID is required for Spotify RSS generation')
       }
 
-      // リクエストボディをログ出力
-      const requestBody = { uploadId }
-      console.log('=== Spotify RSS Request Debug ===')
-      console.log('Request body being sent:', requestBody)
-      console.log('Request body JSON:', JSON.stringify(requestBody))
-      console.log('Upload ID type:', typeof uploadId)
-      console.log('Upload ID value:', uploadId)
-      console.log('Component props:', { uploadId, title, description, filePath, mimeType })
-      console.log('Function name:', 'uploadToSpotify')
-      console.log('Timestamp:', new Date().toISOString())
+      // ユーザーIDを取得
+      const userResponse = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user information')
+      }
+      
+      const userData = await userResponse.json()
+      const userId = userData.user?.id
+      
+      if (!userId) {
+        throw new Error('User ID not found')
+      }
+      
+      console.log('User ID:', userId)
+
+      // ファイル名からUUIDを取得
+      let actualUploadId = uploadId
+      if (filePath && (filePath.includes('.mp3') || filePath.includes('.wav') || filePath.includes('.m4a'))) {
+        try {
+          // ファイル名を抽出（パスから最後の部分）
+          const fileName = filePath.split('/').pop()
+          console.log('Looking up UUID for file name:', fileName)
+          
+          const uploadResponse = await fetch(`/api/uploads/lookup?fileName=${encodeURIComponent(fileName || '')}&userId=${encodeURIComponent(userId)}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          })
+          
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json()
+            if (uploadData.success && uploadData.upload) {
+              actualUploadId = uploadData.upload.id
+              console.log('Found UUID from file name:', actualUploadId)
+            }
+          } else {
+            console.log('Failed to get UUID from file name, response not ok:', uploadResponse.status)
+          }
+        } catch (error) {
+          console.log('Failed to get UUID from file name, using original uploadId:', error)
+        }
+      }
 
       const response = await fetch('/api/rss', {
         method: 'POST',
@@ -467,35 +336,38 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          uploadId: actualUploadId,
+          userId,
+          title,
+          description,
+          audioFile: filePath,
+          mimeType,
+          action: 'add'
+        })
       })
 
-      console.log('RSS API response status:', response.status)
-
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Spotify RSS generation failed:', errorData)
-        throw new Error(`Spotify RSS generation failed: ${errorData.error || 'Unknown error'}`)
+        const errorData = await response.json()
+        console.log('Spotify RSS generation failed:', errorData)
+        throw new Error(errorData.error || 'Spotify RSS generation failed')
       }
 
-      const result = await response.json()
-      console.log('Spotify RSS generation result:', result)
-      return result
+      return await response.json()
     } catch (error) {
-      console.error('Spotify RSS generation error:', error)
       throw error
     }
   }
 
   const handleDistribution = async () => {
     const selectedPlatforms = Object.entries(distributionTargets)
-      .filter(([_, enabled]) => enabled)
-      .map(([platform]) => platform as 'youtube' | 'voicy' | 'spotify')
+      .filter(([_, isSelected]) => isSelected)
+      .map(([platform, _]) => platform as 'youtube' | 'voicy' | 'spotify')
 
     if (selectedPlatforms.length === 0) {
       toast({
-        title: "エラー",
-        description: "配信先を選択してください。",
+        title: "プラットフォームを選択してください",
+        description: "配信先のプラットフォームを選択してください。",
         variant: "destructive"
       })
       return
@@ -597,31 +469,6 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
     }
   }
 
-  // 認証状態を確認する関数
-  const checkAuthStatus = () => {
-    const credentials = getPlatformCredentials('youtube')
-    console.log('=== Current YouTube Auth Status ===')
-    console.log('Credentials:', {
-      hasClientId: !!credentials?.clientId,
-      hasClientSecret: !!credentials?.clientSecret,
-      hasAccessToken: !!credentials?.accessToken,
-      hasRefreshToken: !!credentials?.refreshToken
-    })
-    
-    if (credentials?.refreshToken) {
-      toast({
-        title: "認証状態",
-        description: "YouTube認証は完了しています。",
-      })
-    } else {
-      toast({
-        title: "認証状態",
-        description: "YouTube認証が必要です。",
-        variant: "destructive"
-      })
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -717,14 +564,6 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="font-medium">配信状況</h4>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={checkAuthStatus}
-                className="text-xs"
-              >
-                認証状態確認
-              </Button>
             </div>
             {distributionStatus.map((status, index) => (
               <div key={index} className="flex items-center gap-3 p-3 border rounded-lg">
@@ -741,19 +580,6 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
                   <Progress value={status.progress} className="h-2" />
                   {status.message && (
                     <p className="text-sm text-red-500 mt-1">{status.message}</p>
-                  )}
-                  {status.status === 'auth_required' && status.platform === 'youtube' && (
-                    <div className="mt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={initiateYouTubeAuth}
-                        className="text-xs"
-                      >
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        YouTube認証を実行
-                      </Button>
-                    </div>
                   )}
                 </div>
               </div>
