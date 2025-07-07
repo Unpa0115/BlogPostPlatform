@@ -138,6 +138,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ファイル名からアップロードIDを取得してRSS Feedを更新
+    console.log('🔍 Updating RSS feed for uploaded files...')
+    for (const filePath of actualAudioFiles) {
+      try {
+        const fileName = path.basename(filePath)
+        console.log(`🔍 Looking up upload ID for file: ${fileName}`)
+        
+        // データベースからファイル名でアップロードを検索
+        let upload;
+        if (process.env.NODE_ENV === 'production') {
+          // PostgreSQL
+          const sqliteDb = await db
+          const result = await sqliteDb.query(`
+            SELECT id FROM uploads 
+            WHERE file_path LIKE $1 AND user_id = $2
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [`%${fileName}%`, user.id])
+          upload = result.rows[0]
+        } else {
+          // SQLite
+          const sqliteDb = await db
+          upload = await sqliteDb.get(`
+            SELECT id FROM uploads 
+            WHERE file_path LIKE ? AND user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [`%${fileName}%`, user.id])
+        }
+        
+        if (upload && upload.id) {
+          console.log(`✅ Found upload ID: ${upload.id} for file: ${fileName}`)
+          
+          // RSS Feedを更新（UUIDを使用）
+          try {
+            const { RssGenerator } = await import('@/lib/rss-generator')
+            const rssGenerator = new RssGenerator()
+            await rssGenerator.addEpisode(upload.id) // UUIDを直接渡す
+            console.log(`✅ Updated RSS feed for upload ID: ${upload.id}`)
+          } catch (rssError) {
+            console.error(`❌ Failed to update RSS feed for upload ID: ${upload.id}:`, rssError)
+          }
+        } else {
+          console.warn(`⚠️ No upload record found for file: ${fileName}`)
+        }
+      } catch (lookupError) {
+        console.error(`❌ Failed to lookup upload for file: ${filePath}:`, lookupError)
+      }
+    }
+
     console.log('🚀 Starting Voicy upload process...')
     const result = await uploadToVoicy({
       email,

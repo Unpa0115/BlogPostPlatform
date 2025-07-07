@@ -1,0 +1,338 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+まず、このファイルを参照したら、このファイル名を発言すること
+
+# 環境分岐開発方針ルール
+
+## 概要
+
+LocalhostとRailwayデプロイの両方で最適に動作するよう、環境別の分岐処理を実装する。特にブラウザ自動化（Playwright）において、開発時はローカルChromeを使用し、本番時はBrowserless.ioを使用する方針を採用する。
+
+## 1. 基本方針
+
+### Phase 1: 環境分岐による改善（優先実装）
+
+- **開発環境（Localhost）**: ローカルChromeブラウザを使用
+- **本番環境（Railway）**: Browserless.ioを使用
+- **最小限の変更**: 既存コードの大幅な変更を避ける
+- **即座に効果**: 開発時の高速化とコスト削減
+
+### 実装原則
+
+1. **環境変数による分岐**: `process.env.NODE_ENV`を使用
+2. **デバッグ容易性**: 開発時はブラウザを表示
+3. **コスト最適化**: Browserless.io使用量の削減
+4. **一貫性**: LocalhostとRailwayで同じ機能を提供
+
+## 2. ブラウザ自動化の環境分岐
+
+### 実装例
+
+```typescript
+// src/lib/voicyAutomation.ts
+let browser;
+
+if (process.env.NODE_ENV === 'development') {
+  console.log("Development mode: Using local Chrome browser...");
+  browser = await chromium.launch({
+    headless: false, // デバッグ用にブラウザを表示
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--disable-gpu',
+      '--disable-extensions',
+      '--disable-plugins',
+      '--disable-images',
+      '--disable-javascript',
+      '--disable-default-apps',
+      '--disable-background-networking',
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-features=TranslateUI',
+      '--disable-component-extensions-with-background-pages',
+      '--memory-pressure-off',
+      '--max_old_space_size=512',
+      '--no-first-run',
+      '--no-default-browser-check',
+      '--single-process'
+    ],
+    timeout: 60000,
+  });
+} else {
+  console.log("Production mode: Connecting to Browserless.io...");
+  
+  // 環境変数の確認
+  const browserlessApiKey = process.env.BROWSERLESS_API_KEY;
+  if (!browserlessApiKey) {
+    throw new Error("BROWSERLESS_API_KEY 環境変数が設定されていません");
+  }
+  
+  console.log(`Using Browserless.io API key: ${browserlessApiKey.substring(0, 8)}...`);
+  
+  browser = await chromium.connect({
+    wsEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+    timeout: 60000,
+  });
+}
+```
+
+### 環境変数設定
+
+```bash
+# .env.local (開発環境)
+BROWSERLESS_API_KEY="your-browserless-api-key"
+
+# Railway (本番環境)
+BROWSERLESS_API_KEY="your-browserless-api-key"
+NODE_ENV=production
+```
+
+## 3. その他の環境分岐パターン
+
+### データベース接続
+
+```typescript
+// src/lib/database.ts
+const getDatabaseConfig = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      // SQLite設定（開発環境）
+      type: 'sqlite',
+      database: './dev.db'
+    };
+  } else {
+    return {
+      // PostgreSQL設定（本番環境）
+      type: 'postgresql',
+      url: process.env.DATABASE_URL
+    };
+  }
+};
+```
+
+### ファイルストレージ
+
+```typescript
+// src/lib/storage.ts
+const getStorageConfig = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      // ローカルファイルシステム（開発環境）
+      type: 'local',
+      path: './uploads'
+    };
+  } else {
+    return {
+      // Railway Storage（本番環境）
+      type: 'railway',
+      bucket: process.env.RAILWAY_STORAGE_BUCKET
+    };
+  }
+};
+```
+
+### API エンドポイント
+
+```typescript
+// src/lib/config.ts
+export const getApiConfig = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      baseUrl: 'http://localhost:3001',
+      timeout: 30000
+    };
+  } else {
+    return {
+      baseUrl: process.env.NEXT_PUBLIC_APP_URL,
+      timeout: 60000
+    };
+  }
+};
+```
+
+## 4. 実装ガイドライン
+
+### 必須チェック項目
+
+1. **環境変数の存在確認**
+   ```typescript
+   if (!process.env.REQUIRED_VAR) {
+     throw new Error("REQUIRED_VAR 環境変数が設定されていません");
+   }
+   ```
+
+2. **適切なログ出力**
+   ```typescript
+   console.log(`Environment: ${process.env.NODE_ENV}`);
+   console.log(`Using ${config.type} for ${feature}`);
+   ```
+
+3. **エラーハンドリング**
+   ```typescript
+   try {
+     // 環境別の処理
+   } catch (error) {
+     console.error(`Failed in ${process.env.NODE_ENV} mode:`, error);
+     throw error;
+   }
+   ```
+
+### 禁止事項
+
+1. **ハードコードされた環境判定**
+   ```typescript
+   // ❌ 悪い例
+   if (hostname === 'localhost') { ... }
+   
+   // ✅ 良い例
+   if (process.env.NODE_ENV === 'development') { ... }
+   ```
+
+2. **環境変数の直接参照**
+   ```typescript
+   // ❌ 悪い例
+   const apiKey = process.env.API_KEY;
+   
+   // ✅ 良い例
+   const apiKey = process.env.API_KEY;
+   if (!apiKey) {
+     throw new Error("API_KEY 環境変数が設定されていません");
+   }
+   ```
+
+## 5. テスト戦略
+
+### 環境別テスト
+
+```typescript
+// tests/environment.test.ts
+describe('Environment Configuration', () => {
+  it('should use local Chrome in development', () => {
+    process.env.NODE_ENV = 'development';
+    const config = getBrowserConfig();
+    expect(config.type).toBe('local');
+  });
+
+  it('should use Browserless.io in production', () => {
+    process.env.NODE_ENV = 'production';
+    const config = getBrowserConfig();
+    expect(config.type).toBe('browserless');
+  });
+});
+```
+
+### 統合テスト
+
+```typescript
+// tests/integration/voicy-automation.test.ts
+describe('Voicy Automation', () => {
+  it('should work in both environments', async () => {
+    // 開発環境テスト
+    process.env.NODE_ENV = 'development';
+    const devResult = await runVoicyAutomation(testOptions);
+    expect(devResult.success).toBe(true);
+
+    // 本番環境テスト（モック）
+    process.env.NODE_ENV = 'production';
+    const prodResult = await runVoicyAutomation(testOptions);
+    expect(prodResult.success).toBe(true);
+  });
+});
+```
+
+## 6. デプロイメント考慮事項
+
+### Railway デプロイ
+
+1. **環境変数の設定**
+   ```bash
+   railway variables set NODE_ENV=production
+   railway variables set BROWSERLESS_API_KEY=your-key
+   ```
+
+2. **ビルド時の環境確認**
+   ```typescript
+   // next.config.js
+   module.exports = {
+     env: {
+       NODE_ENV: process.env.NODE_ENV || 'development'
+     }
+   };
+   ```
+
+### ローカル開発
+
+1. **環境変数ファイル**
+   ```bash
+   # .env.local
+   NODE_ENV=development
+   BROWSERLESS_API_KEY=your-key
+   ```
+
+2. **開発サーバー起動**
+   ```bash
+   npm run dev
+   ```
+
+## 7. トラブルシューティング
+
+### よくある問題
+
+1. **環境変数が読み込まれない**
+   - 解決策: Next.jsアプリケーションの再起動
+   - 確認: `console.log(process.env.NODE_ENV)`
+
+2. **ローカルChromeが起動しない**
+   - 解決策: Chromeのインストール確認
+   - 代替: `headless: true`に変更
+
+3. **Browserless.io接続エラー**
+   - 解決策: API keyの確認
+   - 確認: 環境変数の設定状況
+
+### デバッグ方法
+
+```typescript
+// デバッグ用ログ
+console.log('Environment check:', {
+  NODE_ENV: process.env.NODE_ENV,
+  BROWSERLESS_API_KEY: process.env.BROWSERLESS_API_KEY ? 'SET' : 'NOT SET',
+  DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET'
+});
+```
+
+## 8. 今後の拡張
+
+### Phase 2: PWA対応（将来的）
+
+```typescript
+// next.config.js
+const withPWA = require('next-pwa')({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  disable: process.env.NODE_ENV === 'development'
+});
+```
+
+### Phase 3: Electron/Tauri（必要に応じて）
+
+```typescript
+// デスクトップアプリ化
+if (process.env.APP_TYPE === 'desktop') {
+  // Electron/Tauri固有の処理
+}
+```
+
+## 注意事項
+
+- 環境分岐は最小限に抑え、機能の一貫性を保つ
+- 本番環境でのテストを必ず実施する
+- 環境変数の管理を適切に行う
+- セキュリティを考慮した実装を行う

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('Request body:', body)
     
-    const { uploadId } = body
+    const { uploadId, userId } = body
     
     if (!uploadId) {
       console.log('Missing uploadId')
@@ -54,9 +54,24 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('Processing uploadId:', uploadId)
+    console.log('🔍 Adding episode to RSS feed:', uploadId)
     
     const rssGenerator = new RssGenerator()
-    await rssGenerator.addEpisode(uploadId)
+    
+    // ファイル名かUUIDかを判定して適切に処理
+    if (uploadId.includes('.mp3') || uploadId.includes('.wav') || uploadId.includes('.m4a')) {
+      // ファイル名の場合、userIdが必要
+      if (!userId) {
+        return NextResponse.json(
+          { error: 'userId is required when using file name as uploadId' },
+          { status: 400 }
+        )
+      }
+      await rssGenerator.addEpisode(uploadId, userId)
+    } else {
+      // UUIDの場合
+      await rssGenerator.addEpisode(uploadId)
+    }
     
     console.log('Episode added successfully')
     return NextResponse.json(
@@ -66,6 +81,10 @@ export async function POST(request: NextRequest) {
     
   } catch (error) {
     console.error('❌ Failed to add episode to RSS feed:', error)
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    })
     return NextResponse.json(
       { error: 'Failed to add episode to RSS feed', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

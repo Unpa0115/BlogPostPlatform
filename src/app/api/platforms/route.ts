@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/database'
 import { verifyAuth } from '@/lib/auth'
 import { PlatformCredentials } from '@/lib/encryption'
-import { uploadToYoutube } from '@/lib/youtubeClient'
 
 // UUID生成（SQLite用）
 function generateUUID(): string {
