@@ -3,21 +3,8 @@
   "build": {
     "builder": "static"
   },
-  "routes": [
-    {
-      "src": "/feed.xml",
-      "dest": "/public/feed.xml",
-      "headers": {
-        "Content-Type": "application/xml; charset=utf-8",
-        "Cache-Control": "public, max-age=300"
-      }
-    },
-    {
-      "src": "/",
-      "dest": "/public/feed.xml",
-      "headers": {
-        "Content-Type": "application/xml; charset=utf-8"
-      }
-    }
-  ]
+  "deploy": {
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
 } 
