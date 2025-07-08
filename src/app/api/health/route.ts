@@ -27,14 +27,9 @@ export async function GET() {
     try {
       const dbStart = Date.now()
       
-      if (process.env.NODE_ENV === 'production') {
-        // PostgreSQL
-        await db.query('SELECT NOW()')
-      } else {
-        // SQLite
-        const sqliteDb = await db
-        await sqliteDb.get('SELECT datetime("now") as current_time')
-      }
+      // SQLite
+      const sqliteDb = await db
+      await sqliteDb.get('SELECT datetime("now") as current_time')
       
       dbLatency = Date.now() - dbStart
       dbStatus = 'connected'
@@ -45,7 +40,6 @@ export async function GET() {
     
     // 環境変数チェック
     const requiredEnvVars = [
-      'DATABASE_URL',
       'JWT_SECRET',
       'ENCRYPTION_MASTER_KEY',
       'YOUTUBE_CLIENT_ID',
