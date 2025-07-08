@@ -28,7 +28,7 @@
 
 - **フロントエンド**: Next.js 14, React 18, TypeScript
 - **スタイリング**: Tailwind CSS, shadcn/ui
-- **データベース**: Railway PostgreSQL
+- **データベース**: SQLite (localhost環境)
 - **認証**: JWT + bcryptjs
 - **ストレージ**: Railway Storage
 - **暗号化**: AES-256-GCM
@@ -45,7 +45,7 @@ cp env.example .env.local
 ```
 
 必須の環境変数：
-- `DATABASE_URL`: Railway PostgreSQL接続URL
+- `DATABASE_URL`: SQLiteファイルは自動生成されます
 - `JWT_SECRET`: JWT署名用シークレット
 - `ENCRYPTION_MASTER_KEY`: Credentials暗号化用マスターキー（32文字以上推奨）
 
@@ -97,6 +97,13 @@ src/
 ├── hooks/             # カスタムフック
 ├── utils/             # ユーティリティ関数
 └── contexts/          # Reactコンテキスト
+
+rss-feed-deploy/        # RSSフィード専用デプロイ環境
+├── public/
+│   └── feed.xml       # 生成されたRSSフィード
+├── railway.json       # Railway設定
+├── package.json       # 依存関係
+└── README.md         # セットアップガイド
 ```
 
 ## データベーススキーマ
@@ -161,11 +168,19 @@ src/
 
 ## デプロイ
 
+### メインアプリケーション
+
 Railwayでの自動デプロイに対応しています。
 
 1. GitHubリポジトリをRailwayに接続
 2. 環境変数を設定
 3. 自動デプロイ開始
+
+### RSSフィード専用デプロイ
+
+RSSフィードのみをホスティングする場合は、`rss-feed-deploy/`ディレクトリを使用してください。
+
+詳細は [rss-feed-deploy/README.md](rss-feed-deploy/README.md) を参照してください。
 
 ## 注意事項
 
