@@ -347,9 +347,23 @@ ${episodeItems}
       const rssXml = this.generateRssXml(episodes);
       await fs.writeFile(this.feedPath, rssXml, 'utf8');
       console.log(`Unified RSS feed generated: ${this.feedPath}`);
+      
+      // RSS専用デプロイ用ディレクトリにもコピー
+      await this.updateDeployFeed(rssXml);
     } catch (error) {
       console.error('Failed to generate unified RSS feed:', error);
       throw error;
+    }
+  }
+
+  private async updateDeployFeed(rssXml: string): Promise<void> {
+    try {
+      const deployPath = './rss-feed-deploy/public/feed.xml';
+      await fs.writeFile(deployPath, rssXml, 'utf8');
+      console.log(`✅ RSS feed updated for deploy: ${deployPath}`);
+    } catch (error) {
+      console.error('Failed to update deploy RSS feed:', error);
+      // デプロイ用更新の失敗はメイン処理を止めない
     }
   }
 

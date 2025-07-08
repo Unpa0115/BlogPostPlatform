@@ -97,6 +97,13 @@ src/
 ├── hooks/             # カスタムフック
 ├── utils/             # ユーティリティ関数
 └── contexts/          # Reactコンテキスト
+
+rss-feed-deploy/        # RSSフィード専用デプロイ環境
+├── public/
+│   └── feed.xml       # 生成されたRSSフィード
+├── railway.json       # Railway設定
+├── package.json       # 依存関係
+└── README.md         # セットアップガイド
 ```
 
 ## データベーススキーマ
@@ -161,11 +168,19 @@ src/
 
 ## デプロイ
 
+### メインアプリケーション
+
 Railwayでの自動デプロイに対応しています。
 
 1. GitHubリポジトリをRailwayに接続
 2. 環境変数を設定
 3. 自動デプロイ開始
+
+### RSSフィード専用デプロイ
+
+RSSフィードのみをホスティングする場合は、`rss-feed-deploy/`ディレクトリを使用してください。
+
+詳細は [rss-feed-deploy/README.md](rss-feed-deploy/README.md) を参照してください。
 
 ## 注意事項
 

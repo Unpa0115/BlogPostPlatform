@@ -60,3 +60,6 @@ next-env.d.ts
 # 一時ファイル
 *.tmp
 *.temp
+
+# RSS専用デプロイ用ディレクトリ（開発時のみ）
+# rss-feed-deploy/public/feed.xml
