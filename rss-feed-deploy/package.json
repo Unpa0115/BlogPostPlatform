@@ -1,0 +1,16 @@
+{
+  "name": "rss-feed-deploy",
+  "version": "1.0.0",
+  "description": "RSS Feed static hosting for BlogPostPlatform",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Static site - no build required'",
+    "start": "echo 'Static site - no start required'"
+  },
+  "keywords": ["rss", "feed", "static", "railway"],
+  "author": "AutoPost System",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
