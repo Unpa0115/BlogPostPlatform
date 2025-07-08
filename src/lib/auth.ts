@@ -32,56 +32,34 @@ function getJwtSecret(): string {
 export async function registerUser(email: string, password: string): Promise<User> {
   try {
     // まず既存ユーザーがいればそれを返す
-    if (process.env.NODE_ENV === 'production') {
-      const existing = await db.query(
-        'SELECT id, email, created_at, updated_at FROM users WHERE email = $1',
-        [email]
-      )
-      if (existing.rows.length > 0) {
-        console.log('User already exists, returning existing:', existing.rows[0])
-        return existing.rows[0]
-      }
-    } else {
-      const sqliteDb = await db
-      const existing = await sqliteDb.get(
-        'SELECT id, email, created_at, updated_at FROM users WHERE email = ?',
-        [email]
-      )
-      if (existing) {
-        console.log('User already exists, returning existing:', existing)
-        return existing
-      }
+    const sqliteDb = await db
+    const existing = await sqliteDb.get(
+      'SELECT id, email, created_at, updated_at FROM users WHERE email = ?',
+      [email]
+    )
+    if (existing) {
+      console.log('User already exists, returning existing:', existing)
+      return existing
     }
-    // ... 以降は新規作成 ...
+    
+    // 新規作成
     const hashedPassword = await bcrypt.hash(password, 12)
-    if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
-      console.log('Registering user in PostgreSQL:', email)
-      const result = await db.query(
-        'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at, updated_at',
-        [email, hashedPassword]
-      )
-      console.log('User registered successfully:', result.rows[0])
-      return result.rows[0]
-    } else {
-      // SQLite
-      console.log('Registering user in SQLite:', email)
-      const userId = generateUUID()
-      const now = new Date().toISOString()
-      const sqliteDb = await db
-      await sqliteDb.run(
-        'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-        [userId, email, hashedPassword, now, now]
-      )
-      const user = {
-        id: userId,
-        email,
-        created_at: new Date(now),
-        updated_at: new Date(now)
-      }
-      console.log('User registered successfully:', user)
-      return user
+    console.log('Registering user in SQLite:', email)
+    const userId = generateUUID()
+    const now = new Date().toISOString()
+    
+    await sqliteDb.run(
+      'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+      [userId, email, hashedPassword, now, now]
+    )
+    const user = {
+      id: userId,
+      email,
+      created_at: new Date(now),
+      updated_at: new Date(now)
     }
+    console.log('User registered successfully:', user)
+    return user
   } catch (error) {
     console.error('Error in registerUser:', error)
     throw error
@@ -91,81 +69,41 @@ export async function registerUser(email: string, password: string): Promise<Use
 // ユーザーログイン
 export async function loginUser(email: string, password: string): Promise<{ user: User; token: string } | null> {
   try {
-    if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
-      console.log('Logging in user in PostgreSQL:', email)
-      const result = await db.query(
-        'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = $1',
-        [email]
-      )
-      
-      if (result.rows.length === 0) {
-        console.log('User not found in PostgreSQL:', email)
-        return null
-      }
-      
-      const user = result.rows[0] as AuthUser
-      const isValidPassword = await bcrypt.compare(password, user.password_hash)
-      
-      if (!isValidPassword) {
-        console.log('Invalid password for user:', email)
-        return null
-      }
-      
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        getJwtSecret(),
-        { expiresIn: '7d' }
-      )
-      
-      console.log('User logged in successfully:', email)
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          created_at: user.created_at,
-          updated_at: user.updated_at,
-        },
-        token,
-      }
-    } else {
-      // SQLite
-      console.log('Logging in user in SQLite:', email)
-      const sqliteDb = await db
-      const result = await sqliteDb.get(
-        'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?',
-        [email]
-      )
-      
-      if (!result) {
-        console.log('User not found in SQLite:', email)
-        return null
-      }
-      
-      const user = result as AuthUser
-      const isValidPassword = await bcrypt.compare(password, user.password_hash)
-      
-      if (!isValidPassword) {
-        console.log('Invalid password for user:', email)
-        return null
-      }
-      
-      const token = jwt.sign(
-        { userId: user.id, email: user.email },
-        getJwtSecret(),
-        { expiresIn: '7d' }
-      )
-      
-      console.log('User logged in successfully:', email)
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          created_at: new Date(user.created_at),
-          updated_at: new Date(user.updated_at),
-        },
-        token,
-      }
+    console.log('Logging in user in SQLite:', email)
+    const sqliteDb = await db
+    const result = await sqliteDb.get(
+      'SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?',
+      [email]
+    )
+    
+    if (!result) {
+      console.log('User not found in SQLite:', email)
+      return null
+    }
+    
+    const user = result as AuthUser
+    const isValidPassword = await bcrypt.compare(password, user.password_hash)
+    
+    if (!isValidPassword) {
+      console.log('Invalid password for user:', email)
+      return null
+    }
+    
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      getJwtSecret(),
+      { expiresIn: '7d' }
+    )
+    
+    console.log('User logged in successfully:', email)
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        created_at: new Date(user.created_at),
+        updated_at: new Date(user.updated_at),
+      },
+      token,
     }
   } catch (error) {
     console.error('Error in loginUser:', error)
@@ -201,22 +139,14 @@ export async function verifyAuth(request: NextRequest): Promise<User | null> {
     const user = await getUserById(decoded.userId)
     return user
   } catch (error) {
-    console.error('Auth verification error:', error)
+    console.error('Error in verifyAuth:', error)
     return null
   }
 }
 
-// ユーザー取得
+// ユーザーIDでユーザーを取得
 export async function getUserById(userId: string): Promise<User | null> {
-  if (process.env.NODE_ENV === 'production') {
-    // PostgreSQL
-    const result = await db.query(
-      'SELECT id, email, created_at, updated_at FROM users WHERE id = $1',
-      [userId]
-    )
-    return result.rows.length > 0 ? result.rows[0] : null
-  } else {
-    // SQLite
+  try {
     const sqliteDb = await db
     const result = await sqliteDb.get(
       'SELECT id, email, created_at, updated_at FROM users WHERE id = ?',
@@ -231,43 +161,31 @@ export async function getUserById(userId: string): Promise<User | null> {
       id: result.id,
       email: result.email,
       created_at: new Date(result.created_at),
-      updated_at: new Date(result.updated_at)
+      updated_at: new Date(result.updated_at),
     }
+  } catch (error) {
+    console.error('Error in getUserById:', error)
+    return null
   }
 }
 
-// ユーザー更新
+// ユーザー情報更新
 export async function updateUser(userId: string, updates: Partial<{ email: string }>): Promise<User | null> {
-  if (process.env.NODE_ENV === 'production') {
-    // PostgreSQL
-    const fields = Object.keys(updates)
-    const values = Object.values(updates)
-    
-    if (fields.length === 0) {
-      return getUserById(userId)
-    }
-    
-    const setClause = fields.map((field, index) => `${field} = $${index + 2}`).join(', ')
-    const query = `UPDATE users SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING id, email, created_at, updated_at`
-    
-    const result = await db.query(query, [userId, ...values])
-    return result.rows.length > 0 ? result.rows[0] : null
-  } else {
-    // SQLite
+  try {
     const sqliteDb = await db
-    const fields = Object.keys(updates)
+    const updateFields = Object.keys(updates).map(key => `${key} = ?`).join(', ')
     const values = Object.values(updates)
     
-    if (fields.length === 0) {
-      return getUserById(userId)
+    if (values.length === 0) {
+      return await getUserById(userId)
     }
     
-    const setClause = fields.map((field, index) => `${field} = ?`).join(', ')
-    const query = `UPDATE users SET ${setClause}, updated_at = ? WHERE id = ?`
-    const now = new Date().toISOString()
+    const query = `UPDATE users SET ${updateFields}, updated_at = ? WHERE id = ?`
+    await sqliteDb.run(query, [...values, new Date().toISOString(), userId])
     
-    await sqliteDb.run(query, [...values, now, userId])
-    
-    return getUserById(userId)
+    return await getUserById(userId)
+  } catch (error) {
+    console.error('Error in updateUser:', error)
+    return null
   }
 } 

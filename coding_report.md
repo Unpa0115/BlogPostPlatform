@@ -6,13 +6,50 @@
 ### 技術スタック
 - **フロントエンド**: Next.js 14.2.25, React 18.2.0, TypeScript 5.2.2
 - **UI**: Shadcn/ui, Tailwind CSS, Radix UI, Lucide React
-- **バックエンド**: Railway PostgreSQL, Prisma ORM
+- **バックエンド**: SQLite (localhost), Railway PostgreSQL (本番)
 - **認証**: Clerk
 - **音声処理**: OpenAI Whisper API, FFmpeg.wasm
 - **配信プラットフォーム**: YouTube Data API, Voicy (Playwright自動化), Spotify RSS
 - **自動化**: Python + Playwright + Stealth
 
 ## 実行履歴
+
+### [2025-01-28 05:30] - localhost専用設定への変更とpgモジュールエラーの解決
+
+# 実行結果報告
+
+## 概要
+localhost専用の設定に変更したプロジェクトで、pgモジュールの依存関係エラーが発生していました。PostgreSQL関連のコードを削除し、SQLiteのみを使用するように修正することで、ビルドエラーを解決しました。
+
+## 実行ステップ
+1. pgモジュールエラーの原因分析（PostgreSQL関連コードの残存）
+2. `src/lib/storage.ts`のPostgreSQL関連コード削除とSQLite専用化
+3. `src/lib/auth.ts`のPostgreSQL関連コード削除とSQLite専用化
+4. `src/app/api/health/route.ts`のPostgreSQL関連コード削除
+5. `src/app/api/stats/route.ts`のPostgreSQL関連コード削除
+6. 依存関係の再インストールとビルドテスト
+
+## 最終成果物
+- **修正されたstorage.ts**: PostgreSQL関連コードを削除し、SQLiteのみを使用
+- **修正されたauth.ts**: PostgreSQL関連コードを削除し、SQLiteのみを使用
+- **修正されたhealth API**: PostgreSQL関連コードを削除し、SQLiteのみを使用
+- **修正されたstats API**: PostgreSQL関連コードを削除し、SQLiteのみを使用
+- **解決されたビルドエラー**: pgモジュールの依存関係エラーを解決
+
+## 課題対応（該当する場合）
+- **問題**: ビルド時にpgモジュールが見つからないエラーが発生
+- **原因**: localhost専用に変更したにも関わらず、PostgreSQL関連のコードが残存していた
+- **対策**: 
+  1. PostgreSQL関連のコードを完全に削除
+  2. SQLiteのみを使用するように統一
+  3. 依存関係を再インストール
+  4. ビルドテストを実行
+
+## 注意点・改善提案
+- localhost専用の設定により、開発環境での動作が高速化
+- SQLiteのみの使用により、依存関係が簡素化
+- RSSフィードホスティングのみRailwayで動作させる設計を維持
+- 今後の機能追加時は、localhost環境を前提とした実装を行う
 
 ### [2024-12-27 15:30] - ファイル選択機能の実装とVoicy自動化のテスト修正
 
