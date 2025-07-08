@@ -17,36 +17,71 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const jobType = searchParams.get('job_type')
 
-    // SQLite
-    const sqliteDb = await db
-    let query = `
-      SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
-             af.file_name as audio_file_name
-      FROM jobs j
-      LEFT JOIN audio_files af ON j.audio_file_id = af.id
-      WHERE j.user_id = ?
-    `
-    const params: any[] = [user.id]
+    if (process.env.NODE_ENV === 'production') {
+      // PostgreSQL
+      let query = `
+        SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
+               af.file_name as audio_file_name
+        FROM jobs j
+        LEFT JOIN audio_files af ON j.audio_file_id = af.id
+        WHERE j.user_id = $1
+      `
+      const params: any[] = [user.id]
+      let paramIndex = 2
 
-    if (status) {
-      query += ` AND j.status = ?`
-      params.push(status)
+      if (status) {
+        query += ` AND j.status = $${paramIndex}`
+        params.push(status)
+        paramIndex++
+      }
+
+      if (jobType) {
+        query += ` AND j.job_type = $${paramIndex}`
+        params.push(jobType)
+        paramIndex++
+      }
+
+      query += ` ORDER BY j.created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`
+      params.push(limit, offset)
+
+      const result = await db.query(query, params)
+
+      return NextResponse.json({
+        success: true,
+        data: result.rows
+      })
+    } else {
+      // SQLite
+      const sqliteDb = await db
+      let query = `
+        SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
+               af.file_name as audio_file_name
+        FROM jobs j
+        LEFT JOIN audio_files af ON j.audio_file_id = af.id
+        WHERE j.user_id = ?
+      `
+      const params: any[] = [user.id]
+
+      if (status) {
+        query += ` AND j.status = ?`
+        params.push(status)
+      }
+
+      if (jobType) {
+        query += ` AND j.job_type = ?`
+        params.push(jobType)
+      }
+
+      query += ` ORDER BY j.created_at DESC LIMIT ? OFFSET ?`
+      params.push(limit, offset)
+
+      const result = await sqliteDb.all(query, params)
+
+      return NextResponse.json({
+        success: true,
+        data: result
+      })
     }
-
-    if (jobType) {
-      query += ` AND j.job_type = ?`
-      params.push(jobType)
-    }
-
-    query += ` ORDER BY j.created_at DESC LIMIT ? OFFSET ?`
-    params.push(limit, offset)
-
-    const result = await sqliteDb.all(query, params)
-
-    return NextResponse.json({
-      success: true,
-      data: result
-    })
 
   } catch (error) {
     console.error('Get jobs error:', error)
@@ -71,32 +106,23 @@ export async function POST(request: NextRequest) {
     }
 
     // 音声ファイルの存在確認
-    const sqliteDb = await db
-    const audioFileResult = await sqliteDb.get(
-      'SELECT id FROM audio_files WHERE id = ? AND user_id = ?',
+    const audioFileResult = await db.query(
+      'SELECT id FROM audio_files WHERE id = $1 AND user_id = $2',
       [audio_file_id, user.id]
     )
 
-    if (!audioFileResult) {
+    if (audioFileResult.rows.length === 0) {
       return NextResponse.json({ error: 'Audio file not found' }, { status: 404 })
     }
 
     // ジョブ作成
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const createdAt = new Date().toISOString()
-    
-    await sqliteDb.run(`
-      INSERT INTO jobs (id, user_id, audio_file_id, job_type, platform_type, status, progress, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, 'pending', 0, ?, ?)
-    `, [jobId, user.id, audio_file_id, job_type, platform_type || null, createdAt, createdAt])
+    const result = await db.query(`
+      INSERT INTO jobs (user_id, audio_file_id, job_type, platform_type, status, progress)
+      VALUES ($1, $2, $3, $4, 'pending', 0)
+      RETURNING id, job_type, status, progress, created_at
+    `, [user.id, audio_file_id, job_type, platform_type || null])
 
-    const job = {
-      id: jobId,
-      job_type,
-      status: 'pending',
-      progress: 0,
-      created_at: createdAt
-    }
+    const job = result.rows[0]
 
     // 非同期でジョブ処理を開始
     if (job_type === 'upload_to_platform' && platform_type) {
@@ -130,18 +156,17 @@ export async function POST(request: NextRequest) {
 async function processPlatformUpload(jobId: string, audioFileId: string, platformType: string, options: any) {
   try {
     // ジョブステータスを処理中に更新
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
       ['processing', 10, jobId]
     )
 
     // 音声ファイル情報取得
-    const audioFileResult = await sqliteDb.get(
-      'SELECT file_url, file_name FROM audio_files WHERE id = ?',
+    const audioFileResult = await db.query(
+      'SELECT file_url, file_name FROM audio_files WHERE id = $1',
       [audioFileId]
     )
-    const audioFile = audioFileResult
+    const audioFile = audioFileResult.rows[0]
 
     // プラットフォーム別の処理
     if (platformType === 'voicy') {
@@ -154,9 +179,8 @@ async function processPlatformUpload(jobId: string, audioFileId: string, platfor
 
   } catch (error: any) {
     console.error('Platform upload error:', error)
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, error_message = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, error_message = $2 WHERE id = $3',
       ['failed', error.message, jobId]
     )
   }
@@ -165,9 +189,8 @@ async function processPlatformUpload(jobId: string, audioFileId: string, platfor
 // Voicyアップロード処理
 async function processVoicyUpload(jobId: string, audioFile: any, options: any) {
   // TODO: Browserless.ioを使用したVoicy自動アップロード実装
-  const sqliteDb = await db
-  await sqliteDb.run(
-    'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+  await db.query(
+    'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
     ['completed', 100, jobId]
   )
 }
@@ -175,9 +198,8 @@ async function processVoicyUpload(jobId: string, audioFile: any, options: any) {
 // YouTubeアップロード処理
 async function processYouTubeUpload(jobId: string, audioFile: any, options: any) {
   // TODO: YouTube Data APIを使用したアップロード実装
-  const sqliteDb = await db
-  await sqliteDb.run(
-    'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+  await db.query(
+    'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
     ['completed', 100, jobId]
   )
 }
@@ -185,9 +207,8 @@ async function processYouTubeUpload(jobId: string, audioFile: any, options: any)
 // Spotifyアップロード処理
 async function processSpotifyUpload(jobId: string, audioFile: any, options: any) {
   // TODO: Spotify APIを使用したアップロード実装
-  const sqliteDb = await db
-  await sqliteDb.run(
-    'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+  await db.query(
+    'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
     ['completed', 100, jobId]
   )
 }
@@ -195,23 +216,21 @@ async function processSpotifyUpload(jobId: string, audioFile: any, options: any)
 // 文字起こし処理（非同期）
 async function processTranscription(jobId: string, audioFileId: string, options: any) {
   try {
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
       ['processing', 10, jobId]
     )
 
     // TODO: OpenAI Whisper APIを使用した文字起こし実装
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
       ['completed', 100, jobId]
     )
 
   } catch (error: any) {
     console.error('Transcription error:', error)
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, error_message = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, error_message = $2 WHERE id = $3',
       ['failed', error.message, jobId]
     )
   }
@@ -220,23 +239,21 @@ async function processTranscription(jobId: string, audioFileId: string, options:
 // 要約処理（非同期）
 async function processSummarization(jobId: string, audioFileId: string, options: any) {
   try {
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
       ['processing', 10, jobId]
     )
 
     // TODO: GPT-4o-miniを使用した要約実装
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, progress = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, progress = $2 WHERE id = $3',
       ['completed', 100, jobId]
     )
 
   } catch (error: any) {
     console.error('Summarization error:', error)
-    const sqliteDb = await db
-    await sqliteDb.run(
-      'UPDATE jobs SET status = ?, error_message = ? WHERE id = ?',
+    await db.query(
+      'UPDATE jobs SET status = $1, error_message = $2 WHERE id = $3',
       ['failed', error.message, jobId]
     )
   }

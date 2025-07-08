@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -50,40 +50,35 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   })
   
   const { toast } = useToast()
-  const { isPlatformConfigured, getPlatformCredentials, platforms: platformsData } = usePlatforms()
+  const { isPlatformConfigured, getPlatformCredentials } = usePlatforms()
   const { token, user } = useAuth()
 
-  // ファイル名を取得する処理をメモ化
-  const fileName = useMemo(() => {
+  // ファイル形式に基づいてプラットフォームの対応状況をチェック
+  useEffect(() => {
+    // filePathまたはtitleからファイル名を取得
+    let fileName = ''
+    
     if (filePath) {
-      return filePath.split('/').pop() || filePath.split('\\').pop() || filePath
+      // filePathからファイル名を抽出（パスの最後の部分）
+      fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath
     } else if (title) {
-      return title
-    }
-    return ''
-  }, [filePath, title])
-
-  // プラットフォーム設定状況をメモ化（無限ループを防止）
-  const platformConfigurations = useMemo(() => {
-    // platformsData が空または未定義の場合は、すべて false を返す
-    if (!platformsData || platformsData.length === 0) {
-      return { youtube: false, voicy: false, spotify: false }
+      fileName = title
     }
     
-    return {
-      youtube: platformsData.some(p => p.platform_type === 'youtube' && p.is_active && p.credentials),
-      voicy: platformsData.some(p => p.platform_type === 'voicy' && p.is_active && p.credentials),
-      spotify: platformsData.some(p => p.platform_type === 'spotify' && p.is_active && p.credentials)
-    }
-  }, [platformsData])
-
-  // ファイル形式に基づくプラットフォーム対応状況をメモ化
-  const filePlatformSupport = useMemo(() => {
+    // ファイル名が空の場合は処理をスキップ
     if (!fileName || fileName === 'Untitled') {
-      return {}
+      return
     }
+    
+    console.log('=== File Format Check Debug ===')
+    console.log('fileName:', fileName)
+    console.log('filePath:', filePath)
+    console.log('title:', title)
+    console.log('mimeType:', mimeType)
     
     const supportResults = checkAllPlatforms(fileName, mimeType)
+    console.log('Support results:', supportResults)
+    
     const newPlatformSupport: { [key: string]: PlatformSupport } = {}
     
     Object.keys(supportResults).forEach(platform => {
@@ -95,42 +90,29 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       }
     })
     
-    return newPlatformSupport
-  }, [fileName, mimeType])
-
-  // プラットフォームサポート状況の更新（最適化版・無限ループ防止）
-  useEffect(() => {
-    if (Object.keys(filePlatformSupport).length > 0) {
-      setPlatformSupport(filePlatformSupport)
-      
-      // 配信対象の自動設定（変更がある場合のみ）
-      setDistributionTargets(prev => {
-        const newTargets = { ...prev }
-        let hasChanges = false
-        
-        Object.keys(filePlatformSupport).forEach(platform => {
-          const platformKey = platform as keyof typeof prev
-          let newValue: boolean
-          
-          if (!filePlatformSupport[platform].isSupported) {
-            newValue = false
+    console.log('New platform support:', newPlatformSupport)
+    setPlatformSupport(newPlatformSupport)
+    
+    // 対応していないプラットフォームは自動的にオフにし、対応しているプラットフォームは自動的にオンにする
+    setDistributionTargets(prev => {
+      const newTargets = { ...prev }
+      Object.keys(newPlatformSupport).forEach(platform => {
+        if (!newPlatformSupport[platform].isSupported) {
+          newTargets[platform as keyof typeof prev] = false
+        } else {
+          // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
+          const isConfigured = isPlatformConfigured(platform as 'youtube' | 'voicy' | 'spotify')
+          if (isConfigured) {
+            newTargets[platform as keyof typeof prev] = true
           } else {
-            // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
-            const isConfigured = platformConfigurations[platform as keyof typeof platformConfigurations]
-            newValue = isConfigured
+            // 設定されていない場合はオフのままにする
+            newTargets[platform as keyof typeof prev] = false
           }
-          
-          if (prev[platformKey] !== newValue) {
-            newTargets[platformKey] = newValue
-            hasChanges = true
-          }
-        })
-        
-        // 変更があった場合のみ新しいオブジェクトを返す
-        return hasChanges ? newTargets : prev
+        }
       })
-    }
-  }, [filePlatformSupport, platformConfigurations])
+      return newTargets
+    })
+  }, [filePath, title, mimeType])
 
   const platforms = [
     {
@@ -191,25 +173,13 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
     try {
       console.log('=== YouTube Upload ===')
       
-      // localhost環境では認証チェックをスキップ
-      const isLocalhost = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.startsWith('192.168.')
-      )
-
       // まず認証状態を確認
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (!isLocalhost && token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const authResponse = await fetch('/api/youtube/auth', {
         method: 'GET',
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
 
       if (!authResponse.ok) {
@@ -218,17 +188,12 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       }
 
       // アップロードを実行
-      const uploadHeaders: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (!isLocalhost && token) {
-        uploadHeaders['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch('/api/youtube/upload', {
         method: 'POST',
-        headers: uploadHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           title,
           description,
@@ -275,24 +240,12 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
 
   const uploadToVoicy = async (credentials: any) => {
     try {
-      // localhost環境では認証チェックをスキップ
-      const isLocalhost = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.startsWith('192.168.')
-      )
-
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (!isLocalhost && token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch('/api/platforms/voicy-upload', {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           email: credentials.email,
           password: credentials.password,
@@ -319,39 +272,32 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
 
   const uploadToSpotify = async (credentials: any) => {
     try {
-      console.log('🎵 Starting Spotify RSS generation for:', uploadId || 'unknown')
+      console.log('=== Spotify RSS Generation Debug ===')
+      console.log('Upload ID:', uploadId)
+      console.log('Title:', title)
+      console.log('Description:', description)
+      console.log('File path:', filePath)
       
       if (!uploadId) {
         throw new Error('Upload ID is required for Spotify RSS generation')
       }
 
-      // localhost環境では認証チェックをスキップ
-      const isLocalhost = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.startsWith('192.168.')
-      )
-
-      let userId = 'localhost-user' // デフォルト値
-
-      if (!isLocalhost) {
-        // 本番環境では認証チェック
-        const userResponse = await fetch('/api/auth/me', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        })
-        
-        if (!userResponse.ok) {
-          throw new Error('Failed to get user information')
+      // ユーザーIDを取得
+      const userResponse = await fetch('/api/auth/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
-        
-        const userData = await userResponse.json()
-        userId = userData.user?.id
-        
-        if (!userId) {
-          throw new Error('User ID not found')
-        }
+      })
+      
+      if (!userResponse.ok) {
+        throw new Error('Failed to get user information')
+      }
+      
+      const userData = await userResponse.json()
+      const userId = userData.user?.id
+      
+      if (!userId) {
+        throw new Error('User ID not found')
       }
       
       console.log('User ID:', userId)
@@ -362,23 +308,19 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         try {
           // ファイル名を抽出（パスから最後の部分）
           const fileName = filePath.split('/').pop()
-          // console.log('Looking up UUID for file name:', fileName)
+          console.log('Looking up UUID for file name:', fileName)
           
-          const lookupHeaders: Record<string, string> = {}
-          
-          if (!isLocalhost && token) {
-            lookupHeaders['Authorization'] = `Bearer ${token}`
-          }
-
           const uploadResponse = await fetch(`/api/uploads/lookup?fileName=${encodeURIComponent(fileName || '')}&userId=${encodeURIComponent(userId)}`, {
-            headers: lookupHeaders
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           })
           
           if (uploadResponse.ok) {
             const uploadData = await uploadResponse.json()
             if (uploadData.success && uploadData.upload) {
               actualUploadId = uploadData.upload.id
-              // console.log('Found UUID from file name:', actualUploadId)
+              console.log('Found UUID from file name:', actualUploadId)
             }
           } else {
             console.log('Failed to get UUID from file name, response not ok:', uploadResponse.status)
@@ -388,44 +330,12 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         }
       }
 
-      const rssHeaders: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      if (!isLocalhost && token) {
-        rssHeaders['Authorization'] = `Bearer ${token}`
-      }
-
-      // 🔥 重要：RSS Feed更新先を環境に応じて分岐
-      let rssApiUrl = '/api/rss'
-      if (isLocalhost) {
-        // localhost環境からは環境変数で指定されたRSS Feed APIに直接送信
-        const spotifyRssFeedUrl = process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL || 'https://blogpostplatform-production.up.railway.app/api/rss'
-        rssApiUrl = spotifyRssFeedUrl
-        console.log('🌐 Localhost → Railway RSS Feed Update')
-      } else {
-        console.log('🏠 Production → Local RSS Feed Update')
-      }
-
-      console.log('🚀 Sending request to RSS API:', {
-        url: rssApiUrl,
+      const response = await fetch('/api/rss', {
         method: 'POST',
-        headers: rssHeaders,
-        body: {
-          uploadId: actualUploadId,
-          userId,
-          title,
-          description,
-          audioFile: filePath,
-          mimeType,
-          action: 'add',
-          testMode: isLocalhost,
-        }
-      })
-
-      const response = await fetch(rssApiUrl, {
-        method: 'POST',
-        headers: rssHeaders,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           uploadId: actualUploadId,
           userId,
@@ -433,42 +343,18 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           description,
           audioFile: filePath,
           mimeType,
-          action: 'add',
-          // 🧪 localhost環境ではテストモードを有効化
-          testMode: isLocalhost,
+          action: 'add'
         })
       })
 
-      console.log('📡 Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        ok: response.ok
-      })
-
       if (!response.ok) {
-        let errorData
-        try {
-          errorData = await response.json()
-        } catch (parseError) {
-          console.error('Failed to parse error response:', parseError)
-          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
-        }
-        console.log('❌ Spotify RSS generation failed:', errorData)
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        const errorData = await response.json()
+        console.log('Spotify RSS generation failed:', errorData)
+        throw new Error(errorData.error || 'Spotify RSS generation failed')
       }
 
-      const result = await response.json()
-      console.log('✅ Spotify RSS Feed updated successfully:', result)
-      
-      toast({
-        title: "Spotify配信完了",
-        description: `RSS Feedが正常に更新されました。`,
-      })
-
-      return result
+      return await response.json()
     } catch (error) {
-      console.error('❌ Spotify RSS generation error:', error)
       throw error
     }
   }

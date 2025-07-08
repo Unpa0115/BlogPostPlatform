@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
       case 'stats':
         // データベース統計を取得
-        const stats = await storage.getStats(user.id)
+        const stats = await storage.getUploadStats()
         return NextResponse.json({
           success: true,
           data: stats

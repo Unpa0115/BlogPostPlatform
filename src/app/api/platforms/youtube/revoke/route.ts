@@ -3,20 +3,32 @@ import { verifyAuth } from '@/lib/auth'
 import { db } from '@/lib/database'
 import { PlatformCredentials } from '@/lib/encryption'
 
-// localhost専用のデフォルトユーザーID
-const LOCALHOST_USER_ID = 'localhost-user'
-
 export async function POST(request: NextRequest) {
   try {
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     // YouTubeプラットフォームの認証情報を取得
-    const sqliteDb = await db
-    const youtubePlatform = await sqliteDb.get(
-      'SELECT id, credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
-      [userId, 'youtube']
-    )
+    let youtubePlatform = null
+    if (process.env.NODE_ENV === 'production') {
+      const result = await db.query(
+        'SELECT id, credentials FROM distribution_platforms WHERE user_id = $1 AND platform_type = $2',
+        [user.id, 'youtube']
+      )
+      
+      if (result.rows.length > 0) {
+        youtubePlatform = result.rows[0]
+      }
+    } else {
+      const sqliteDb = await db
+      youtubePlatform = await sqliteDb.get(
+        'SELECT id, credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
+        [user.id, 'youtube']
+      )
+    }
 
     if (youtubePlatform) {
       // 既存の認証情報を取得
@@ -48,12 +60,21 @@ export async function POST(request: NextRequest) {
       }
 
       // データベースを更新
-      const now = new Date().toISOString()
-      await sqliteDb.run(`
-        UPDATE distribution_platforms 
-        SET credentials = ?, updated_at = ?
-        WHERE id = ?
-      `, [JSON.stringify(encryptedCredentials), now, youtubePlatform.id])
+      if (process.env.NODE_ENV === 'production') {
+        await db.query(`
+          UPDATE distribution_platforms 
+          SET credentials = $1, updated_at = NOW()
+          WHERE id = $2
+        `, [encryptedCredentials, youtubePlatform.id])
+      } else {
+        const sqliteDb = await db
+        const now = new Date().toISOString()
+        await sqliteDb.run(`
+          UPDATE distribution_platforms 
+          SET credentials = ?, updated_at = ?
+          WHERE id = ?
+        `, [JSON.stringify(encryptedCredentials), now, youtubePlatform.id])
+      }
 
       return NextResponse.json({
         success: true,

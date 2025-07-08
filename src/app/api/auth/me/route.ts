@@ -8,32 +8,7 @@ export async function GET(request: NextRequest) {
     const dbTest = await testConnectionSimple()
     console.log('Database connection test:', dbTest)
 
-    // 開発環境でのみ認証バイパスを許可（環境変数で制御）
-    const allowAuthBypass = process.env.ALLOW_LOCALHOST_AUTH_BYPASS === 'true' && 
-                           process.env.NODE_ENV === 'development'
-    
-    const isLocalhost = request.headers.get('host')?.includes('localhost') || 
-                       request.headers.get('host')?.includes('127.0.0.1') ||
-                       request.headers.get('host')?.includes('192.168.')
-
-    if (isLocalhost && allowAuthBypass) {
-      // localhost環境では固定ユーザーを返す
-      const localhostUser = {
-        id: 'localhost-user',
-        email: 'localhost@example.com',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      return NextResponse.json({
-        success: true,
-        user: localhostUser,
-        database: dbTest,
-        environment: 'localhost'
-      })
-    }
-
-    // 本番環境では認証情報の確認
+    // 認証情報の確認
     const user = await verifyAuth(request)
     
     if (!user) {
@@ -46,8 +21,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user,
-      database: dbTest,
-      environment: 'production'
+      database: dbTest
     })
 
   } catch (error) {
@@ -75,7 +49,7 @@ export async function POST(request: NextRequest) {
 
     if (action === 'init-db') {
       console.log('Initializing database...')
-      // await createTables()
+      await createTables()
       const testResult = await testConnectionSimple()
       return NextResponse.json({
         success: true,

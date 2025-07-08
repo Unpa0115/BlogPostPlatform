@@ -3,36 +3,6 @@ import ffmpeg from 'fluent-ffmpeg'
 import fs from 'fs'
 import OpenAI from 'openai'
 
-/**
- * 音声ファイルの詳細情報を取得
- */
-export async function getAudioInfo(audioPath: string): Promise<{
-  duration: number;
-  format: string;
-  bitrate: number;
-}> {
-  return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(audioPath, (err: any, metadata: any) => {
-      if (err) {
-        reject(err)
-        return
-      }
-      
-      const audioStream = metadata.streams.find((stream: any) => stream.codec_type === 'audio')
-      if (!audioStream) {
-        reject(new Error('No audio stream found'))
-        return
-      }
-
-      resolve({
-        duration: parseFloat(metadata.format.duration) || 0,
-        format: metadata.format.format_name || 'unknown',
-        bitrate: parseInt(audioStream.bit_rate) || 0
-      })
-    })
-  })
-}
-
 export async function trimAudio(inputPath: string, outputPath: string, start: number, duration: number): Promise<void> {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -61,95 +31,25 @@ export async function transcribeAudioWhisper(audioPath: string, openaiApiKey: st
  * 指定したキーフレーズが現れる最初の位置（秒）をWhisper APIで検出
  */
 export async function detectKeywordPosition(audioPath: string, keyword: string, openaiApiKey: string): Promise<number | null> {
-  try {
-    console.log(`🔍 Starting keyword detection for: "${keyword}"`)
-    console.log(`📁 Audio file path: ${audioPath}`)
-    
-    const openai = new OpenAI({ apiKey: openaiApiKey })
-    const audio = fs.createReadStream(audioPath)
-    
-    // まずは基本的な文字起こしを実行
-    console.log('📝 Requesting transcription from Whisper API...')
-    const resp = await openai.audio.transcriptions.create({
-      file: audio,
-      model: 'whisper-1',
-      response_format: 'verbose_json',
-      language: 'ja'
-    })
-    
-    console.log('✅ Transcription completed')
-    console.log(`📄 Full transcript: "${resp.text}"`)
-    
-    // セグメント情報をチェック
-    const segments = (resp as any).segments || []
-    console.log(`📊 Found ${segments.length} segments`)
-    
-    if (segments.length === 0) {
-      console.log('❌ No segments found in transcription')
-      return null
-    }
-    
-    // キーワードを正規化（空白除去、小文字変換）
-    const normalizedKeyword = keyword.trim().toLowerCase()
-    console.log(`🎯 Searching for keyword: "${normalizedKeyword}"`)
-    
-    // 各セグメントでキーワードを検索
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i]
-      const segmentText = (segment.text || '').toLowerCase()
-      
-      console.log(`📝 Segment ${i + 1}: "${segment.text}" (${segment.start}s - ${segment.end}s)`)
-      
-      // キーワードがセグメントに含まれているかチェック
-      if (segmentText.includes(normalizedKeyword)) {
-        console.log(`✅ Keyword found in segment ${i + 1} at ${segment.start}s`)
-        return segment.start
+  const openai = new OpenAI({ apiKey: openaiApiKey })
+  const audio = fs.createReadStream(audioPath)
+  // Whisper APIのword-level timestampsを利用（仮実装: 実際はAPIのバージョンやレスポンス仕様に応じて調整）
+  const resp = await openai.audio.transcriptions.create({
+    file: audio,
+    model: 'whisper-1',
+    response_format: 'verbose_json',
+    language: 'ja',
+    timestamp_granularities: ['word']
+  } as any)
+  const segments = (resp as any).segments || []
+  for (const segment of segments) {
+    for (const word of (segment.words || [])) {
+      if (word.word && word.word.includes(keyword)) {
+        return word.start || segment.start
       }
     }
-    
-    // 完全一致しない場合、部分一致をチェック
-    console.log('🔍 Exact match not found, checking partial matches...')
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i]
-      const segmentText = (segment.text || '').toLowerCase()
-      
-      // キーワードの単語を分割して部分一致をチェック
-      const keywordWords = normalizedKeyword.split(/\s+/)
-      let matchScore = 0
-      
-      for (const word of keywordWords) {
-        if (segmentText.includes(word)) {
-          matchScore++
-        }
-      }
-      
-      // 50%以上マッチした場合を有効とする
-      if (matchScore / keywordWords.length >= 0.5) {
-        console.log(`✅ Partial keyword match (${matchScore}/${keywordWords.length}) found in segment ${i + 1} at ${segment.start}s`)
-        return segment.start
-      }
-    }
-    
-    console.log('❌ Keyword not found in any segment')
-    return null
-    
-  } catch (error) {
-    console.error('❌ Error in keyword detection:', error)
-    
-    // OpenAI APIエラーの詳細を出力
-    if (error instanceof Error) {
-      console.error('Error message:', error.message)
-      console.error('Error stack:', error.stack)
-    }
-    
-    // APIエラーの場合の詳細情報
-    if ((error as any).response) {
-      console.error('API Response Status:', (error as any).response.status)
-      console.error('API Response Data:', (error as any).response.data)
-    }
-    
-    throw new Error(`Keyword detection failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
+  return null
 }
 
 /**

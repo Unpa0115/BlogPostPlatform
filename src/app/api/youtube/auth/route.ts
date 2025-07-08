@@ -2,22 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { YouTube } from '@/lib/youtube'
 import { verifyAuth } from '@/lib/auth'
 
-// localhost専用のデフォルトユーザーID
-const LOCALHOST_USER_ID = 'localhost-user'
-
 export async function GET(request: NextRequest) {
   try {
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    // ユーザー認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ 
+        error: 'Unauthorized',
+        message: 'Please login to authenticate YouTube'
+      }, { status: 401 })
+    }
 
     console.log('=== YouTube Auth Request ===')
-    console.log('User ID:', userId)
+    console.log('User ID:', user.id)
     console.log('Environment:', process.env.NODE_ENV)
     console.log('Client ID:', process.env.YOUTUBE_CLIENT_ID ? `${process.env.YOUTUBE_CLIENT_ID.substring(0, 20)}...` : 'NOT SET')
     console.log('Client Secret:', process.env.YOUTUBE_CLIENT_SECRET ? 'SET' : 'NOT SET')
     console.log('Redirect URI:', process.env.NODE_ENV === 'production' 
       ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-              : 'http://localhost:3005/api/youtube/callback')
+      : 'http://localhost:3000/api/youtube/callback')
 
     // 環境変数の確認
     if (!process.env.YOUTUBE_CLIENT_ID || !process.env.YOUTUBE_CLIENT_SECRET) {
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
     // リダイレクトURIの確認
     const expectedRedirectUri = process.env.NODE_ENV === 'production' 
       ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-      : 'http://localhost:3005/api/youtube/callback'
+      : 'http://localhost:3000/api/youtube/callback'
     
     console.log('Expected Redirect URI:', expectedRedirectUri)
     console.log('=== YouTube Auth URL Generation Complete ===')
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
       authUrl,
       redirectUri: process.env.NODE_ENV === 'production' 
         ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-        : 'http://localhost:3005/api/youtube/callback'
+        : 'http://localhost:3000/api/youtube/callback'
     })
 
   } catch (error) {

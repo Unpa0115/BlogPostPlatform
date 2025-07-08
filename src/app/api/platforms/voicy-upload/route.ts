@@ -10,25 +10,66 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
-// localhost専用のデフォルトユーザーID
-const LOCALHOST_USER_ID = 'localhost-user'
-
 async function getVoicyCredentials(userId: string): Promise<{ email: string; password: string }> {
-  // 環境変数からVoicy認証情報を取得
-  const email = process.env.VOICY_EMAIL
-  const password = process.env.VOICY_PASSWORD
+  // データベースからVoicy認証情報を取得
+  if (process.env.NODE_ENV === 'production') {
+    // PostgreSQL
+    const result = await db.query(`
+      SELECT credentials
+      FROM distribution_platforms
+      WHERE user_id = $1 AND platform_type = 'voicy' AND is_active = true
+      LIMIT 1
+    `, [userId])
 
-  if (!email || !password) {
-    throw new Error("Voicyの認証情報が設定されていません。.env.localファイルでVOICY_EMAILとVOICY_PASSWORDを設定してください。");
-  }
+    if (result.rows.length === 0) {
+      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
+    }
 
-  if (!email.includes('@')) {
-    throw new Error("VOICY_EMAILの形式が正しくありません。有効なメールアドレスを設定してください。");
-  }
+    const platform = result.rows[0]
+    if (!platform.credentials || !platform.credentials.encrypted) {
+      throw new Error("認証情報の形式が正しくありません。");
+    }
 
-  return {
-    email,
-    password
+    try {
+      const decryptedCredentials = PlatformCredentials.decryptVoicy(platform.credentials.encrypted)
+      return decryptedCredentials
+    } catch (error) {
+      console.error('Voicy credentials decryption error:', error)
+      throw new Error("認証情報の復号化に失敗しました。");
+    }
+  } else {
+    // SQLite
+    const sqliteDb = await db
+    const result = await sqliteDb.get(`
+      SELECT credentials
+      FROM distribution_platforms
+      WHERE user_id = ? AND platform_type = 'voicy' AND is_active = 1
+      LIMIT 1
+    `, [userId])
+
+    if (!result) {
+      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
+    }
+
+    if (!result.credentials) {
+      throw new Error("認証情報の形式が正しくありません。");
+    }
+
+    try {
+      const credentials = typeof result.credentials === 'string' 
+        ? JSON.parse(result.credentials) 
+        : result.credentials
+      
+      if (!credentials.encrypted) {
+        throw new Error("認証情報の形式が正しくありません。");
+      }
+
+      const decryptedCredentials = PlatformCredentials.decryptVoicy(credentials.encrypted)
+      return decryptedCredentials
+    } catch (error) {
+      console.error('Voicy credentials decryption error:', error)
+      throw new Error("認証情報の復号化に失敗しました。");
+    }
   }
 }
 
@@ -36,8 +77,11 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Voicy upload API called')
     
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     
     const body = await request.json()
     console.log('📥 Request body:', JSON.stringify(body, null, 2))
@@ -68,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Voicy認証情報を取得
     console.log('🔐 Getting Voicy credentials...')
-    const { email, password } = await getVoicyCredentials(userId)
+    const { email, password } = await getVoicyCredentials(user.id)
     console.log('✅ Voicy credentials retrieved successfully')
 
     // ファイルパスを実際のファイルシステムパスに変換
@@ -104,14 +148,14 @@ export async function POST(request: NextRequest) {
         // データベースからファイル名でアップロードを検索
         let upload;
         if (process.env.NODE_ENV === 'production') {
-          // SQLite
+          // PostgreSQL
           const sqliteDb = await db
           const result = await sqliteDb.query(`
             SELECT id FROM uploads 
             WHERE file_path LIKE $1 AND user_id = $2
             ORDER BY created_at DESC
             LIMIT 1
-          `, [`%${fileName}%`, userId])
+          `, [`%${fileName}%`, user.id])
           upload = result.rows[0]
         } else {
           // SQLite
@@ -121,7 +165,7 @@ export async function POST(request: NextRequest) {
             WHERE file_path LIKE ? AND user_id = ?
             ORDER BY created_at DESC
             LIMIT 1
-          `, [`%${fileName}%`, userId])
+          `, [`%${fileName}%`, user.id])
         }
         
         if (upload && upload.id) {

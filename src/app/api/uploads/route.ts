@@ -10,9 +10,6 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
-// localhost専用のデフォルトユーザーID
-const LOCALHOST_USER_ID = 'localhost-user'
-
 // ディレクトリ作成と権限設定のヘルパー関数
 async function ensureUploadDirectory() {
   try {
@@ -40,8 +37,11 @@ async function ensureUploadDirectory() {
 // ファイルアップロード
 export async function POST(request: NextRequest) {
   try {
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // ファイル名生成（ユーザーID＋タイムスタンプ＋元ファイル名）
     const timestamp = Date.now()
     const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-    const fileName = `${userId}_${timestamp}_${safeFileName}`
+    const fileName = `${user.id}_${timestamp}_${safeFileName}`
     const filePath = path.join(uploadDir, fileName)
     const metadataPath = filePath + '.metadata.json'
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     try {
       console.log(`💾 Saving upload to database: ${fileName}`)
       console.log(`📊 Upload data:`, {
-        user_id: userId,
+        user_id: user.id,
         title: metadata.title || file.name,
         description: metadata.description || '',
         file_path: filePath,
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       })
       
       upload = await storage.createUpload({
-        user_id: userId,
+        user_id: user.id,
         title: metadata.title || file.name,
         description: metadata.description || '',
         file_path: filePath,
@@ -144,13 +144,13 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Upload record created with ID: ${upload.id}`)
 
-    // 音声・動画ファイルの場合、統合RSS Feedを更新
-    if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+    // 音声ファイルの場合、統合RSS Feedを更新
+    if (file.type.startsWith('audio/')) {
       try {
-        console.log(`🎵 Audio/Video file detected, updating RSS feed for upload ID: ${upload.id}`)
+        console.log(`🎵 Audio file detected, updating RSS feed for upload ID: ${upload.id}`)
         const rssGenerator = new RssGenerator()
         await rssGenerator.addEpisode(upload.id)
-        console.log(`✅ Added audio/video file to unified RSS feed: ${upload.title}`)
+        console.log(`✅ Added audio file to unified RSS feed: ${upload.title}`)
       } catch (error) {
         console.error('❌ Failed to update RSS feed:', error)
         console.error('❌ RSS feed error details:', {
@@ -182,8 +182,11 @@ export async function POST(request: NextRequest) {
 // ファイルダウンロード
 export async function GET(request: NextRequest) {
   try {
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    // 認証チェック
+    const user = await verifyAuth(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const { searchParams } = new URL(request.url)
     const fileName = searchParams.get('file')
@@ -216,7 +219,7 @@ export async function GET(request: NextRequest) {
       await fs.mkdir(UPLOAD_DIR, { recursive: true })
       let files = await fs.readdir(UPLOAD_DIR)
       // ユーザーIDでフィルタ（ファイル名先頭がuser.id_で始まるもの、.metadata.jsonは除外）
-      files = files.filter(f => f.startsWith(userId + '_') && !f.endsWith('.metadata.json'))
+      files = files.filter(f => f.startsWith(user.id + '_') && !f.endsWith('.metadata.json'))
       // 新しい順（ファイル名にtimestampが含まれている前提）
       files.sort((a, b) => b.localeCompare(a))
       const lim = parseInt(limit || '10')

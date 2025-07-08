@@ -26,25 +26,13 @@ export function usePlatforms() {
   const { user, token } = useAuth()
 
   const fetchPlatforms = async () => {
-    // localhost環境では認証チェックをスキップ
-    const isLocalhost = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' || 
-      window.location.hostname === '127.0.0.1' || 
-      window.location.hostname.startsWith('192.168.')
-    )
-
-    if (!isLocalhost && (!user || !token)) return
+    if (!user || !token) return
 
     try {
-      const headers: Record<string, string> = {}
-      
-      // localhost環境以外では認証ヘッダーを追加
-      if (!isLocalhost && token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch('/api/platforms', {
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       
       if (response.ok) {
@@ -59,19 +47,11 @@ export function usePlatforms() {
   }
 
   const isPlatformConfigured = (platformType: 'voicy' | 'youtube' | 'spotify' | 'openai') => {
-    // デバッグログを削除してパフォーマンスを向上
-    // console.log('=== Platform Configuration Check ===')
-    // console.log('Checking platform:', platformType)
-    // console.log('Available platforms:', platforms)
-    
-    const isConfigured = platforms.some(platform => 
+    return platforms.some(platform => 
       platform.platform_type === platformType && 
       platform.is_active && 
       platform.credentials
     )
-    
-    // console.log('Is configured:', isConfigured)
-    return isConfigured
   }
 
   const getPlatformCredentials = (platformType: 'voicy' | 'youtube' | 'spotify' | 'openai') => {
@@ -83,28 +63,15 @@ export function usePlatforms() {
     platformType: 'voicy' | 'youtube' | 'spotify' | 'openai',
     credentials: any
   ) => {
-    // localhost環境では認証チェックをスキップ
-    const isLocalhost = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' || 
-      window.location.hostname === '127.0.0.1' || 
-      window.location.hostname.startsWith('192.168.')
-    )
-
-    if (!isLocalhost && (!user || !token)) return false
+    if (!user || !token) return false
 
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      
-      // localhost環境以外では認証ヘッダーを追加
-      if (!isLocalhost && token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch('/api/platforms', {
         method: 'PATCH',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           platform_type: platformType,
           credentials
@@ -129,14 +96,7 @@ export function usePlatforms() {
   }
 
   useEffect(() => {
-    // localhost環境では認証チェックをスキップ
-    const isLocalhost = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' || 
-      window.location.hostname === '127.0.0.1' || 
-      window.location.hostname.startsWith('192.168.')
-    )
-
-    if (isLocalhost || (user && token)) {
+    if (user && token) {
       fetchPlatforms()
     }
   }, [user, token])

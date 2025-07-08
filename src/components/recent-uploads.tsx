@@ -29,7 +29,7 @@ export function RecentUploads() {
       try {
         const response = await fetch('/api/uploads?limit=5', {
           headers: {
-            // localhost専用設定のため、認証ヘッダーを削除
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         })
         
@@ -83,7 +83,7 @@ export function RecentUploads() {
     try {
       const response = await fetch('/api/uploads?limit=5', {
         headers: {
-          // localhost専用設定のため、認証ヘッダーを削除
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
       if (response.ok) {
@@ -102,7 +102,7 @@ export function RecentUploads() {
     try {
       const res = await fetch(`/api/uploads?file=${encodeURIComponent(fileName)}`, {
         headers: {
-          // localhost専用設定のため、認証ヘッダーを削除
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
       if (!res.ok) throw new Error('ダウンロード失敗')
@@ -129,7 +129,7 @@ export function RecentUploads() {
       const res = await fetch(`/api/uploads?file=${encodeURIComponent(fileName)}`, {
         method: 'DELETE',
         headers: {
-          // localhost専用設定のため、認証ヘッダーを削除
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
       if (!res.ok) throw new Error('削除失敗')
@@ -158,7 +158,7 @@ export function RecentUploads() {
           method: 'POST',
           body: formData,
           headers: {
-            // localhost専用設定のため、認証ヘッダーを削除
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         })
         if (!res.ok) throw new Error('アップロード失敗')

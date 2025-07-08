@@ -6,6 +6,7 @@ export async function POST(request: NextRequest) {
   try {
     console.log('=== REGISTER API START ===')
     console.log('Environment:', process.env.NODE_ENV)
+    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
     
     const body = await request.json()
     const { email, password } = body
@@ -40,11 +41,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // データベーステーブルの初期化（一時的に無効化）
+    // データベーステーブルの初期化
     console.log('Initializing database tables...')
     try {
-      // await createTables()
-      console.log('Database tables initialized successfully (skipped)')
+      await createTables()
+      console.log('Database tables initialized successfully')
     } catch (dbError) {
       console.error('Database initialization error:', dbError)
       return NextResponse.json(
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // SQLiteの重複エラー
+    // PostgreSQLの重複エラー
     if (error.code === '23505' && error.constraint === 'users_email_key') {
       return NextResponse.json(
         { error: 'このメールアドレスは既に登録されています' },

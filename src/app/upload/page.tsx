@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '@/contexts/auth-context'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -38,12 +39,14 @@ export default function UploadPage() {
   const [uploadedFile, setUploadedFile] = useState<{id: string, filePath: string, mimeType: string} | null>(null)
   const [platformSupport, setPlatformSupport] = useState<{ [key: string]: { isSupported: boolean; message: string } }>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { user, token } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
-    // localhost専用設定のため、認証チェックを削除
-    fetchPastUploads()
-  }, [])
+    if (user && token) {
+      fetchPastUploads()
+    }
+  }, [user, token])
 
   // ファイル形式に基づいてプラットフォームの対応状況をチェック
   useEffect(() => {
@@ -101,7 +104,9 @@ export default function UploadPage() {
   const fetchPastUploads = async () => {
     try {
       const response = await fetch('/api/uploads?limit=10', {
-        // localhost専用設定のため、認証ヘッダーを削除
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       
       if (response.ok) {
@@ -191,7 +196,9 @@ export default function UploadPage() {
 
         const response = await fetch('/api/uploads', {
           method: 'POST',
-          // localhost専用設定のため、認証ヘッダーを削除
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
           body: formData
         })
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, Suspense } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,6 +11,7 @@ import { Upload, FileAudio, FileVideo } from "lucide-react"
 import { StatsCards } from "@/components/stats-cards"
 import { RecentUploads } from "@/components/recent-uploads"
 import { DistributionManager } from "@/components/distribution-manager"
+import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { usePlatforms } from "@/hooks/use-platforms"
 import { Clock } from "lucide-react"
@@ -24,12 +26,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
  * ルート画面上部にタブを追加し、
  * 「新規アップロード」と「RSS Feed管理・配信」画面を切り替えられるようにしました。
  * Shadcn/uiのTabsコンポーネントを利用。
- * 
- * 2025/01/28 localhost専用設定
- * 認証チェックを削除し、localhost専用のダッシュボードとして動作
  */
 
 export default function Dashboard() {
+  const { user, loading: authLoading, token } = useAuth()
+  const router = useRouter()
   const { toast } = useToast()
   const { getOpenAIKey } = usePlatforms()
 
@@ -52,6 +53,12 @@ export default function Dashboard() {
   const [keyword, setKeyword] = useState("")
   const [trimSilence, setTrimSilence] = useState(false)
   const keywords = ["イントロ", "本題", "まとめ", "キーワードA", "キーワードB"] // 仮
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
 
   // ファイル選択時に自動アップロード
   useEffect(() => {
@@ -114,14 +121,15 @@ export default function Dashboard() {
       formData.append('metadata', JSON.stringify(metadata))
       const response = await fetch('/api/uploads', {
         method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       })
       if (!response.ok) throw new Error('Upload failed')
       const result = await response.json()
       toast({ title: "アップロード完了", description: "ファイルのアップロードが完了しました。" })
       setUploadedFile({
-        id: result.data.id, // ← UUIDをセット
-        filePath: result.data.file_name, // 表示用
+        id: result.data.file_name,
+        filePath: result.data.file_name,
         mimeType: selectedFile.type,
         fileSize: selectedFile.size
       })
@@ -139,17 +147,26 @@ export default function Dashboard() {
   const distributionFile = preprocessedFile || uploadedFile
   const isDistributionDisabled = !distributionFile
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">Loading...</div>
+      </div>
+    )
+  }
+  if (!user) return null
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-6 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">BlogPostPlatform - localhost</h1>
-          <p className="text-gray-600 mt-2">音声ファイルのアップロードと配信管理を行います（localhost専用）</p>
+          <h1 className="text-3xl font-bold text-gray-900">ダッシュボード</h1>
+          <p className="text-gray-600 mt-2">音声ファイルのアップロードと配信管理を行います</p>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 認証通知 */}
           <div className="lg:col-span-1">
-            <AuthNotifications userId="localhost-user" />
+            <AuthNotifications userId="10699750-312a-4f82-ada7-c8e5cf9b1fa8" />
           </div>
 
           {/* 統計情報 */}
@@ -181,81 +198,88 @@ export default function Dashboard() {
                     onClick={handleFileAreaClick}
                     role="button"
                     tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleFileAreaClick()
+                      }
+                    }}
                   >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="audio/*,video/*"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    {isUploading ? (
+                    {selectedFile ? (
                       <div className="text-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                        <p>アップロード中...</p>
+                        <div className="flex items-center gap-2 mb-2">
+                          {selectedFile.type.startsWith('video/') ? (
+                            <FileVideo className="h-8 w-8 text-blue-500" />
+                          ) : (
+                            <FileAudio className="h-8 w-8 text-green-500" />
+                          )}
+                          <span className="font-medium">{selectedFile.name}</span>
+                        </div>
+                        <div className="text-xs text-gray-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
                       </div>
                     ) : (
                       <>
-                        <Upload className="h-12 w-12 mb-4 text-gray-400" />
-                        <p className="text-lg font-medium mb-2">ファイルをドラッグ＆ドロップまたはクリックして選択</p>
-                        <p className="text-sm">音声・動画ファイル（MP3, WAV, M4A, MP4, AVI, MOV等）</p>
-                        <p className="text-xs text-gray-400 mt-2">最大2GBまで</p>
+                        <Upload className="h-12 w-12 mb-4" />
+                        <div className="text-xl font-semibold mb-2">ここに動画・音声ファイルをドラッグ＆ドロップ</div>
+                        <div className="text-gray-500 mb-2">またはクリックしてファイルを選択</div>
+                        <div className="text-xs text-gray-400">対応形式: MP4, MOV, MP3, WAV, M4A</div>
                       </>
                     )}
+                    <input
+                      type="file"
+                      accept=".mp4,.mov,.mp3,.wav,.m4a,video/*,audio/*"
+                      className="hidden"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                    />
                   </div>
-
-                  {/* アップロード済みファイル情報のプレビュー */}
-                  {(preprocessedFile || uploadedFile) && (
-                    <div className="p-4 border rounded-lg bg-gray-50 flex items-center gap-4 mb-4">
-                      <FileAudio className="h-8 w-8 text-green-500" />
-                      <div>
-                        <div className="font-medium">{(preprocessedFile || uploadedFile)?.filePath}</div>
-                        <div className="text-xs text-gray-500">{(preprocessedFile || uploadedFile)?.mimeType}</div>
+                  {/* アップロード済みファイルのサムネイル（うっすら表示） */}
+                  {uploadedFile && (
+                    <div className={cn("mt-4 p-4 rounded-lg border flex items-center gap-4", "bg-gray-100/60 text-gray-700")}> 
+                      <FileAudio className="h-8 w-8 text-green-400" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{uploadedFile.id}</div>
+                        <div className="text-xs">{uploadedFile.mimeType} / {uploadedFile.fileSize ? `${(uploadedFile.fileSize / 1024 / 1024).toFixed(2)} MB` : 'サイズ不明'}</div>
                       </div>
                     </div>
                   )}
-
-                  {/* メタデータ入力フォーム */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="title">タイトル *</Label>
-                      <Input
-                        id="title"
-                        value={metadata.title}
-                        onChange={(e) => setMetadata({...metadata, title: e.target.value})}
-                        placeholder="投稿タイトルを入力"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">カテゴリ</Label>
-                      <Input
-                        id="category"
-                        value={metadata.category}
-                        onChange={(e) => setMetadata({...metadata, category: e.target.value})}
-                        placeholder="カテゴリを入力"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label htmlFor="description">説明</Label>
-                      <Textarea
-                        id="description"
-                        value={metadata.description}
-                        onChange={(e) => setMetadata({...metadata, description: e.target.value})}
-                        placeholder="投稿の説明を入力"
-                        className="mt-1"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
+                  {/* メタデータ入力 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="title">タイトル</Label>
+                    <Input
+                      id="title"
+                      value={metadata.title}
+                      onChange={e => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+                      placeholder="エピソードのタイトル"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">説明</Label>
+                    <Textarea
+                      id="description"
+                      value={metadata.description}
+                      onChange={e => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="エピソードの説明"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
                       <Label htmlFor="tags">タグ</Label>
                       <Input
                         id="tags"
                         value={metadata.tags}
-                        onChange={(e) => setMetadata({...metadata, tags: e.target.value})}
-                        placeholder="タグをカンマ区切りで入力"
-                        className="mt-1"
+                        onChange={e => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                        placeholder="カンマ区切りでタグを入力"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category">カテゴリ</Label>
+                      <Input
+                        id="category"
+                        value={metadata.category}
+                        onChange={e => setMetadata(prev => ({ ...prev, category: e.target.value }))}
+                        placeholder="カテゴリ"
                       />
                     </div>
                   </div>
@@ -263,61 +287,101 @@ export default function Dashboard() {
               </Card>
             </TabsContent>
             <TabsContent value="rss">
-              <RssFeedManager />
+              <Card>
+                <CardHeader>
+                  <CardTitle>RSS Feed管理・配信</CardTitle>
+                  <CardDescription>RSS Feedの管理や配信設定を行います</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <RssFeedManager />
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
-
-        {/* 前処理セクション */}
-        {preprocessAvailable && (
-          <div className="mt-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>前処理オプション</CardTitle>
-                <CardDescription>音声ファイルの自動トリミングとキーワード検出</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="trimSilence"
-                    checked={trimSilence}
-                    onCheckedChange={(checked) => setTrimSilence(checked as boolean)}
-                  />
-                  <Label htmlFor="trimSilence">無音部分を自動トリミング</Label>
+        {/* ファイル前処理エリア（1カラム） */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>ファイル前処理</CardTitle>
+            <CardDescription>アップロードしたファイルに対して前処理を行えます</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="trim-silence" checked={trimSilence} onCheckedChange={val => setTrimSilence(val === true)} disabled={!preprocessAvailable || isPreprocessing} />
+                <Label htmlFor="trim-silence">無音部分をトリミング</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="keyword" className="min-w-fit">このフレーズからスタート</Label>
+                <Input
+                  id="keyword"
+                  value={keyword}
+                  onChange={e => setKeyword(e.target.value)}
+                  placeholder="このフレーズからスタート"
+                  disabled={!preprocessAvailable || isPreprocessing || !getOpenAIKey()}
+                />
+                {!getOpenAIKey() && preprocessAvailable && (
+                  <div className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                    OpenAI APIキーを設定してください
+                  </div>
+                )}
+              </div>
+              <Button 
+                disabled={!preprocessAvailable || isPreprocessing || (!!keyword && !getOpenAIKey())} 
+                className="w-full"
+                onClick={async () => {
+                  if (!uploadedFile) return
+                  setIsPreprocessing(true)
+                  try {
+                    // ファイル名命名規則: 元ファイル名_trim_タイムスタンプ.mp3
+                    const ts = new Date().toISOString().replace(/[-:.TZ]/g, "")
+                    const base = uploadedFile.id.replace(/\.[^/.]+$/, "")
+                    let suffix = []
+                    if (trimSilence) suffix.push("silence")
+                    if (keyword) suffix.push(`kw_${keyword}`)
+                    const outputFileName = `${base}_${suffix.join("_")}_${ts}.mp3`
+                    // OpenAI APIキーは.envから取得する想定（仮: window.環境変数 or サーバー側で注入）
+                    const openaiApiKey = getOpenAIKey() || ''
+                    const res = await fetch('/api/uploads/trim', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        filePath: uploadedFile.filePath,
+                        outputFileName,
+                        trimSilence,
+                        keyword,
+                        openaiApiKey
+                      })
+                    })
+                    const data = await res.json()
+                    if (!res.ok) throw new Error(data.error || '前処理失敗')
+                    setPreprocessedFile({
+                      id: outputFileName,
+                      filePath: data.outputPath,
+                      mimeType: uploadedFile.mimeType
+                    })
+                    toast({ title: "前処理完了", description: "ファイルの前処理が完了しました。" })
+                  } catch (e: any) {
+                    toast({ title: "前処理エラー", description: e.message || '前処理に失敗しました', variant: 'destructive' })
+                  } finally {
+                    setIsPreprocessing(false)
+                  }
+                }}
+              >前処理を実行</Button>
+            </div>
+            {/* 前処理済みファイルのサムネイル */}
+            {preprocessedFile && (
+              <div className={cn("mt-4 p-4 rounded-lg border flex items-center gap-4", "bg-blue-100/60 text-blue-700")}> 
+                <FileAudio className="h-8 w-8 text-blue-400" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{preprocessedFile.id}</div>
+                  <div className="text-xs">{preprocessedFile.mimeType}</div>
                 </div>
-                <div>
-                  <Label htmlFor="keyword">キーワード検出</Label>
-                  <Input
-                    id="keyword"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    placeholder="検出したいキーワードを入力"
-                    className="mt-1"
-                  />
-                </div>
-                <Button
-                  onClick={handlePreprocess}
-                  disabled={isPreprocessing || !preprocessAvailable}
-                  className="w-full"
-                >
-                  {isPreprocessing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      前処理中...
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="h-4 w-4 mr-2" />
-                      前処理を実行
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* 配信管理セクション */}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* 配信UI（常時表示・disabled制御） */}
         <div className="mt-8">
           <DistributionManager
             uploadId={distributionFile?.id}
@@ -328,66 +392,13 @@ export default function Dashboard() {
             disabled={isDistributionDisabled}
           />
         </div>
-
         {/* 最近のアップロード */}
         <div className="mt-8">
-          <RecentUploads />
+          <Suspense fallback={<div>アップロード履歴を読み込み中...</div>}>
+            <RecentUploads />
+          </Suspense>
         </div>
       </div>
     </div>
   )
-
-  // 前処理実行
-  async function handlePreprocess() {
-    if (!distributionFile) return
-    setIsPreprocessing(true)
-    try {
-      // 出力ファイル名を生成
-      const timestamp = Date.now()
-      const outputFileName = `trimmed_${timestamp}_${distributionFile.filePath}`
-      
-      const response = await fetch('/api/uploads/trim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filePath: distributionFile.filePath, // fileIdではなくfilePathを使用
-          outputFileName,
-          trimSilence,
-          keyword: keyword || undefined
-        })
-      })
-      if (!response.ok) throw new Error('Preprocessing failed')
-      const result = await response.json()
-      
-      // キーワード検出結果を表示
-      let description = "音声ファイルの前処理が完了しました。"
-      if (result.keyword) {
-        if (result.keywordDetected) {
-          description += ` キーワード「${result.keyword}」が${result.trimStart.toFixed(1)}秒地点で見つかりました。`
-        } else {
-          description += ` キーワード「${result.keyword}」は見つかりませんでした。`
-        }
-      }
-      
-      // 音声詳細情報を表示
-      if (result.audioDetails) {
-        const { original, trimmed } = result.audioDetails
-        description += ` 元音声: ${original.duration.toFixed(1)}秒 → トリミング後: ${trimmed.duration.toFixed(1)}秒`
-        description += ` (サイズ: ${(original.size / 1024).toFixed(1)}KB → ${(trimmed.size / 1024).toFixed(1)}KB)`
-      } else if (result.processingInfo) {
-        description += ` (${result.processingInfo.finalTrimStart.toFixed(1)}秒から${result.processingInfo.finalTrimDuration.toFixed(1)}秒間)`
-      }
-      
-      toast({ title: "前処理完了", description })
-      setPreprocessedFile({
-        id: result.data.processed_file_name,
-        filePath: result.data.processed_file_name,
-        mimeType: distributionFile.mimeType
-      })
-    } catch (error) {
-      toast({ title: "前処理エラー", description: "音声ファイルの前処理に失敗しました。", variant: "destructive" })
-    } finally {
-      setIsPreprocessing(false)
-    }
-  }
 } 

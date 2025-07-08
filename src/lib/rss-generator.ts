@@ -46,17 +46,13 @@ export class RssGenerator {
     }
   }
 
-  private getMediaUrl(episodeId: number, fileName?: string): string {
+  private getMediaUrl(episodeId: number): string {
     const nodeEnv = process.env.NODE_ENV;
     const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
     
     if (nodeEnv === 'development' && isLocalhost) {
-      // localhost環境ではAPI経由でファイルを配信
-      if (fileName) {
-        return `${this.baseUrl}/api/uploads?file=${encodeURIComponent(fileName)}`;
-      } else {
-        return `${this.baseUrl}/api/uploads?file=${episodeId}`;
-      }
+      // localhost環境ではGitHub PagesのファイルURL
+      return `${this.baseUrl}/uploads/${episodeId}.mp3`;
     } else {
       // Railway環境ではAPI経由
       return `${this.baseUrl}/api/uploads/${episodeId}`;
@@ -151,9 +147,7 @@ export class RssGenerator {
     const now = new Date().toUTCString();
     
     const episodeItems = episodes.map(episode => {
-      // ファイルパスからファイル名を抽出
-      const fileName = episode.filePath ? episode.filePath.split('/').pop() : undefined;
-      const mediaUrl = this.getMediaUrl(episode.id, fileName);
+      const mediaUrl = this.getMediaUrl(episode.id);
       return `    <item>
       <title>${this.escapeXml(episode.title)}</title>
       <link>${mediaUrl}</link>
@@ -236,9 +230,9 @@ ${episodeItems}
         throw new Error(`Upload ${uploadId} not found`);
       }
 
-      // Check if upload is audio or video format suitable for podcast
-      if (!upload.mime_type.startsWith('audio/') && !upload.mime_type.startsWith('video/')) {
-        console.log(`Skipping RSS feed update for non-media file: ${upload.mime_type}`);
+      // Check if upload is audio format suitable for podcast
+      if (!upload.mime_type.startsWith('audio/')) {
+        console.log(`Skipping RSS feed update for non-audio file: ${upload.mime_type}`);
         return;
       }
 
@@ -312,22 +306,24 @@ ${episodeItems}
 
   private async getExistingEpisodes(): Promise<RssEpisode[]> {
     try {
-      // Get all completed uploads that are audio or video files
+      // Get all completed uploads that are audio files
       const uploads = await storage.getAllUploads();
-      const mediaUploads = uploads.filter(upload => 
-        (upload.mime_type.startsWith('audio/') || upload.mime_type.startsWith('video/')) && 
+      const audioUploads = uploads.filter(upload => 
+        upload.mime_type.startsWith('audio/') && 
         upload.status === 'completed'
       );
 
-      return mediaUploads.map(upload => {
+      return audioUploads.map(upload => {
         // created_atをDateオブジェクトに変換
         const pubDate = upload.created_at instanceof Date 
           ? upload.created_at 
           : typeof upload.created_at === 'number'
           ? new Date(upload.created_at)
           : new Date(upload.created_at);
+        
         // UUIDからエピソードIDを生成
         const episodeId = this.generateEpisodeId(upload.id);
+        
         return {
           id: episodeId,
           title: upload.title,
@@ -339,6 +335,7 @@ ${episodeItems}
           guid: `autopost-${upload.id}-${pubDate.getTime()}`,
         };
       });
+      
     } catch (error) {
       console.error('Failed to get existing episodes:', error);
       return [];
@@ -361,12 +358,7 @@ ${episodeItems}
 
   private async updateDeployFeed(rssXml: string): Promise<void> {
     try {
-      const deployDir = './rss-feed-deploy/public';
-      const deployPath = path.join(deployDir, 'feed.xml');
-      
-      // ディレクトリが存在しない場合は作成
-      await fs.mkdir(deployDir, { recursive: true });
-      
+      const deployPath = './rss-feed-deploy/public/feed.xml';
       await fs.writeFile(deployPath, rssXml, 'utf8');
       console.log(`✅ RSS feed updated for deploy: ${deployPath}`);
     } catch (error) {
@@ -428,20 +420,7 @@ ${episodeItems}
 
     try {
       const existingArchived = await this.getArchivedEpisodes();
-      
-      // 安全性チェック: 配列であることを確認
-      if (!Array.isArray(existingArchived)) {
-        console.warn('⚠️ Existing archived data is not an array, using empty array');
-        const allArchived = [...episodes];
-        await fs.writeFile(this.archivePath, JSON.stringify(allArchived, null, 2), 'utf8');
-        console.log(`📦 Archived ${episodes.length} episodes (reset archive)`);
-        return;
-      }
-      
       const allArchived = [...existingArchived, ...episodes];
-      
-      // アーカイブディレクトリを作成（存在しない場合）
-      await fs.mkdir(path.dirname(this.archivePath), { recursive: true });
       
       await fs.writeFile(this.archivePath, JSON.stringify(allArchived, null, 2), 'utf8');
       console.log(`📦 Archived ${episodes.length} episodes`);
@@ -453,24 +432,8 @@ ${episodeItems}
   private async getArchivedEpisodes(): Promise<RssEpisode[]> {
     try {
       const data = await fs.readFile(this.archivePath, 'utf8');
-      const parsed = JSON.parse(data);
-      
-      // 古い形式: オブジェクト { episodes: [] } の場合
-      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.episodes)) {
-        console.log('📦 Converting old archive format to new format');
-        return parsed.episodes;
-      }
-      
-      // 新しい形式: 配列の場合
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-      
-      // どちらでもない場合は空配列
-      console.warn('⚠️ Archived episodes data has unknown format, returning empty array');
-      return [];
+      return JSON.parse(data);
     } catch (error) {
-      console.log('📦 No archived episodes file found, creating new one');
       return [];
     }
   }

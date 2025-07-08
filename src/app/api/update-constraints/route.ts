@@ -9,7 +9,7 @@ export async function POST() {
     const connectionTest = await testConnection()
     console.log('Connection test result:', connectionTest)
     
-    if (connectionTest && connectionTest.success) {
+    if (connectionTest && connectionTest.status === 'connected') {
       // 制約更新
       await updateConstraints()
       

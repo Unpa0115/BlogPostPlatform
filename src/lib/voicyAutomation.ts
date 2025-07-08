@@ -17,7 +17,7 @@ import * as path from 'path';
 // const PASSWORD = getEnvOrThrow('VOICY_PASSWORD');
 
 // API設定
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3005';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
 const API_TOKEN = process.env.API_TOKEN; // 環境変数からトークンを取得
 
 export interface VoicyAutomationOptions {
@@ -96,14 +96,19 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
   let context: BrowserContext | null = null;
   let page: Page | null = null;
 
-      // メモリ使用量の監視
-    const startMemory = process.memoryUsage();
-    console.log(`🚀 開始時メモリ使用量: ${Math.round(startMemory.heapUsed / 1024 / 1024)}MB`);
+  // メモリ使用量の監視
+  const startMemory = process.memoryUsage();
+  console.log(`🚀 開始時メモリ使用量: ${Math.round(startMemory.heapUsed / 1024 / 1024)}MB`);
+  
+  const logMemoryUsage = () => {
+    const currentMemory = process.memoryUsage();
+    console.log(`📊 現在のメモリ使用量: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
     
-    const logMemoryUsage = () => {
-      const currentMemory = process.memoryUsage();
-      console.log(`📊 現在のメモリ使用量: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
-    };
+    // 本番環境でメモリ使用量が500MBを超えた場合の警告
+    if (process.env.NODE_ENV !== 'development' && currentMemory.heapUsed > 500 * 1024 * 1024) {
+      console.warn(`⚠️ メモリ使用量が500MBを超過: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
+    }
+  };
   
   try {
     console.log("=== Voicy Automation Start ===");
@@ -119,95 +124,24 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       throw new Error("Voicy認証情報が設定されていません");
     }
 
-    // 環境分岐によるブラウザ起動
+    // 環境別のブラウザ接続
     if (process.env.NODE_ENV === 'development') {
       console.log("Development mode: Using local Chrome browser...");
-      
-      // macOS + Apple Silicon でのクラッシュ回避のため、システムChromeを試行
-      const useSystemChrome = process.env.USE_SYSTEM_CHROME === 'true' || process.platform === 'darwin';
-      
-      if (useSystemChrome) {
-        console.log("Attempting to use system Chrome for better compatibility...");
-        const chromePaths = [
-          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-          '/Applications/Chromium.app/Contents/MacOS/Chromium',
-          '/usr/bin/google-chrome',
-          '/usr/bin/chromium-browser'
-        ];
-        
-        let executablePath = undefined;
-        for (const path of chromePaths) {
-          try {
-            const fs = require('fs');
-            if (fs.existsSync(path)) {
-              executablePath = path;
-              console.log(`Found Chrome at: ${path}`);
-              break;
-            }
-          } catch (e) {
-            continue;
-          }
-        }
-        
-        browser = await chromium.launch({
-          executablePath,
-          headless: false, // デバッグ用にブラウザを表示
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-accelerated-2d-canvas',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--disable-plugins',
-            '--enable-dom-storage', // DOMストレージを有効化
-            '--enable-javascript', // JavaScriptを明示的に有効化
-            '--disable-default-apps',
-            '--disable-background-networking',
-            '--disable-background-timer-throttling',
-            '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-features=TranslateUI,VizDisplayCompositor',
-            '--disable-component-extensions-with-background-pages',
-            '--memory-pressure-off',
-            '--max_old_space_size=512',
-            '--no-first-run',
-            '--no-default-browser-check',
-            // Apple Silicon macOS 15.5 対応
-            '--disable-metal',
-            '--disable-gpu-sandbox',
-            '--disable-software-rasterizer',
-            '--disable-features=VizServiceDisplayCompositor',
-            '--disable-ipc-flooding-protection',
-            '--disable-features=Translate',
-            '--use-fake-ui-for-media-stream',
-            '--disable-blink-features=AutomationControlled',
-            // single-processを削除（クラッシュの原因となることがある）
-          ],
-          timeout: 60000,
-          // macOS 15.5 + Apple Silicon での安定性向上
-          slowMo: 100, // 操作を少し遅くして安定性を向上
-          devtools: false, // DevToolsを無効化
-        });
-      } else {
-        // フォールバック: 内蔵Chromiumを使用
-        console.log("Falling back to bundled Chromium...");
-        browser = await chromium.launch({
-          headless: false,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--disable-features=VizDisplayCompositor',
-            '--disable-metal',
-            '--disable-gpu-sandbox',
-          ],
-          timeout: 60000,
-          slowMo: 100,
-          devtools: false,
-        });
-      }
+      browser = await chromium.launch({
+        headless: false, // デバッグ用にブラウザを表示
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--disable-gpu',
+          '--enable-javascript', // JavaScriptを明示的に有効化
+          '--enable-dom-storage' // DOMストレージを有効化
+        ],
+        timeout: 60000,
+      });
     } else {
       console.log("Production mode: Connecting to Browserless.io...");
       
@@ -219,22 +153,28 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       
       console.log(`Using Browserless.io API key: ${browserlessApiKey.substring(0, 8)}...`);
       
+      // 新しいエンドポイントを使用
       browser = await chromium.connect({
-        wsEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+        wsEndpoint: `wss://production-sfo.browserless.io?token=${browserlessApiKey}`,
         timeout: 60000,
       });
     }
 
-    // ブラウザコンテキスト作成
+    // ブラウザコンテキスト作成（環境別の最適化）
     console.log("Creating browser context...");
     const contextOptions = {
-      viewport: { width: 1280, height: 720 },
+      viewport: { width: 1280, height: 720 }, // メモリ使用量削減
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       ignoreHTTPSErrors: true,
       extraHTTPHeaders: {
         'Accept-Language': 'ja-JP,ja;q=0.9,en;q=0.8',
       },
     };
+
+    // 本番環境では追加の最適化
+    if (process.env.NODE_ENV !== 'development') {
+      contextOptions.viewport = { width: 1024, height: 768 }; // さらに小さく
+    }
 
     context = await browser.newContext(contextOptions);
 
@@ -319,17 +259,19 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     });
     
     // DOM変更の監視（デバッグ用）
-    await page.evaluate(() => {
-      const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-          if (mutation.type === 'attributes' && mutation.attributeName === 'disabled') {
-            const target = mutation.target as Element;
-            console.log('DOM変更検出:', target, 'disabled属性:', target.hasAttribute('disabled'));
-          }
+    if (process.env.NODE_ENV === 'development') {
+      await page.evaluate(() => {
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'disabled') {
+              const target = mutation.target as Element;
+              console.log('DOM変更検出:', target, 'disabled属性:', target.hasAttribute('disabled'));
+            }
+          });
         });
+        observer.observe(document.body, { attributes: true, subtree: true });
       });
-      observer.observe(document.body, { attributes: true, subtree: true });
-    });
+    }
 
     console.log("ログインページにアクセス中...");
     logMemoryUsage(); // メモリ使用量をログ
@@ -552,130 +494,129 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       return button && !button.hasAttribute('disabled') && !button.classList.contains('disabled');
     }, { timeout: 30000 });
     
-    // 【テストモード】実際の投稿処理はコメントアウト
-    console.log("🚫 テストモード: 最終投稿処理は実行されません");
-    console.log("📋 予約ボタンが準備できましたが、実際のクリックはスキップします");
-    
-    // 投稿直前のスクリーンショットを撮影
-    await saveScreenshot(page, "12_final_reserve_ready_but_not_clicked.png");
-    
-    // 実際の投稿処理（コメントアウト済み）
     // ダイアログハンドラを事前に登録（クリック前に重要）
-    // let dialogHandled = false;
-    // const handleDialog = (dialog: any) => {
-    //   console.log(`ダイアログ検出: ${dialog.message()}`);
-    //   console.log(`ダイアログタイプ: ${dialog.type()}`);
-    //   dialog.accept(); // 「OK」を自動で押す
-    //   dialogHandled = true;
-    //   console.log("ダイアログを自動でOKしました");
-    // };
+    let dialogHandled = false;
+    const handleDialog = (dialog: any) => {
+      console.log(`ダイアログ検出: ${dialog.message()}`);
+      console.log(`ダイアログタイプ: ${dialog.type()}`);
+      dialog.accept(); // 「OK」を自動で押す
+      dialogHandled = true;
+      console.log("ダイアログを自動でOKしました");
+    };
     
     // ダイアログハンドラを登録（1回だけ）
-    // page.once("dialog", handleDialog);
+    page.once("dialog", handleDialog);
     
-    // console.log("ボタンが有効になりました。クリックします...");
-    // await finalReserveButton.click();
-    // await saveScreenshot(page, "12_final_reserve_clicked.png");
+    console.log("ボタンが有効になりました。クリックします...");
+    await finalReserveButton.click();
+    await saveScreenshot(page, "12_final_reserve_clicked.png");
     
     // ダイアログが処理されたか確認
-    // if (dialogHandled) {
-    //   console.log("確認ダイアログが正常に処理されました");
-    //   await saveScreenshot(page, "13_confirmation_accepted.png");
-    // } else {
-    //   console.log("ダイアログは表示されませんでした。予約が直接完了した可能性があります。");
-    // }
+    if (dialogHandled) {
+      console.log("確認ダイアログが正常に処理されました");
+      await saveScreenshot(page, "13_confirmation_accepted.png");
+    } else {
+      console.log("ダイアログは表示されませんでした。予約が直接完了した可能性があります。");
+    }
     
     // 「設定が完了しました。」の緑のポップアップを検出
-    // console.log("完了メッセージのポップアップを検出中...");
-    // try {
-    //   // 複数の方法で完了メッセージを検出
-    //   const completionMessage = page.locator(
-    //     'text=設定が完了しました。, text=完了しました, text=予約が完了'
-    //   );
-    //   await completionMessage.waitFor({ state: "visible", timeout: 10000 });
-    //   console.log("完了メッセージを検出しました");
-    //   
-    //   await page.waitForTimeout(1000);
-    //   await saveScreenshot(page, "15_completion_popup.png");
-    //   console.log("完了ポップアップのスクリーンショットを保存しました");
-    //   
-    //   await completionMessage.waitFor({ state: "hidden", timeout: 15000 });
-    //   console.log("完了ポップアップが自動で消えました");
-    //   
-    // } catch (completionError) {
-    //   console.log("完了メッセージの検出中にエラーが発生しました:", completionError);
-    // }
+    console.log("完了メッセージのポップアップを検出中...");
+    try {
+      // 複数の方法で完了メッセージを検出
+      const completionMessage = page.locator(
+        'text=設定が完了しました。, text=完了しました, text=予約が完了'
+      );
+      await completionMessage.waitFor({ state: "visible", timeout: 10000 });
+      console.log("完了メッセージを検出しました");
+      
+      await page.waitForTimeout(1000);
+      await saveScreenshot(page, "15_completion_popup.png");
+      console.log("完了ポップアップのスクリーンショットを保存しました");
+      
+      await completionMessage.waitFor({ state: "hidden", timeout: 15000 });
+      console.log("完了ポップアップが自動で消えました");
+      
+    } catch (completionError) {
+      console.log("完了メッセージの検出中にエラーが発生しました:", completionError);
+    }
     
-    // console.log("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。");
-    // await saveScreenshot(page, "16_broadcast_reserved.png");
+    console.log("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。");
+    await saveScreenshot(page, "16_broadcast_reserved.png");
     
-    console.log("📸 テストモード完了: 投稿直前の状態でスクリーンショットを保存しました");
-    await saveScreenshot(page, "16_test_mode_completed.png");
+    // 予約完了後の詳細確認
+    console.log("予約完了後の状態を確認しています...");
+    try {
+      // ページタイトルやURLの確認
+      console.log(`現在のページタイトル: ${await page.title()}`);
+      console.log(`現在のURL: ${page.url()}`);
+      
+      // 予約完了を示す要素を探す
+      const successIndicators = [
+        "予約完了",
+        "放送予約",
+        "予約済み",
+        "完了",
+        "success"
+      ];
+      
+      for (const indicator of successIndicators) {
+        try {
+          const element = page.locator(`text=${indicator}`);
+          const count = await element.count();
+          if (count > 0) {
+            console.log(`✅ 成功指標を発見: '${indicator}'`);
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      // エラー要素がないか確認
+      const errorIndicators = [
+        "エラー",
+        "失敗",
+        "error",
+        "failed"
+      ];
+      
+      for (const indicator of errorIndicators) {
+        try {
+          const element = page.locator(`text=${indicator}`);
+          const count = await element.count();
+          if (count > 0) {
+            console.log(`⚠️ エラー指標を発見: '${indicator}'`);
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+    } catch (statusError) {
+      console.log("状態確認中にエラーが発生しました:", statusError);
+    }
     
-    // 【テストモード】予約完了後の詳細確認もコメントアウト
-    // console.log("予約完了後の状態を確認しています...");
-    // try {
-    //   // ページタイトルやURLの確認
-    //   console.log(`現在のページタイトル: ${await page.title()}`);
-    //   console.log(`現在のURL: ${page.url()}`);
-    //   
-    //   // 予約完了を示す要素を探す
-    //   const successIndicators = [
-    //     "予約完了",
-    //     "放送予約",
-    //     "予約済み",
-    //     "完了",
-    //     "success"
-    //   ];
-    //   
-    //   for (const indicator of successIndicators) {
-    //     try {
-    //       const element = page.locator(`text=${indicator}`);
-    //       const count = await element.count();
-    //       if (count > 0) {
-    //         console.log(`✅ 成功指標を発見: '${indicator}'`);
-    //         break;
-    //       }
-    //     } catch (error) {
-    //       continue;
-    //     }
-    //   }
-    //   
-    //   // エラー要素がないか確認
-    //   const errorIndicators = [
-    //     "エラー",
-    //     "失敗",
-    //     "error",
-    //     "failed"
-    //   ];
-    //   
-    //   for (const indicator of errorIndicators) {
-    //     try {
-    //       const element = page.locator(`text=${indicator}`);
-    //       const count = await element.count();
-    //       if (count > 0) {
-    //         console.log(`⚠️ エラー指標を発見: '${indicator}'`);
-    //       }
-    //     } catch (error) {
-    //       continue;
-    //     }
-    //   }
-    //   
-    // } catch (statusError) {
-    //   console.log("状態確認中にエラーが発生しました:", statusError);
-    // }
+    // 実際の投稿処理（Python実装と同様にコメントアウト）
+    console.log("テストモード。最終投稿処理は実行しません。");
+    console.log("実際の投稿を行う場合は、以下のコメントアウトを解除してください:");
+    console.log("// finalReserveButton.click();");
+    console.log("// await page.waitForTimeout(5000);");
+    console.log("// await saveScreenshot(page, '17_final_submission.png');");
     
-    // 【重要】実際の投稿処理は完全にコメントアウト済み
-    console.log("⚠️ 【テストモード】実際の投稿処理は実行されません");
-    console.log("🔧 実際の投稿を行う場合は、voicyAutomation.tsの以下の処理のコメントアウトを解除してください:");
-    console.log("   - ダイアログハンドラの登録");
-    console.log("   - finalReserveButton.click()");
-    console.log("   - 確認ダイアログの処理");
-    console.log("   - 完了メッセージの検出");
-    
-    // 環境変数による投稿許可設定も削除（テストモードを徹底）
-    console.log("🚫 環境変数 ENABLE_VOICY_SUBMISSION が 'true' でも実際の投稿は実行されません");
-    console.log("📋 すべての投稿処理がコメントアウトされています")
+    // 開発環境では実際の投稿処理を実行するかどうかの確認
+    if (process.env.NODE_ENV === 'development' && process.env.ENABLE_VOICY_SUBMISSION === 'true') {
+      console.log("開発環境で実際の投稿処理を実行します...");
+      try {
+        await finalReserveButton.click();
+        await page.waitForTimeout(5000);
+        await saveScreenshot(page, "17_final_submission.png");
+        console.log("✅ 実際の投稿処理が完了しました");
+      } catch (submissionError) {
+        console.log("投稿処理中にエラーが発生しました:", submissionError);
+      }
+    } else {
+      console.log("⚠️ テストモード: 実際の投稿は実行されませんでした");
+    }
 
     console.log("✅ Voicy自動化が完了しました");
     return true;

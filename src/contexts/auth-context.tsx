@@ -39,64 +39,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const validateToken = async (token: string) => {
     try {
-      // 開発環境でのみ認証バイパスを許可（環境変数で制御）
-      const isLocalhost = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.startsWith('192.168.')
-      )
-      
-      // 認証バイパス設定の確認（本番環境では無効）
-      const allowAuthBypass = process.env.NODE_ENV === 'development'
-
-      const headers: Record<string, string> = {}
-      
-      if (!isLocalhost || !allowAuthBypass) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-
       const response = await fetch('/api/auth/me', {
-        headers
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
       
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
       } else {
-        if (!isLocalhost || !allowAuthBypass) {
-          // 本番環境または認証バイパスが無効な場合
-          localStorage.removeItem('token')
-          setToken(null)
-          setUser(null)
-        } else {
-          // 開発環境でのみ固定ユーザーを設定
-          setUser({
-            id: 'localhost-user',
-            email: 'localhost@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-        }
-      }
-    } catch (error) {
-      console.error('Token validation error:', error)
-      if (typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' || 
-        window.location.hostname.startsWith('192.168.')
-      ) && process.env.NODE_ENV === 'development') {
-        // 開発環境でのみ固定ユーザーを設定
-        setUser({
-          id: 'localhost-user',
-          email: 'localhost@example.com',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      } else {
+        // トークンが無効な場合
         localStorage.removeItem('token')
         setToken(null)
         setUser(null)
       }
+    } catch (error) {
+      console.error('Token validation error:', error)
+      localStorage.removeItem('token')
+      setToken(null)
+      setUser(null)
     } finally {
       setLoading(false)
     }
