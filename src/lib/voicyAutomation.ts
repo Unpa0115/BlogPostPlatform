@@ -96,19 +96,14 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
   let context: BrowserContext | null = null;
   let page: Page | null = null;
 
-  // メモリ使用量の監視
-  const startMemory = process.memoryUsage();
-  console.log(`🚀 開始時メモリ使用量: ${Math.round(startMemory.heapUsed / 1024 / 1024)}MB`);
-  
-  const logMemoryUsage = () => {
-    const currentMemory = process.memoryUsage();
-    console.log(`📊 現在のメモリ使用量: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
+      // メモリ使用量の監視
+    const startMemory = process.memoryUsage();
+    console.log(`🚀 開始時メモリ使用量: ${Math.round(startMemory.heapUsed / 1024 / 1024)}MB`);
     
-    // 本番環境でメモリ使用量が500MBを超えた場合の警告
-    if (process.env.NODE_ENV !== 'development' && currentMemory.heapUsed > 500 * 1024 * 1024) {
-      console.warn(`⚠️ メモリ使用量が500MBを超過: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
-    }
-  };
+    const logMemoryUsage = () => {
+      const currentMemory = process.memoryUsage();
+      console.log(`📊 現在のメモリ使用量: ${Math.round(currentMemory.heapUsed / 1024 / 1024)}MB`);
+    };
   
   try {
     console.log("=== Voicy Automation Start ===");
@@ -124,57 +119,34 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       throw new Error("Voicy認証情報が設定されていません");
     }
 
-    // 環境別のブラウザ接続
-    if (process.env.NODE_ENV === 'development') {
-      console.log("Development mode: Using local Chrome browser...");
-      browser = await chromium.launch({
-        headless: false, // デバッグ用にブラウザを表示
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--enable-javascript', // JavaScriptを明示的に有効化
-          '--enable-dom-storage' // DOMストレージを有効化
-        ],
-        timeout: 60000,
-      });
-    } else {
-      console.log("Production mode: Connecting to Browserless.io...");
-      
-      // 環境変数の確認
-      const browserlessApiKey = process.env.BROWSERLESS_API_KEY;
-      if (!browserlessApiKey) {
-        throw new Error("BROWSERLESS_API_KEY 環境変数が設定されていません");
-      }
-      
-      console.log(`Using Browserless.io API key: ${browserlessApiKey.substring(0, 8)}...`);
-      
-      // 新しいエンドポイントを使用
-      browser = await chromium.connect({
-        wsEndpoint: `wss://production-sfo.browserless.io?token=${browserlessApiKey}`,
-        timeout: 60000,
-      });
-    }
+    // localhost環境のみ対応（Browserless.ioは使用しない）
+    console.log("Localhost mode: Using local Chrome browser...");
+    browser = await chromium.launch({
+      headless: false, // デバッグ用にブラウザを表示
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--enable-javascript', // JavaScriptを明示的に有効化
+        '--enable-dom-storage' // DOMストレージを有効化
+      ],
+      timeout: 60000,
+    });
 
-    // ブラウザコンテキスト作成（環境別の最適化）
+    // ブラウザコンテキスト作成（localhost環境用）
     console.log("Creating browser context...");
     const contextOptions = {
-      viewport: { width: 1280, height: 720 }, // メモリ使用量削減
+      viewport: { width: 1280, height: 720 },
       userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       ignoreHTTPSErrors: true,
       extraHTTPHeaders: {
         'Accept-Language': 'ja-JP,ja;q=0.9,en;q=0.8',
       },
     };
-
-    // 本番環境では追加の最適化
-    if (process.env.NODE_ENV !== 'development') {
-      contextOptions.viewport = { width: 1024, height: 768 }; // さらに小さく
-    }
 
     context = await browser.newContext(contextOptions);
 
@@ -259,19 +231,17 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     });
     
     // DOM変更の監視（デバッグ用）
-    if (process.env.NODE_ENV === 'development') {
-      await page.evaluate(() => {
-        const observer = new MutationObserver((mutations) => {
-          mutations.forEach((mutation) => {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'disabled') {
-              const target = mutation.target as Element;
-              console.log('DOM変更検出:', target, 'disabled属性:', target.hasAttribute('disabled'));
-            }
-          });
+    await page.evaluate(() => {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'attributes' && mutation.attributeName === 'disabled') {
+            const target = mutation.target as Element;
+            console.log('DOM変更検出:', target, 'disabled属性:', target.hasAttribute('disabled'));
+          }
         });
-        observer.observe(document.body, { attributes: true, subtree: true });
       });
-    }
+      observer.observe(document.body, { attributes: true, subtree: true });
+    });
 
     console.log("ログインページにアクセス中...");
     logMemoryUsage(); // メモリ使用量をログ
