@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 export async function POST(request: NextRequest) {
   try {
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     const body = await request.json()
     const { url } = body

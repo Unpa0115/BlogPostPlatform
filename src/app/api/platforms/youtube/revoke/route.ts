@@ -3,20 +3,20 @@ import { verifyAuth } from '@/lib/auth'
 import { db } from '@/lib/database'
 import { PlatformCredentials } from '@/lib/encryption'
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 export async function POST(request: NextRequest) {
   try {
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     // YouTubeプラットフォームの認証情報を取得
     let youtubePlatform = null
     if (process.env.NODE_ENV === 'production') {
       const result = await db.query(
         'SELECT id, credentials FROM distribution_platforms WHERE user_id = $1 AND platform_type = $2',
-        [user.id, 'youtube']
+        [userId, 'youtube']
       )
       
       if (result.rows.length > 0) {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       const sqliteDb = await db
       youtubePlatform = await sqliteDb.get(
         'SELECT id, credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
-        [user.id, 'youtube']
+        [userId, 'youtube']
       )
     }
 

@@ -39,26 +39,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const validateToken = async (token: string) => {
     try {
+      // localhost環境では認証チェックをスキップ
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )
+
+      const headers: Record<string, string> = {}
+      
+      if (!isLocalhost) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const response = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       })
       
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
       } else {
-        // トークンが無効な場合
+        if (!isLocalhost) {
+          // 本番環境でトークンが無効な場合
+          localStorage.removeItem('token')
+          setToken(null)
+          setUser(null)
+        } else {
+          // localhost環境では固定ユーザーを設定
+          setUser({
+            id: 'localhost-user',
+            email: 'localhost@example.com',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Token validation error:', error)
+      if (typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )) {
+                 // localhost環境では固定ユーザーを設定
+         setUser({
+           id: 'localhost-user',
+           email: 'localhost@example.com',
+           created_at: new Date().toISOString(),
+           updated_at: new Date().toISOString()
+         })
+      } else {
         localStorage.removeItem('token')
         setToken(null)
         setUser(null)
       }
-    } catch (error) {
-      console.error('Token validation error:', error)
-      localStorage.removeItem('token')
-      setToken(null)
-      setUser(null)
     } finally {
       setLoading(false)
     }

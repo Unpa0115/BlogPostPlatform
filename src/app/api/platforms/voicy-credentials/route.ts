@@ -3,14 +3,14 @@ import { verifyAuth } from '@/lib/auth'
 import { db } from '@/lib/database'
 import { PlatformCredentials } from '@/lib/encryption'
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 // Voicy認証情報取得
 export async function GET(request: NextRequest) {
   try {
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     // Voicyプラットフォームの認証情報を取得
     if (process.env.NODE_ENV === 'production') {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         FROM distribution_platforms
         WHERE user_id = $1 AND platform_type = 'voicy' AND is_active = true
         LIMIT 1
-      `, [user.id])
+      `, [userId])
 
       if (result.rows.length === 0) {
         return NextResponse.json({ 
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
         FROM distribution_platforms
         WHERE user_id = ? AND platform_type = 'voicy' AND is_active = 1
         LIMIT 1
-      `, [user.id])
+      `, [userId])
 
       if (!result) {
         return NextResponse.json({ 

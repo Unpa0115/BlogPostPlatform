@@ -120,8 +120,8 @@ export default function Dashboard() {
       const result = await response.json()
       toast({ title: "アップロード完了", description: "ファイルのアップロードが完了しました。" })
       setUploadedFile({
-        id: result.data.file_name,
-        filePath: result.data.file_name,
+        id: result.data.id, // ← UUIDをセット
+        filePath: result.data.file_name, // 表示用
         mimeType: selectedFile.type,
         fileSize: selectedFile.size
       })
@@ -203,6 +203,17 @@ export default function Dashboard() {
                       </>
                     )}
                   </div>
+
+                  {/* アップロード済みファイル情報のプレビュー */}
+                  {(preprocessedFile || uploadedFile) && (
+                    <div className="p-4 border rounded-lg bg-gray-50 flex items-center gap-4 mb-4">
+                      <FileAudio className="h-8 w-8 text-green-500" />
+                      <div>
+                        <div className="font-medium">{(preprocessedFile || uploadedFile)?.filePath}</div>
+                        <div className="text-xs text-gray-500">{(preprocessedFile || uploadedFile)?.mimeType}</div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* メタデータ入力フォーム */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

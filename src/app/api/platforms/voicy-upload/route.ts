@@ -10,6 +10,9 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'  // Railway Storageのマウントパス
   : path.join(process.cwd(), 'uploads')
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 async function getVoicyCredentials(userId: string): Promise<{ email: string; password: string }> {
   // データベースからVoicy認証情報を取得
   if (process.env.NODE_ENV === 'production') {
@@ -77,11 +80,8 @@ export async function POST(request: NextRequest) {
   try {
     console.log('🔍 Voicy upload API called')
     
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
     
     const body = await request.json()
     console.log('📥 Request body:', JSON.stringify(body, null, 2))
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     // Voicy認証情報を取得
     console.log('🔐 Getting Voicy credentials...')
-    const { email, password } = await getVoicyCredentials(user.id)
+    const { email, password } = await getVoicyCredentials(userId)
     console.log('✅ Voicy credentials retrieved successfully')
 
     // ファイルパスを実際のファイルシステムパスに変換
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
             WHERE file_path LIKE $1 AND user_id = $2
             ORDER BY created_at DESC
             LIMIT 1
-          `, [`%${fileName}%`, user.id])
+          `, [`%${fileName}%`, userId])
           upload = result.rows[0]
         } else {
           // SQLite
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
             WHERE file_path LIKE ? AND user_id = ?
             ORDER BY created_at DESC
             LIMIT 1
-          `, [`%${fileName}%`, user.id])
+          `, [`%${fileName}%`, userId])
         }
         
         if (upload && upload.id) {

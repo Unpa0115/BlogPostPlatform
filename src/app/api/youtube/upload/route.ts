@@ -9,22 +9,19 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
   ? '/app/uploads'
   : path.join(process.cwd(), 'uploads')
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 export async function POST(request: NextRequest) {
   try {
-    // ユーザー認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Please login to upload to YouTube'
-      }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     const body = await request.json()
     const { title, description, tags, categoryId, privacyStatus, filePath, mimeType } = body
 
     console.log('=== YouTube Upload Request ===')
-    console.log('User ID:', user.id)
+    console.log('User ID:', userId)
     console.log('Title:', title)
     console.log('File path:', filePath)
 

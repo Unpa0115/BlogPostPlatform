@@ -43,7 +43,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('Request body:', body)
     
-    const { uploadId, userId } = body
+    const { uploadId, userId, action } = body
+    
+    // 再生成アクションの処理
+    if (action === 'regenerate') {
+      console.log('🔄 Regenerating RSS feed...')
+      const rssGenerator = new RssGenerator()
+      await rssGenerator.regenerateFeed()
+      console.log('✅ RSS feed regenerated successfully')
+      return NextResponse.json(
+        { message: 'RSS feed regenerated successfully' },
+        { status: 200 }
+      )
+    }
     
     if (!uploadId) {
       console.log('Missing uploadId')

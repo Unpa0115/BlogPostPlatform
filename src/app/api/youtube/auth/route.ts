@@ -2,19 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { YouTube } from '@/lib/youtube'
 import { verifyAuth } from '@/lib/auth'
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 export async function GET(request: NextRequest) {
   try {
-    // ユーザー認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ 
-        error: 'Unauthorized',
-        message: 'Please login to authenticate YouTube'
-      }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     console.log('=== YouTube Auth Request ===')
-    console.log('User ID:', user.id)
+    console.log('User ID:', userId)
     console.log('Environment:', process.env.NODE_ENV)
     console.log('Client ID:', process.env.YOUTUBE_CLIENT_ID ? `${process.env.YOUTUBE_CLIENT_ID.substring(0, 20)}...` : 'NOT SET')
     console.log('Client Secret:', process.env.YOUTUBE_CLIENT_SECRET ? 'SET' : 'NOT SET')

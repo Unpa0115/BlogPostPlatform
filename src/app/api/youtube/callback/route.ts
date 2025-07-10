@@ -4,6 +4,9 @@ import { db } from '@/lib/database'
 import { CredentialEncryption } from '@/lib/encryption'
 import { verifyAuth } from '@/lib/auth'
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -111,43 +114,43 @@ export async function GET(request: NextRequest) {
 
     // distribution_platformsテーブルも更新（データ整合性のため）
     try {
-      const user = await verifyAuth(request)
-      if (user) {
-        // 暗号化された認証情報を作成
-        const encryptedCredentials = CredentialEncryption.encrypt(JSON.stringify(credentials), CredentialEncryption.getMasterKey())
-        
-        if (process.env.NODE_ENV === 'production') {
-          await db.query(`
-            INSERT INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (user_id, platform_type)
-            DO UPDATE SET 
-              platform_name = $3,
-              credentials = $4,
-              is_active = $5,
-              updated_at = CURRENT_TIMESTAMP
-          `, [
-            user.id,
-            'youtube',
-            'YouTube',
-            { encrypted: encryptedCredentials },
-            true
-          ])
-        } else {
-          const sqliteDb = await db
-          await sqliteDb.run(`
-            INSERT OR REPLACE INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
-            VALUES (?, ?, ?, ?, ?)
-          `, [
-            user.id,
-            'youtube',
-            'YouTube',
-            JSON.stringify({ encrypted: encryptedCredentials }),
-            true
-          ])
-        }
-        console.log('Distribution platforms table updated successfully')
+      // localhost専用設定のため、認証チェックをスキップ
+      const userId = LOCALHOST_USER_ID
+      
+      // 暗号化された認証情報を作成
+      const encryptedCredentials = CredentialEncryption.encrypt(JSON.stringify(credentials), CredentialEncryption.getMasterKey())
+      
+      if (process.env.NODE_ENV === 'production') {
+        await db.query(`
+          INSERT INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
+          VALUES ($1, $2, $3, $4, $5)
+          ON CONFLICT (user_id, platform_type)
+          DO UPDATE SET 
+            platform_name = $3,
+            credentials = $4,
+            is_active = $5,
+            updated_at = CURRENT_TIMESTAMP
+        `, [
+          userId,
+          'youtube',
+          'YouTube',
+          { encrypted: encryptedCredentials },
+          true
+        ])
+      } else {
+        const sqliteDb = await db
+        await sqliteDb.run(`
+          INSERT OR REPLACE INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
+          VALUES (?, ?, ?, ?, ?)
+        `, [
+          userId,
+          'youtube',
+          'YouTube',
+          JSON.stringify({ encrypted: encryptedCredentials }),
+          true
+        ])
       }
+      console.log('Distribution platforms table updated successfully')
     } catch (updateError) {
       console.error('Failed to update distribution_platforms:', updateError)
       // メインの認証は成功しているので、このエラーは無視

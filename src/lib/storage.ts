@@ -1,5 +1,6 @@
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
+import crypto from 'crypto'
 import { AudioFile, DistributionPlatform } from '../types';
 
 // SQLiteデータベース接続
@@ -414,129 +415,6 @@ export class DatabaseStorage {
     return result.changes > 0;
   }
 
-  // Statistics
-  async getUploadStats(): Promise<{
-    monthlyUploads: number;
-    successRate: number;
-    processing: number;
-    errors: number;
-  }> {
-    const allAudioFiles = await this.getAllAudioFiles();
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    const monthlyUploads = allAudioFiles.filter(audioFile => 
-      new Date(audioFile.created_at) >= monthStart
-    ).length;
-
-    const completed = allAudioFiles.filter(audioFile => audioFile.status === "completed").length;
-    const failed = allAudioFiles.filter(audioFile => audioFile.status === "error").length;
-    const processing = allAudioFiles.filter(audioFile => audioFile.status === "processing").length;
-    
-    const successRate = allAudioFiles.length > 0 ? (completed / allAudioFiles.length) * 100 : 0;
-
-    return {
-      monthlyUploads,
-      successRate: Number(successRate.toFixed(1)),
-      processing,
-      errors: failed,
-    };
-  }
-
-  // Upload operations
-  async getUpload(id: string): Promise<Upload | undefined> {
-    try {
-      console.log(`🔍 Getting upload with ID: ${id}`)
-      console.log(`🔍 ID type: ${typeof id}`)
-      
-      const result = await db.get('SELECT * FROM uploads WHERE id = ?', [id])
-      console.log(`📊 SQLite query result:`, result)
-      
-      if (!result) {
-        console.log(`❌ No upload found with ID: ${id}`)
-        return undefined
-      }
-      
-      // SQLiteの場合は数値タイムスタンプをDateオブジェクトに変換
-      if (result.created_at) {
-        result.created_at = new Date(result.created_at)
-      }
-      if (result.updated_at) {
-        result.updated_at = new Date(result.updated_at)
-      }
-      
-      console.log(`✅ Upload found:`, result)
-      return result
-    } catch (error) {
-      console.error('❌ Error getting upload:', error)
-      console.error('❌ Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace',
-        id: id
-      })
-      return undefined
-    }
-  }
-
-  async getAllUploads(): Promise<Upload[]> {
-    try {
-      const result = await db.all('SELECT * FROM uploads ORDER BY created_at DESC')
-      return result
-    } catch (error) {
-      console.error('Error getting all uploads:', error)
-      return []
-    }
-  }
-
-  async createUpload(upload: Omit<Upload, 'id' | 'created_at' | 'updated_at'>): Promise<Upload> {
-    try {
-      const id = crypto.randomUUID()
-      const now = new Date()
-      
-      await db.run(`
-        INSERT INTO uploads (id, user_id, title, description, file_path, processed_file_path, file_size, mime_type, status, metadata, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [id, upload.user_id, upload.title, upload.description, upload.file_path, upload.processed_file_path, upload.file_size, upload.mime_type, upload.status, JSON.stringify(upload.metadata), now, now])
-      
-      // 生成したIDで作成されたレコードを取得
-      return await this.getUpload(id) as Upload
-    } catch (error) {
-      console.error('Error creating upload:', error)
-      throw error
-    }
-  }
-
-  async updateUpload(id: string, updates: Partial<Upload>): Promise<Upload | undefined> {
-    try {
-      const result = await db.run(`
-        UPDATE uploads 
-        SET title = COALESCE(?, title),
-            description = COALESCE(?, description),
-            processed_file_path = COALESCE(?, processed_file_path),
-            status = COALESCE(?, status),
-            metadata = COALESCE(?, metadata),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `, [updates.title, updates.description, updates.processed_file_path, updates.status, updates.metadata ? JSON.stringify(updates.metadata) : null, id])
-      
-      return await this.getUpload(id)
-    } catch (error) {
-      console.error('Error updating upload:', error)
-      return undefined
-    }
-  }
-
-  // ファイルパスでアップロードレコードを削除
-  async deleteUploadByFilePath(filePath: string): Promise<boolean> {
-    try {
-      const result = await db.run('DELETE FROM uploads WHERE file_path = ?', [filePath])
-      return result.changes > 0
-    } catch (error) {
-      console.error('Error deleting upload by file path:', error)
-      return false
-    }
-  }
-
   // RSS Episode operations
   async getRssEpisodeGuids(feedId: string): Promise<string[]> {
     try {
@@ -576,6 +454,179 @@ export class DatabaseStorage {
     } catch (error) {
       console.error('Error updating RSS episode:', error);
       return undefined;
+    }
+  }
+
+  async deleteRssEpisode(id: string): Promise<boolean> {
+    try {
+      const sqliteDb = await db
+      const result = await sqliteDb.run('DELETE FROM rss_episodes WHERE id = ?', [id])
+      return result.changes > 0
+    } catch (error) {
+      console.error('Error deleting RSS episode:', error)
+      return false
+    }
+  }
+
+  // Upload operations
+  async getUpload(id: string): Promise<Upload | undefined> {
+    try {
+      console.log(`🔍 Getting upload with ID: ${id}`)
+      console.log(`🔍 ID type: ${typeof id}`)
+      
+      const sqliteDb = await db
+      const result = await sqliteDb.get('SELECT * FROM uploads WHERE id = ?', [id])
+      console.log(`📊 SQLite query result:`, result)
+      
+      if (!result) {
+        console.log(`❌ No upload found with ID: ${id}`)
+        return undefined
+      }
+      
+      // SQLiteの場合は数値タイムスタンプをDateオブジェクトに変換
+      if (result.created_at) {
+        result.created_at = new Date(result.created_at)
+      }
+      if (result.updated_at) {
+        result.updated_at = new Date(result.updated_at)
+      }
+      
+      console.log(`✅ Upload found:`, result)
+      return result
+    } catch (error) {
+      console.error('❌ Error getting upload:', error)
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : 'No stack trace',
+        id: id
+      })
+      return undefined
+    }
+  }
+
+  async getAllUploads(): Promise<Upload[]> {
+    try {
+      const sqliteDb = await db
+      const result = await sqliteDb.all('SELECT * FROM uploads ORDER BY created_at DESC')
+      return result
+    } catch (error) {
+      console.error('Error getting all uploads:', error)
+      return []
+    }
+  }
+
+  async createUpload(upload: Omit<Upload, 'id' | 'created_at' | 'updated_at'>): Promise<Upload> {
+    try {
+      const id = crypto.randomUUID()
+      const now = new Date()
+      
+      const sqliteDb = await db
+      await sqliteDb.run(`
+        INSERT INTO uploads (id, user_id, title, description, file_path, processed_file_path, file_size, mime_type, status, metadata, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [id, upload.user_id, upload.title, upload.description, upload.file_path, upload.processed_file_path, upload.file_size, upload.mime_type, upload.status, JSON.stringify(upload.metadata), now, now])
+      
+      // 生成したIDで作成されたレコードを取得
+      return await this.getUpload(id) as Upload
+    } catch (error) {
+      console.error('Error creating upload:', error)
+      throw error
+    }
+  }
+
+  async updateUpload(id: string, updates: Partial<Upload>): Promise<Upload | undefined> {
+    try {
+      const sqliteDb = await db
+      const result = await sqliteDb.run(`
+        UPDATE uploads 
+        SET title = COALESCE(?, title),
+            description = COALESCE(?, description),
+            processed_file_path = COALESCE(?, processed_file_path),
+            status = COALESCE(?, status),
+            metadata = COALESCE(?, metadata),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [updates.title, updates.description, updates.processed_file_path, updates.status, updates.metadata ? JSON.stringify(updates.metadata) : null, id])
+      
+      return await this.getUpload(id)
+    } catch (error) {
+      console.error('Error updating upload:', error)
+      return undefined
+    }
+  }
+
+  // ファイルパスでアップロードレコードを削除
+  async deleteUploadByFilePath(filePath: string): Promise<boolean> {
+    try {
+      const sqliteDb = await db
+      const result = await sqliteDb.run('DELETE FROM uploads WHERE file_path = ?', [filePath])
+      return result.changes > 0
+    } catch (error) {
+      console.error('Error deleting upload by file path:', error)
+      return false
+    }
+  }
+
+  async getStats(userId: string): Promise<{
+    total_uploads: number
+    total_jobs: number
+    completed_jobs: number
+    failed_jobs: number
+    active_platforms: number
+  }> {
+    try {
+      const sqliteDb = await db
+      
+      const [
+        uploadsResult,
+        jobsResult,
+        completedJobsResult,
+        failedJobsResult,
+        activePlatformsResult
+      ] = await Promise.all([
+        // 総アップロード数
+        sqliteDb.get(
+          'SELECT COUNT(*) as count FROM uploads WHERE user_id = ?',
+          [userId]
+        ),
+        // 総ジョブ数
+        sqliteDb.get(
+          'SELECT COUNT(*) as count FROM jobs WHERE user_id = ?',
+          [userId]
+        ),
+        // 完了ジョブ数
+        sqliteDb.get(
+          'SELECT COUNT(*) as count FROM jobs WHERE user_id = ? AND status = ?',
+          [userId, 'completed']
+        ),
+        // 失敗ジョブ数
+        sqliteDb.get(
+          'SELECT COUNT(*) as count FROM jobs WHERE user_id = ? AND status = ?',
+          [userId, 'failed']
+        ),
+        // アクティブプラットフォーム数
+        sqliteDb.get(
+          'SELECT COUNT(*) as count FROM distribution_platforms WHERE user_id = ? AND is_active = ?',
+          [userId, 1]
+        )
+      ])
+
+      return {
+        total_uploads: uploadsResult?.count || 0,
+        total_jobs: jobsResult?.count || 0,
+        completed_jobs: completedJobsResult?.count || 0,
+        failed_jobs: failedJobsResult?.count || 0,
+        active_platforms: activePlatformsResult?.count || 0
+      }
+    } catch (error) {
+      console.error('Error getting stats:', error)
+      return {
+        total_uploads: 0,
+        total_jobs: 0,
+        completed_jobs: 0,
+        failed_jobs: 0,
+        active_platforms: 0
+      }
     }
   }
 }
