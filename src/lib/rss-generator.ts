@@ -46,13 +46,17 @@ export class RssGenerator {
     }
   }
 
-  private getMediaUrl(episodeId: number): string {
+  private getMediaUrl(episodeId: number, fileName?: string): string {
     const nodeEnv = process.env.NODE_ENV;
     const isLocalhost = process.env.LOCALHOST_RSS_ENABLED === 'true';
     
     if (nodeEnv === 'development' && isLocalhost) {
-      // localhost環境ではGitHub PagesのファイルURL
-      return `${this.baseUrl}/uploads/${episodeId}.mp3`;
+      // localhost環境ではAPI経由でファイルを配信
+      if (fileName) {
+        return `${this.baseUrl}/api/uploads?file=${encodeURIComponent(fileName)}`;
+      } else {
+        return `${this.baseUrl}/api/uploads?file=${episodeId}`;
+      }
     } else {
       // Railway環境ではAPI経由
       return `${this.baseUrl}/api/uploads/${episodeId}`;
@@ -147,7 +151,9 @@ export class RssGenerator {
     const now = new Date().toUTCString();
     
     const episodeItems = episodes.map(episode => {
-      const mediaUrl = this.getMediaUrl(episode.id);
+      // ファイルパスからファイル名を抽出
+      const fileName = episode.filePath ? episode.filePath.split('/').pop() : undefined;
+      const mediaUrl = this.getMediaUrl(episode.id, fileName);
       return `    <item>
       <title>${this.escapeXml(episode.title)}</title>
       <link>${mediaUrl}</link>
@@ -230,9 +236,9 @@ ${episodeItems}
         throw new Error(`Upload ${uploadId} not found`);
       }
 
-      // Check if upload is audio format suitable for podcast
-      if (!upload.mime_type.startsWith('audio/')) {
-        console.log(`Skipping RSS feed update for non-audio file: ${upload.mime_type}`);
+      // Check if upload is audio or video format suitable for podcast
+      if (!upload.mime_type.startsWith('audio/') && !upload.mime_type.startsWith('video/')) {
+        console.log(`Skipping RSS feed update for non-media file: ${upload.mime_type}`);
         return;
       }
 
@@ -306,24 +312,22 @@ ${episodeItems}
 
   private async getExistingEpisodes(): Promise<RssEpisode[]> {
     try {
-      // Get all completed uploads that are audio files
+      // Get all completed uploads that are audio or video files
       const uploads = await storage.getAllUploads();
-      const audioUploads = uploads.filter(upload => 
-        upload.mime_type.startsWith('audio/') && 
+      const mediaUploads = uploads.filter(upload => 
+        (upload.mime_type.startsWith('audio/') || upload.mime_type.startsWith('video/')) && 
         upload.status === 'completed'
       );
 
-      return audioUploads.map(upload => {
+      return mediaUploads.map(upload => {
         // created_atをDateオブジェクトに変換
         const pubDate = upload.created_at instanceof Date 
           ? upload.created_at 
           : typeof upload.created_at === 'number'
           ? new Date(upload.created_at)
           : new Date(upload.created_at);
-        
         // UUIDからエピソードIDを生成
         const episodeId = this.generateEpisodeId(upload.id);
-        
         return {
           id: episodeId,
           title: upload.title,
@@ -335,7 +339,6 @@ ${episodeItems}
           guid: `autopost-${upload.id}-${pubDate.getTime()}`,
         };
       });
-      
     } catch (error) {
       console.error('Failed to get existing episodes:', error);
       return [];

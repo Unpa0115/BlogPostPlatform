@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3005",
+    "dev:auto": "node scripts/start-dev.js",
     "build": "next build",
     "start": "NODE_OPTIONS='--max-old-space-size=768' next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
-    "health": "curl -s http://localhost:3000/api/health | jq",
+    "health": "curl -s http://localhost:3005/api/health | jq",
     "monitor": "node scripts/monitor-health.js"
   },
   "dependencies": {

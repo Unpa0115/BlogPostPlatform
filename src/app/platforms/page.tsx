@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +9,6 @@ import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/contexts/auth-context"
 import { Youtube, Music, Mic, Brain, Github } from "lucide-react"
 
 interface Platform {
@@ -50,31 +48,16 @@ export default function PlatformsPage() {
   const [openaiCredentials, setOpenAICredentials] = useState({
     apiKey: ""
   })
-  const [youtubeDebugInfo, setYoutubeDebugInfo] = useState<any>(null)
   const [isLocalhost, setIsLocalhost] = useState(false)
-  const [showYoutubeDebug, setShowYoutubeDebug] = useState(false)
-  const [githubRepo, setGithubRepo] = useState({
-    username: "",
-    repoName: ""
-  })
-  const [currentGithubPagesUrl, setCurrentGithubPagesUrl] = useState("")
+
   const { toast } = useToast()
-  const { user, token, loading: authLoading } = useAuth()
-  const router = useRouter()
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      // クライアントサイドでのリダイレクトを遅延させる
-      setTimeout(() => {
-        router.push('/login')
-      }, 100)
-      return
-    }
-
-    if (user && token) {
-      fetchPlatforms()
-    }
-  }, [user, token, authLoading, router])
+    // localhost専用設定のため、認証チェックを削除
+    console.log('=== Platforms Page Debug ===')
+    console.log('Fetching platforms...')
+    fetchPlatforms()
+  }, [])
 
   // localhost環境の検知
   useEffect(() => {
@@ -87,15 +70,7 @@ export default function PlatformsPage() {
     checkLocalhost()
   }, [])
 
-  // GitHub Pages URLの生成
-  useEffect(() => {
-    if (githubRepo.username && githubRepo.repoName) {
-      const githubPagesUrl = `https://${githubRepo.username}.github.io/${githubRepo.repoName}`
-      setCurrentGithubPagesUrl(githubPagesUrl)
-    } else {
-      setCurrentGithubPagesUrl("")
-    }
-  }, [githubRepo.username, githubRepo.repoName])
+
 
   // YouTube認証結果の確認
   useEffect(() => {
@@ -139,20 +114,23 @@ export default function PlatformsPage() {
   const fetchPlatforms = async () => {
     try {
       setLoading(true)
+      console.log('=== Fetching Platforms ===')
       const response = await fetch('/api/platforms', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        // キャッシュを無効化
+        // localhost専用設定のため、認証ヘッダーを削除
         cache: 'no-store'
       })
       
+      console.log('Response status:', response.status)
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+      
       if (response.ok) {
         const data = await response.json()
-        console.log('Fetched platforms data:', data.data)
-        setPlatforms(data.data)
+        console.log('Fetched platforms data:', data)
+        setPlatforms(data.data || [])
       } else {
         console.error('Platforms fetch failed:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('Error response body:', errorText)
         toast({
           title: "データ取得エラー",
           description: "プラットフォーム情報の取得に失敗しました。",
@@ -177,9 +155,7 @@ export default function PlatformsPage() {
       
       // OAuth認証URLを取得
       const authResponse = await fetch('/api/youtube/auth', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        // localhost専用設定のため、認証ヘッダーを削除
       })
 
       if (authResponse.ok) {
@@ -257,7 +233,7 @@ export default function PlatformsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          // localhost専用設定のため、認証ヘッダーを削除
         },
         body: JSON.stringify({
           platform_type: 'voicy',
@@ -290,7 +266,7 @@ export default function PlatformsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          // localhost専用設定のため、認証ヘッダーを削除
         },
         body: JSON.stringify({ url })
       })
@@ -334,7 +310,7 @@ export default function PlatformsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          // localhost専用設定のため、認証ヘッダーを削除
         },
         body: JSON.stringify({
           platform_type: 'spotify',
@@ -369,7 +345,7 @@ export default function PlatformsPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          // localhost専用設定のため、認証ヘッダーを削除
         },
         body: JSON.stringify({
           platform_type: 'openai',
@@ -395,140 +371,7 @@ export default function PlatformsPage() {
     }
   }
 
-  const handleGithubRepoSave = async () => {
-    if (!githubRepo.username || !githubRepo.repoName) {
-      toast({
-        title: "入力エラー",
-        description: "GitHubユーザー名とリポジトリ名を入力してください。",
-        variant: "destructive"
-      })
-      return
-    }
 
-    try {
-      // ローカルストレージに保存（開発用）
-      localStorage.setItem('github_pages_url', currentGithubPagesUrl)
-      localStorage.setItem('github_username', githubRepo.username)
-      localStorage.setItem('github_repo_name', githubRepo.repoName)
-      
-      toast({
-        title: "GitHub Pages設定保存完了",
-        description: `GitHub Pages URL: ${currentGithubPagesUrl}`,
-      })
-      
-      // 環境変数を更新するAPIを呼び出す（実際の実装では適切なAPIエンドポイントを作成）
-      console.log('GitHub Pages URL saved:', currentGithubPagesUrl)
-      
-    } catch (error) {
-      console.error('GitHub Pages save error:', error)
-      toast({
-        title: "エラー",
-        description: "GitHub Pages設定の保存中にエラーが発生しました。",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const checkYouTubeAuthStatus = async () => {
-    try {
-      const response = await fetch('/api/platforms/youtube/debug', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        setYoutubeDebugInfo(data)
-        console.log('YouTube debug info:', data)
-        
-        toast({
-          title: "認証状態確認",
-          description: `ClientID: ${data.debug.hasClientId ? '✓' : '✗'}, RefreshToken: ${data.debug.hasRefreshToken ? '✓' : '✗'}`,
-        })
-      } else {
-        toast({
-          title: "エラー",
-          description: "認証状態の確認に失敗しました。",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error('YouTube debug error:', error)
-      toast({
-        title: "エラー",
-        description: "認証状態の確認に失敗しました。",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const resetYouTubeAuth = async () => {
-    try {
-      const response = await fetch('/api/platforms/youtube/revoke', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-      
-      if (response.ok) {
-        toast({
-          title: "認証情報リセット完了",
-          description: "YouTube認証情報がリセットされました。再認証が必要です。",
-        })
-        await fetchPlatforms()
-        setYoutubeDebugInfo(null)
-      } else {
-        toast({
-          title: "エラー",
-          description: "認証情報のリセットに失敗しました。",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error('YouTube reset error:', error)
-      toast({
-        title: "エラー",
-        description: "認証情報のリセットに失敗しました。",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const fetchYoutubeDebugInfo = async () => {
-    try {
-      const response = await fetch('/api/debug/youtube-config', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setYoutubeDebugInfo(data.config)
-        setShowYoutubeDebug(true)
-        toast({
-          title: "デバッグ情報取得完了",
-          description: "YouTube設定のデバッグ情報を取得しました。",
-        })
-      } else {
-        const errorData = await response.json()
-        toast({
-          title: "デバッグ情報取得エラー",
-          description: `デバッグ情報の取得に失敗しました: ${errorData.error || 'Unknown error'}`,
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error('YouTube debug info fetch error:', error)
-      toast({
-        title: "デバッグ情報取得エラー",
-        description: "デバッグ情報の取得中にエラーが発生しました。",
-        variant: "destructive"
-      })
-    }
-  }
 
   const getPlatformStatus = (platformType: string) => {
     const platform = platforms.find(p => p.platform_type === platformType)
@@ -612,7 +455,7 @@ export default function PlatformsPage() {
     }))
   }
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-4xl mx-auto px-6 py-8">
@@ -623,10 +466,6 @@ export default function PlatformsPage() {
         </div>
       </div>
     )
-  }
-
-  if (!user) {
-    return null // リダイレクト中
   }
 
   return (
@@ -722,137 +561,9 @@ export default function PlatformsPage() {
                     placeholder="YouTube Client Secret"
                   />
                 </div>
-                <Button onClick={handleYouTubeAuth} className={`w-full ${getPlatformColors('youtube').button}`}>
+                                <Button onClick={handleYouTubeAuth} className={`w-full ${getPlatformColors('youtube').button}`}>
                   YouTube設定を保存
                 </Button>
-                <Button 
-                  onClick={checkYouTubeAuthStatus} 
-                  variant="outline" 
-                  className="w-full"
-                >
-                  認証状態を確認
-                </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={resetYouTubeAuth} 
-                    variant="outline" 
-                    className="flex-1"
-                  >
-                    認証情報をリセット
-                  </Button>
-                  <Button 
-                    onClick={fetchYoutubeDebugInfo} 
-                    variant="outline" 
-                    className="flex-1"
-                  >
-                    デバッグ情報
-                  </Button>
-                </div>
-                <Button 
-                  onClick={async () => {
-                    try {
-                      const authResponse = await fetch(`/api/platforms/youtube/auth?clientId=${encodeURIComponent(youtubeCredentials.clientId)}&clientSecret=${encodeURIComponent(youtubeCredentials.clientSecret)}`, {
-                        headers: {
-                          'Authorization': `Bearer ${token}`
-                        }
-                      })
-                      
-                      if (authResponse.ok) {
-                        const authData = await authResponse.json()
-                        window.open(authData.authUrl, '_blank')
-                        toast({
-                          title: "認証URLを開きました",
-                          description: "新しいタブでGoogle認証を完了してください。",
-                        })
-                      }
-                    } catch (error) {
-                      toast({
-                        title: "エラー",
-                        description: "認証URLの取得に失敗しました。",
-                        variant: "destructive"
-                      })
-                    }
-                  }}
-                  variant="outline" 
-                  className="w-full"
-                  disabled={!youtubeCredentials.clientId || !youtubeCredentials.clientSecret}
-                >
-                  認証URLを手動で開く
-                </Button>
-                {showYoutubeDebug && youtubeDebugInfo && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-gray-900">デバッグ情報</h4>
-                      <Button 
-                        onClick={() => setShowYoutubeDebug(false)} 
-                        variant="ghost" 
-                        size="sm"
-                      >
-                        閉じる
-                      </Button>
-                    </div>
-                    <div className="text-sm space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div><strong>環境:</strong> {youtubeDebugInfo.environment}</div>
-                        <div><strong>App URL:</strong> {youtubeDebugInfo.appUrl || 'NOT SET'}</div>
-                      </div>
-                                              <div className="border-t pt-2">
-                          <div><strong>Client ID:</strong> {youtubeDebugInfo.youtube.clientId.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
-                          {youtubeDebugInfo.youtube.clientId.exists && youtubeDebugInfo.youtube.clientId.hasWhitespace && (
-                            <div className="text-xs text-red-600">⚠️ 改行文字や空白が含まれています</div>
-                          )}
-                          {youtubeDebugInfo.youtube.clientId.exists && (
-                            <div className="text-xs font-mono bg-white p-1 rounded border">
-                              生の値: {youtubeDebugInfo.youtube.clientId.rawPreview}
-                            </div>
-                          )}
-                          <div><strong>Client Secret:</strong> {youtubeDebugInfo.youtube.clientSecret.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
-                          {youtubeDebugInfo.youtube.clientSecret.exists && youtubeDebugInfo.youtube.clientSecret.hasWhitespace && (
-                            <div className="text-xs text-red-600">⚠️ 改行文字や空白が含まれています</div>
-                          )}
-                          {youtubeDebugInfo.youtube.clientSecret.exists && (
-                            <div className="text-xs font-mono bg-white p-1 rounded border">
-                              生の値: {youtubeDebugInfo.youtube.clientSecret.rawPreview}
-                            </div>
-                          )}
-                          <div><strong>API Key:</strong> {youtubeDebugInfo.youtube.apiKey.exists ? '✓ 設定済み' : '✗ 未設定'}</div>
-                        </div>
-                      <div className="border-t pt-2">
-                        <div><strong>リダイレクトURI:</strong></div>
-                        <div className="font-mono text-xs bg-white p-2 rounded border break-all">
-                          {youtubeDebugInfo.redirectUri}
-                        </div>
-                      </div>
-                      <div className="border-t pt-2">
-                        <div><strong>環境変数一覧:</strong></div>
-                        <div className="text-xs space-y-1">
-                          {Object.entries(youtubeDebugInfo.allEnvVars).map(([key, value]) => (
-                            <div key={key} className="flex justify-between">
-                              <span>{key}:</span>
-                              <span className={value === 'SET' ? 'text-green-600' : 'text-red-600'}>{String(value)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    {(!youtubeDebugInfo.youtube.clientId.exists || !youtubeDebugInfo.youtube.clientSecret.exists) && (
-                      <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                        <strong>エラー:</strong> YouTube Client IDまたはClient Secretが設定されていません。環境変数を確認してください。
-                      </div>
-                    )}
-                    {(youtubeDebugInfo.youtube.clientId.exists && youtubeDebugInfo.youtube.clientId.hasWhitespace) || 
-                     (youtubeDebugInfo.youtube.clientSecret.exists && youtubeDebugInfo.youtube.clientSecret.hasWhitespace) && (
-                      <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                        <strong>警告:</strong> Client IDまたはClient Secretに改行文字や空白が含まれています。これが401エラーの原因の可能性があります。
-                      </div>
-                    )}
-                    {youtubeDebugInfo.appUrl === 'NOT SET' && (
-                      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                        <strong>情報:</strong> NEXT_PUBLIC_APP_URLが設定されていません。本番環境では必要です。
-                      </div>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -998,70 +709,6 @@ export default function PlatformsPage() {
                 >
                   {savingSpotify ? '検証中...' : 'Spotify設定を保存'}
                 </Button>
-
-                {/* localhost環境でのみ表示されるGitHubリポジトリ選択UI */}
-                {isLocalhost && (
-                  <div className="border-t pt-6 mt-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Badge variant="outline" className="text-xs">localhost実行用</Badge>
-                      <h4 className="font-medium text-gray-900 flex items-center gap-2">
-                        <Github className="h-4 w-4" />
-                        GitHub Pages設定
-                      </h4>
-                    </div>
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-blue-800 mb-4">
-                        localhost環境では、GitHub PagesのRSS Feedを使用できます。任意のGitHubリポジトリを選択してください。
-                      </p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="github-username">GitHubユーザー名</Label>
-                          <Input
-                            id="github-username"
-                            type="text"
-                            value={githubRepo.username}
-                            onChange={(e) => setGithubRepo(prev => ({ ...prev, username: e.target.value }))}
-                            placeholder="your-username"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="github-repo-name">リポジトリ名</Label>
-                          <Input
-                            id="github-repo-name"
-                            type="text"
-                            value={githubRepo.repoName}
-                            onChange={(e) => setGithubRepo(prev => ({ ...prev, repoName: e.target.value }))}
-                            placeholder="your-repo-name"
-                          />
-                        </div>
-                      </div>
-                      {currentGithubPagesUrl && (
-                        <div className="mt-4 p-3 bg-white rounded border">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">生成されるURL:</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => navigator.clipboard.writeText(currentGithubPagesUrl)}
-                            >
-                              コピー
-                            </Button>
-                          </div>
-                          <p className="text-sm font-mono text-gray-600 mt-1 break-all">
-                            {currentGithubPagesUrl}
-                          </p>
-                        </div>
-                      )}
-                      <Button 
-                        onClick={handleGithubRepoSave}
-                        className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white"
-                        disabled={!githubRepo.username || !githubRepo.repoName}
-                      >
-                        GitHub Pages設定を保存
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>

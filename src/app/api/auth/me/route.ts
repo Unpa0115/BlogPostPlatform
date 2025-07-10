@@ -8,7 +8,29 @@ export async function GET(request: NextRequest) {
     const dbTest = await testConnectionSimple()
     console.log('Database connection test:', dbTest)
 
-    // 認証情報の確認
+    // localhost環境では認証チェックをスキップ
+    const isLocalhost = request.headers.get('host')?.includes('localhost') || 
+                       request.headers.get('host')?.includes('127.0.0.1') ||
+                       request.headers.get('host')?.includes('192.168.')
+
+    if (isLocalhost) {
+      // localhost環境では固定ユーザーを返す
+      const localhostUser = {
+        id: 'localhost-user',
+        email: 'localhost@example.com',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: localhostUser,
+        database: dbTest,
+        environment: 'localhost'
+      })
+    }
+
+    // 本番環境では認証情報の確認
     const user = await verifyAuth(request)
     
     if (!user) {
@@ -21,7 +43,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user,
-      database: dbTest
+      database: dbTest,
+      environment: 'production'
     })
 
   } catch (error) {

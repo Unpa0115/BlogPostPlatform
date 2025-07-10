@@ -86,12 +86,26 @@ export function UploadForm({ onUploadComplete }: UploadFormProps) {
       formData.append('file', selectedFile)
       formData.append('metadata', JSON.stringify(metadata))
 
+      // localhost環境では認証チェックをスキップ
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )
+
+      const headers: Record<string, string> = {}
+      
+      if (!isLocalhost) {
+        const token = localStorage.getItem('token')
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+      }
+
       const response = await fetch('/api/uploads', {
         method: 'POST',
         body: formData,
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        headers
       })
 
       if (!response.ok) {

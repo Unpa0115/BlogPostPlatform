@@ -12,14 +12,14 @@ function generateUUID(): string {
   })
 }
 
+// localhost専用のデフォルトユーザーID
+const LOCALHOST_USER_ID = 'localhost-user'
+
 // プラットフォーム一覧取得
 export async function GET(request: NextRequest) {
   try {
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     if (process.env.NODE_ENV === 'production') {
       // PostgreSQL
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
         FROM distribution_platforms
         WHERE user_id = $1
         ORDER BY created_at DESC
-      `, [user.id])
+      `, [userId])
 
       // 認証情報を復号化
       const decryptedData = result.rows.map((platform: any) => {
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
         FROM distribution_platforms
         WHERE user_id = ?
         ORDER BY created_at DESC
-      `, [user.id])
+      `, [userId])
 
       // 認証情報を復号化
       const decryptedData = result.map((platform: any) => {
@@ -126,11 +126,8 @@ export async function GET(request: NextRequest) {
 // プラットフォーム追加・更新
 export async function POST(request: NextRequest) {
   try {
-    // 認証チェック
-    const user = await verifyAuth(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // localhost専用設定のため、認証チェックをスキップ
+    const userId = LOCALHOST_USER_ID
 
     const body = await request.json()
     const { platform_type, platform_name, credentials, settings } = body
@@ -181,7 +178,7 @@ export async function POST(request: NextRequest) {
       // 既存のプラットフォームをチェック
       const existingResult = await db.query(
         'SELECT id FROM distribution_platforms WHERE user_id = $1 AND platform_type = $2',
-        [user.id, platform_type]
+        [userId, platform_type]
       )
 
       let result
@@ -192,14 +189,14 @@ export async function POST(request: NextRequest) {
           SET platform_name = $1, credentials = $2, settings = $3, is_active = true, updated_at = NOW()
           WHERE user_id = $4 AND platform_type = $5
           RETURNING id, platform_type, platform_name, is_active
-        `, [platform_name, encryptedCredentials, settings || {}, user.id, platform_type])
+        `, [platform_name, encryptedCredentials, settings || {}, userId, platform_type])
       } else {
         // 新規作成
         result = await db.query(`
           INSERT INTO distribution_platforms (user_id, platform_type, platform_name, credentials, settings, is_active)
           VALUES ($1, $2, $3, $4, $5, true)
           RETURNING id, platform_type, platform_name, is_active
-        `, [user.id, platform_type, platform_name, encryptedCredentials, settings || {}])
+        `, [userId, platform_type, platform_name, encryptedCredentials, settings || {}])
       }
 
       return NextResponse.json({
@@ -213,7 +210,7 @@ export async function POST(request: NextRequest) {
       // 既存のプラットフォームをチェック
       const existingResult = await sqliteDb.get(
         'SELECT id FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
-        [user.id, platform_type]
+        [userId, platform_type]
       )
 
       let result
@@ -224,11 +221,11 @@ export async function POST(request: NextRequest) {
           UPDATE distribution_platforms 
           SET platform_name = ?, credentials = ?, settings = ?, is_active = 1, updated_at = ?
           WHERE user_id = ? AND platform_type = ?
-        `, [platform_name, JSON.stringify(encryptedCredentials), JSON.stringify(settings || {}), now, user.id, platform_type])
+        `, [platform_name, JSON.stringify(encryptedCredentials), JSON.stringify(settings || {}), now, userId, platform_type])
         
         result = await sqliteDb.get(
           'SELECT id, platform_type, platform_name, is_active FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
-          [user.id, platform_type]
+          [userId, platform_type]
         )
       } else {
         // 新規作成
@@ -238,7 +235,7 @@ export async function POST(request: NextRequest) {
         await sqliteDb.run(`
           INSERT INTO distribution_platforms (id, user_id, platform_type, platform_name, credentials, settings, is_active, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
-        `, [platformId, user.id, platform_type, platform_name, JSON.stringify(encryptedCredentials), JSON.stringify(settings || {}), now, now])
+        `, [platformId, userId, platform_type, platform_name, JSON.stringify(encryptedCredentials), JSON.stringify(settings || {}), now, now])
         
         result = {
           id: platformId,

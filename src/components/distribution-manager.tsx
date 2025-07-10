@@ -173,13 +173,25 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
     try {
       console.log('=== YouTube Upload ===')
       
+      // localhost環境では認証チェックをスキップ
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )
+
       // まず認証状態を確認
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (!isLocalhost && token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const authResponse = await fetch('/api/youtube/auth', {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers
       })
 
       if (!authResponse.ok) {
@@ -188,12 +200,17 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       }
 
       // アップロードを実行
+      const uploadHeaders: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (!isLocalhost && token) {
+        uploadHeaders['Authorization'] = `Bearer ${token}`
+      }
+
       const response = await fetch('/api/youtube/upload', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: uploadHeaders,
         body: JSON.stringify({
           title,
           description,
@@ -240,12 +257,24 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
 
   const uploadToVoicy = async (credentials: any) => {
     try {
+      // localhost環境では認証チェックをスキップ
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (!isLocalhost && token) {
+        headers['Authorization'] = `Bearer ${token}`
+      }
+
       const response = await fetch('/api/platforms/voicy-upload', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers,
         body: JSON.stringify({
           email: credentials.email,
           password: credentials.password,
@@ -282,22 +311,33 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         throw new Error('Upload ID is required for Spotify RSS generation')
       }
 
-      // ユーザーIDを取得
-      const userResponse = await fetch('/api/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      // localhost環境では認証チェックをスキップ
+      const isLocalhost = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' || 
+        window.location.hostname.startsWith('192.168.')
+      )
+
+      let userId = 'localhost-user' // デフォルト値
+
+      if (!isLocalhost) {
+        // 本番環境では認証チェック
+        const userResponse = await fetch('/api/auth/me', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        
+        if (!userResponse.ok) {
+          throw new Error('Failed to get user information')
         }
-      })
-      
-      if (!userResponse.ok) {
-        throw new Error('Failed to get user information')
-      }
-      
-      const userData = await userResponse.json()
-      const userId = userData.user?.id
-      
-      if (!userId) {
-        throw new Error('User ID not found')
+        
+        const userData = await userResponse.json()
+        userId = userData.user?.id
+        
+        if (!userId) {
+          throw new Error('User ID not found')
+        }
       }
       
       console.log('User ID:', userId)
@@ -310,10 +350,14 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           const fileName = filePath.split('/').pop()
           console.log('Looking up UUID for file name:', fileName)
           
+          const lookupHeaders: Record<string, string> = {}
+          
+          if (!isLocalhost && token) {
+            lookupHeaders['Authorization'] = `Bearer ${token}`
+          }
+
           const uploadResponse = await fetch(`/api/uploads/lookup?fileName=${encodeURIComponent(fileName || '')}&userId=${encodeURIComponent(userId)}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
+            headers: lookupHeaders
           })
           
           if (uploadResponse.ok) {
@@ -330,12 +374,17 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         }
       }
 
+      const rssHeaders: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      
+      if (!isLocalhost && token) {
+        rssHeaders['Authorization'] = `Bearer ${token}`
+      }
+
       const response = await fetch('/api/rss', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: rssHeaders,
         body: JSON.stringify({
           uploadId: actualUploadId,
           userId,
