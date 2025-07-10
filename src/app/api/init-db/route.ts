@@ -10,7 +10,7 @@ export async function POST() {
     const connectionTest = await testConnection()
     console.log('Connection test result:', connectionTest)
     
-    if (connectionTest && connectionTest.status === 'connected') {
+    if (connectionTest && connectionTest.success) {
       // テーブル作成
       await createTables()
       
