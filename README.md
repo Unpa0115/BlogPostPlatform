@@ -1,65 +1,59 @@
 # BlogPostPlatform
 
-音声取得、自動トリミング、複数配信プラットフォームへの自動アップロード機能を持つブログ投稿プラットフォーム
+音声コンテンツをYouTube、Voicy、Spotifyに自動配信するオープンソースシステム
 
-## セキュリティ機能
+## 🚀 概要
 
-### Credentials暗号化
-- すべてのプラットフォーム認証情報はAES-256-GCMで暗号化
-- 環境変数`ENCRYPTION_MASTER_KEY`で管理
-- データベースには暗号化された状態で保存
-- 復号化はアプリケーション実行時のみ
+BlogPostPlatformは、音声コンテンツの前処理、文字起こし、要約生成から多プラットフォーム配信まで、一連のワークフローを自動化するシステムです。OpenAI Whisper APIとBrowserless.ioを活用し、効率的な音声コンテンツ配信を実現します。
 
-### 認証・認可
-- JWTベースの認証システム
-- ユーザーごとの認証情報分離
-- APIエンドポイントの認証保護
+## ✨ 主な機能
 
-## 機能
+- **🎵 音声処理**: OpenAI Whisper APIによる高精度な文字起こしと要約生成
+- **🎯 自動トリミング**: 無音部分の検出とキーフレーズベースの最適化トリミング
+- **📺 多プラットフォーム配信**: YouTube、Voicy、Spotifyへの同時配信
+- **🤖 ブラウザ自動化**: Browserless.io + PlaywrightによるVoicy自動化
+- **📡 RSS Feed生成**: Spotify Podcast用の動的RSS Feed生成
+- **🔒 セキュリティ**: AES-256-GCM暗号化による認証情報管理
 
-- 🎵 音声ファイルのアップロード・管理（Railway Storage）
-- ✂️ Whisper APIを使用した自動音声トリミング
-- 📤 複数プラットフォームへの自動配信（Voicy、YouTube、Spotify）
-- 🔌 プラグイン方式での機能拡張
-- 📊 ジョブ管理・ステータス追跡
-- 🔐 JWT認証システム
+## 🛠️ 技術スタック
 
-## 技術スタック
+### フロントエンド
+- **Next.js 14** - React フレームワーク
+- **React 18** - UI ライブラリ
+- **TypeScript** - 型安全性
+- **Tailwind CSS** - スタイリング
+- **Shadcn/ui** - UI コンポーネント
 
-- **フロントエンド**: Next.js 14, React 18, TypeScript
-- **スタイリング**: Tailwind CSS, shadcn/ui
-- **データベース**: SQLite (localhost環境)
-- **認証**: JWT + bcryptjs
-- **ストレージ**: Railway Storage
-- **暗号化**: AES-256-GCM
-- **音声処理**: OpenAI Whisper API
-- **自動化**: Browserless.io (Playwright)
-- **配信API**: YouTube Data API
+### バックエンド
+- **Next.js API Routes** - サーバーサイドAPI
+- **Railway PostgreSQL** - データベース
+- **OpenAI Whisper API** - 音声文字起こし
+- **Browserless.io** - ブラウザ自動化
+- **YouTube Data API v3** - YouTube配信
 
-## セットアップ
+### セキュリティ
+- **Clerk** - 認証・ユーザー管理
+- **AES-256-GCM** - 認証情報暗号化
+- **環境変数管理** - 機密情報保護
 
-### 1. 環境変数の設定
+## 📚 ドキュメント
+
+詳細なドキュメントは [docs/](./docs/) ディレクトリをご覧ください：
+
+- [📖 ドキュメント概要](./docs/README.md)
+- [⚙️ セットアップガイド](./docs/setup/)
+- [🎯 プラットフォーム設定](./docs/platforms/)
+- [🔧 機能詳細](./docs/features/)
+- [👨‍💻 開発者ガイド](./docs/development/)
+- [🐛 トラブルシューティング](./docs/troubleshooting/)
+
+## 🚀 クイックスタート
+
+### 1. リポジトリのクローン
 
 ```bash
-cp env.example .env.local
-```
-
-必須の環境変数：
-- `DATABASE_URL`: SQLiteファイルは自動生成されます
-- `JWT_SECRET`: JWT署名用シークレット
-- `ENCRYPTION_MASTER_KEY`: Credentials暗号化用マスターキー（32文字以上推奨）
-
-### RSS Feed環境別設定
-
-localhost環境でGitHub PagesのRSS Feedを使用する場合：
-```bash
-LOCALHOST_RSS_ENABLED=true
-GITHUB_PAGES_URL=https://your-username.github.io/your-repo-name
-```
-
-通常のlocalhost環境（従来通り）：
-```bash
-LOCALHOST_RSS_ENABLED=false
+git clone https://github.com/your-repo/BlogPostPlatform.git
+cd BlogPostPlatform
 ```
 
 ### 2. 依存関係のインストール
@@ -68,138 +62,123 @@ LOCALHOST_RSS_ENABLED=false
 npm install
 ```
 
-### 3. データベース初期化
+### 3. 環境変数の設定
+
+```bash
+cp env.example .env.local
+```
+
+必要な環境変数を設定してください：
+- `OPENAI_API_KEY` - OpenAI API キー
+- `BROWSERLESS_API_KEY` - Browserless.io API キー
+- `DATABASE_URL` - PostgreSQL 接続URL
+- `ENCRYPTION_KEY` - 32文字の暗号化キー
+
+詳細は [環境変数設定ガイド](./docs/setup/environment-variables.md) を参照。
+
+### 4. データベースの初期化
 
 ```bash
 npm run db:init
 ```
 
-### 4. 開発サーバー起動
+### 5. 開発サーバーの起動
 
-#### 通常の起動（ポート3005）
 ```bash
 npm run dev
 ```
 
-#### 自動ポート検出（ポート競合回避）
+ブラウザで `http://localhost:3000` にアクセスしてください。
+
+## 🎯 プラットフォーム設定
+
+各プラットフォームの設定を行ってください：
+
+- [YouTube設定](./docs/platforms/youtube.md) - YouTube Data API設定
+- [Voicy設定](./docs/platforms/voicy.md) - Browserless.io自動化設定
+- [Spotify設定](./docs/platforms/spotify.md) - RSS Feed設定
+
+## 🔒 セキュリティ
+
+### 認証情報の暗号化
+
+すべてのプラットフォーム認証情報はAES-256-GCMで暗号化され、Railway PostgreSQLに安全に保存されます。
+
+### 環境変数管理
+
+機密情報は環境変数で管理され、Gitにコミットされることはありません。
+
+### アクセス制御
+
+Clerk認証により、ユーザーごとの適切なアクセス制御を実現しています。
+
+## 🚀 デプロイ
+
+Railwayでのデプロイを推奨しています：
+
 ```bash
-npm run dev:auto
+# Railway CLIのインストール
+npm install -g @railway/cli
+
+# Railwayにログイン
+railway login
+
+# デプロイ
+railway up
 ```
 
-**注意**: ポート3005が他のプロジェクトで使用されている場合、自動的に3006以降のポートで起動します。
+詳細は [デプロイ方法ガイド](./docs/setup/deployment.md) を参照してください。
 
-## プロジェクト構造
+## 🧪 テスト
 
-```
-src/
-├── app/                 # Next.js App Router
-│   ├── layout.tsx      # ルートレイアウト
-│   ├── page.tsx        # ホームページ
-│   └── globals.css     # グローバルスタイル
-├── components/         # Reactコンポーネント
-├── lib/               # ライブラリ設定
-│   ├── railway.ts     # Railway PostgreSQL/Storage
-│   ├── auth.ts        # JWT認証システム
-│   └── database.ts    # データベース初期化
-├── types/             # TypeScript型定義
-├── hooks/             # カスタムフック
-├── utils/             # ユーティリティ関数
-└── contexts/          # Reactコンテキスト
+```bash
+# 単体テスト
+npm run test
 
-rss-feed-deploy/        # RSSフィード専用デプロイ環境
-├── public/
-│   └── feed.xml       # 生成されたRSSフィード
-├── railway.json       # Railway設定
-├── package.json       # 依存関係
-└── README.md         # セットアップガイド
+# E2Eテスト
+npm run test:e2e
+
+# 型チェック
+npm run type-check
 ```
 
-## データベーススキーマ
+## 📊 パフォーマンス
 
-### users
-- id (UUID, Primary Key)
-- email (VARCHAR, Unique)
-- password_hash (VARCHAR)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
+- **音声処理**: FFmpeg.wasmによる効率的な音声処理
+- **並列処理**: 複数ファイルの同時処理対応
+- **キャッシュ**: 文字起こし結果のキャッシュ機能
+- **CDN**: 静的アセットの最適化配信
 
-### audio_files
-- id (UUID, Primary Key)
-- user_id (UUID, Foreign Key)
-- file_name (VARCHAR)
-- file_url (TEXT)
-- file_size (BIGINT)
-- duration (INTEGER)
-- status (VARCHAR)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
+## 🤝 コントリビューション
 
-### jobs
-- id (UUID, Primary Key)
-- user_id (UUID, Foreign Key)
-- audio_file_id (UUID, Foreign Key)
-- job_type (VARCHAR)
-- status (VARCHAR)
-- result_url (TEXT)
-- error_message (TEXT)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
+プロジェクトへの貢献を歓迎します！
 
-### distribution_platforms
-- id (UUID, Primary Key)
-- user_id (UUID, Foreign Key)
-- platform_type (VARCHAR)
-- platform_name (VARCHAR)
-- credentials (JSONB)
-- enabled (BOOLEAN)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
+1. このリポジトリをフォーク
+2. 機能ブランチを作成 (`git checkout -b feature/amazing-feature`)
+3. 変更をコミット (`git commit -m 'Add amazing feature'`)
+4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
+5. プルリクエストを作成
 
-## 開発
+詳細は [開発者ガイド](./docs/development/) を参照してください。
 
-### 利用可能なスクリプト
+## 📄 ライセンス
 
-- `npm run dev` - 開発サーバー起動
-- `npm run build` - プロダクションビルド
-- `npm run start` - プロダクションサーバー起動
-- `npm run lint` - ESLint実行
-- `npm run type-check` - TypeScript型チェック
-- `npm run db:init` - データベース初期化
+このプロジェクトは [MIT License](LICENSE) の下で公開されています。
 
-### コーディング規約
+## 🆘 サポート
 
-- TypeScriptの厳格モードを使用
-- ESLint + Prettierでコードフォーマット
-- コンポーネントは関数型コンポーネント
-- Server Componentsを優先使用
-- Railwayベースの一貫したアーキテクチャを維持
+- [📖 ドキュメント](./docs/)
+- [🐛 Issues](https://github.com/your-repo/BlogPostPlatform/issues)
+- [💬 Discussions](https://github.com/your-repo/BlogPostPlatform/discussions)
+- [📧 メール](mailto:support@blogpostplatform.com)
 
-## デプロイ
+## 🙏 謝辞
 
-### メインアプリケーション
+- [OpenAI](https://openai.com/) - Whisper API
+- [Browserless.io](https://browserless.io/) - ブラウザ自動化
+- [Railway](https://railway.app/) - ホスティングプラットフォーム
+- [Clerk](https://clerk.com/) - 認証システム
 
-Railwayでの自動デプロイに対応しています。
+---
 
-1. GitHubリポジトリをRailwayに接続
-2. 環境変数を設定
-3. 自動デプロイ開始
-
-### RSSフィード専用デプロイ
-
-RSSフィードのみをホスティングする場合は、`rss-feed-deploy/`ディレクトリを使用してください。
-
-詳細は [rss-feed-deploy/README.md](rss-feed-deploy/README.md) を参照してください。
-
-## 注意事項
-
-- `ENCRYPTION_MASTER_KEY`は絶対に漏洩させないでください
-- 本番環境では強力なマスターキーを使用してください
-- 定期的なセキュリティ監査を推奨します
-
-## ライセンス
-
-MIT License
-
-## 貢献
-
-プルリクエストやイシューの報告を歓迎します。 
+**⭐ このプロジェクトが役に立ったら、スターを付けてください！** 

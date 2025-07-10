@@ -342,11 +342,16 @@ export default function Dashboard() {
     if (!distributionFile) return
     setIsPreprocessing(true)
     try {
+      // 出力ファイル名を生成
+      const timestamp = Date.now()
+      const outputFileName = `trimmed_${timestamp}_${distributionFile.filePath}`
+      
       const response = await fetch('/api/uploads/trim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileId: distributionFile.id,
+          filePath: distributionFile.filePath, // fileIdではなくfilePathを使用
+          outputFileName,
           trimSilence,
           keyword: keyword || undefined
         })
