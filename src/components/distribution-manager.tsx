@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -50,35 +50,40 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
   })
   
   const { toast } = useToast()
-  const { isPlatformConfigured, getPlatformCredentials } = usePlatforms()
+  const { isPlatformConfigured, getPlatformCredentials, platforms: platformsData } = usePlatforms()
   const { token, user } = useAuth()
 
-  // ファイル形式に基づいてプラットフォームの対応状況をチェック
-  useEffect(() => {
-    // filePathまたはtitleからファイル名を取得
-    let fileName = ''
-    
+  // ファイル名を取得する処理をメモ化
+  const fileName = useMemo(() => {
     if (filePath) {
-      // filePathからファイル名を抽出（パスの最後の部分）
-      fileName = filePath.split('/').pop() || filePath.split('\\').pop() || filePath
+      return filePath.split('/').pop() || filePath.split('\\').pop() || filePath
     } else if (title) {
-      fileName = title
+      return title
+    }
+    return ''
+  }, [filePath, title])
+
+  // プラットフォーム設定状況をメモ化（無限ループを防止）
+  const platformConfigurations = useMemo(() => {
+    // platformsData が空または未定義の場合は、すべて false を返す
+    if (!platformsData || platformsData.length === 0) {
+      return { youtube: false, voicy: false, spotify: false }
     }
     
-    // ファイル名が空の場合は処理をスキップ
+    return {
+      youtube: platformsData.some(p => p.platform_type === 'youtube' && p.is_active && p.credentials),
+      voicy: platformsData.some(p => p.platform_type === 'voicy' && p.is_active && p.credentials),
+      spotify: platformsData.some(p => p.platform_type === 'spotify' && p.is_active && p.credentials)
+    }
+  }, [platformsData])
+
+  // ファイル形式に基づくプラットフォーム対応状況をメモ化
+  const filePlatformSupport = useMemo(() => {
     if (!fileName || fileName === 'Untitled') {
-      return
+      return {}
     }
-    
-    console.log('=== File Format Check Debug ===')
-    console.log('fileName:', fileName)
-    console.log('filePath:', filePath)
-    console.log('title:', title)
-    console.log('mimeType:', mimeType)
     
     const supportResults = checkAllPlatforms(fileName, mimeType)
-    console.log('Support results:', supportResults)
-    
     const newPlatformSupport: { [key: string]: PlatformSupport } = {}
     
     Object.keys(supportResults).forEach(platform => {
@@ -90,29 +95,42 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
       }
     })
     
-    console.log('New platform support:', newPlatformSupport)
-    setPlatformSupport(newPlatformSupport)
-    
-    // 対応していないプラットフォームは自動的にオフにし、対応しているプラットフォームは自動的にオンにする
-    setDistributionTargets(prev => {
-      const newTargets = { ...prev }
-      Object.keys(newPlatformSupport).forEach(platform => {
-        if (!newPlatformSupport[platform].isSupported) {
-          newTargets[platform as keyof typeof prev] = false
-        } else {
-          // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
-          const isConfigured = isPlatformConfigured(platform as 'youtube' | 'voicy' | 'spotify')
-          if (isConfigured) {
-            newTargets[platform as keyof typeof prev] = true
+    return newPlatformSupport
+  }, [fileName, mimeType])
+
+  // プラットフォームサポート状況の更新（最適化版・無限ループ防止）
+  useEffect(() => {
+    if (Object.keys(filePlatformSupport).length > 0) {
+      setPlatformSupport(filePlatformSupport)
+      
+      // 配信対象の自動設定（変更がある場合のみ）
+      setDistributionTargets(prev => {
+        const newTargets = { ...prev }
+        let hasChanges = false
+        
+        Object.keys(filePlatformSupport).forEach(platform => {
+          const platformKey = platform as keyof typeof prev
+          let newValue: boolean
+          
+          if (!filePlatformSupport[platform].isSupported) {
+            newValue = false
           } else {
-            // 設定されていない場合はオフのままにする
-            newTargets[platform as keyof typeof prev] = false
+            // 対応しているプラットフォームで、かつ設定済みの場合は自動的にオンにする
+            const isConfigured = platformConfigurations[platform as keyof typeof platformConfigurations]
+            newValue = isConfigured
           }
-        }
+          
+          if (prev[platformKey] !== newValue) {
+            newTargets[platformKey] = newValue
+            hasChanges = true
+          }
+        })
+        
+        // 変更があった場合のみ新しいオブジェクトを返す
+        return hasChanges ? newTargets : prev
       })
-      return newTargets
-    })
-  }, [filePath, title, mimeType])
+    }
+  }, [filePlatformSupport, platformConfigurations])
 
   const platforms = [
     {
@@ -301,11 +319,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
 
   const uploadToSpotify = async (credentials: any) => {
     try {
-      console.log('=== Spotify RSS Generation Debug ===')
-      console.log('Upload ID:', uploadId)
-      console.log('Title:', title)
-      console.log('Description:', description)
-      console.log('File path:', filePath)
+      console.log('🎵 Starting Spotify RSS generation for:', uploadId || 'unknown')
       
       if (!uploadId) {
         throw new Error('Upload ID is required for Spotify RSS generation')
@@ -348,7 +362,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         try {
           // ファイル名を抽出（パスから最後の部分）
           const fileName = filePath.split('/').pop()
-          console.log('Looking up UUID for file name:', fileName)
+          // console.log('Looking up UUID for file name:', fileName)
           
           const lookupHeaders: Record<string, string> = {}
           
@@ -364,7 +378,7 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
             const uploadData = await uploadResponse.json()
             if (uploadData.success && uploadData.upload) {
               actualUploadId = uploadData.upload.id
-              console.log('Found UUID from file name:', actualUploadId)
+              // console.log('Found UUID from file name:', actualUploadId)
             }
           } else {
             console.log('Failed to get UUID from file name, response not ok:', uploadResponse.status)
@@ -382,7 +396,34 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
         rssHeaders['Authorization'] = `Bearer ${token}`
       }
 
-      const response = await fetch('/api/rss', {
+      // 🔥 重要：RSS Feed更新先を環境に応じて分岐
+      let rssApiUrl = '/api/rss'
+      if (isLocalhost) {
+        // localhost環境からは環境変数で指定されたRSS Feed APIに直接送信
+        const spotifyRssFeedUrl = process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL || 'https://blogpostplatform-production.up.railway.app/api/rss'
+        rssApiUrl = spotifyRssFeedUrl
+        console.log('🌐 Localhost → Railway RSS Feed Update')
+      } else {
+        console.log('🏠 Production → Local RSS Feed Update')
+      }
+
+      console.log('🚀 Sending request to RSS API:', {
+        url: rssApiUrl,
+        method: 'POST',
+        headers: rssHeaders,
+        body: {
+          uploadId: actualUploadId,
+          userId,
+          title,
+          description,
+          audioFile: filePath,
+          mimeType,
+          action: 'add',
+          testMode: isLocalhost,
+        }
+      })
+
+      const response = await fetch(rssApiUrl, {
         method: 'POST',
         headers: rssHeaders,
         body: JSON.stringify({
@@ -392,18 +433,42 @@ export function DistributionManager({ uploadId, title, description, filePath, mi
           description,
           audioFile: filePath,
           mimeType,
-          action: 'add'
+          action: 'add',
+          // 🧪 localhost環境ではテストモードを有効化
+          testMode: isLocalhost,
         })
       })
 
+      console.log('📡 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        ok: response.ok
+      })
+
       if (!response.ok) {
-        const errorData = await response.json()
-        console.log('Spotify RSS generation failed:', errorData)
-        throw new Error(errorData.error || 'Spotify RSS generation failed')
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (parseError) {
+          console.error('Failed to parse error response:', parseError)
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        console.log('❌ Spotify RSS generation failed:', errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return await response.json()
+      const result = await response.json()
+      console.log('✅ Spotify RSS Feed updated successfully:', result)
+      
+      toast({
+        title: "Spotify配信完了",
+        description: `RSS Feedが正常に更新されました。`,
+      })
+
+      return result
     } catch (error) {
+      console.error('❌ Spotify RSS generation error:', error)
       throw error
     }
   }

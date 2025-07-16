@@ -361,7 +361,12 @@ ${episodeItems}
 
   private async updateDeployFeed(rssXml: string): Promise<void> {
     try {
-      const deployPath = './rss-feed-deploy/public/feed.xml';
+      const deployDir = './rss-feed-deploy/public';
+      const deployPath = path.join(deployDir, 'feed.xml');
+      
+      // ディレクトリが存在しない場合は作成
+      await fs.mkdir(deployDir, { recursive: true });
+      
       await fs.writeFile(deployPath, rssXml, 'utf8');
       console.log(`✅ RSS feed updated for deploy: ${deployPath}`);
     } catch (error) {
@@ -423,7 +428,20 @@ ${episodeItems}
 
     try {
       const existingArchived = await this.getArchivedEpisodes();
+      
+      // 安全性チェック: 配列であることを確認
+      if (!Array.isArray(existingArchived)) {
+        console.warn('⚠️ Existing archived data is not an array, using empty array');
+        const allArchived = [...episodes];
+        await fs.writeFile(this.archivePath, JSON.stringify(allArchived, null, 2), 'utf8');
+        console.log(`📦 Archived ${episodes.length} episodes (reset archive)`);
+        return;
+      }
+      
       const allArchived = [...existingArchived, ...episodes];
+      
+      // アーカイブディレクトリを作成（存在しない場合）
+      await fs.mkdir(path.dirname(this.archivePath), { recursive: true });
       
       await fs.writeFile(this.archivePath, JSON.stringify(allArchived, null, 2), 'utf8');
       console.log(`📦 Archived ${episodes.length} episodes`);
@@ -435,8 +453,24 @@ ${episodeItems}
   private async getArchivedEpisodes(): Promise<RssEpisode[]> {
     try {
       const data = await fs.readFile(this.archivePath, 'utf8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      
+      // 古い形式: オブジェクト { episodes: [] } の場合
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.episodes)) {
+        console.log('📦 Converting old archive format to new format');
+        return parsed.episodes;
+      }
+      
+      // 新しい形式: 配列の場合
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+      
+      // どちらでもない場合は空配列
+      console.warn('⚠️ Archived episodes data has unknown format, returning empty array');
+      return [];
     } catch (error) {
+      console.log('📦 No archived episodes file found, creating new one');
       return [];
     }
   }

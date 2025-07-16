@@ -14,7 +14,7 @@ import json
 # PASSWORD = os.getenv('VOICY_PASSWORD', "ghk5678GHJK&6789*&%^&*()-h")
 
 # API設定
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3005')
 API_TOKEN = os.getenv('API_TOKEN')  # 環境変数からトークンを取得
 
 # コマンドライン引数から設定を取得

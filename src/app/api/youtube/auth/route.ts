@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     console.log('Client Secret:', process.env.YOUTUBE_CLIENT_SECRET ? 'SET' : 'NOT SET')
     console.log('Redirect URI:', process.env.NODE_ENV === 'production' 
       ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-      : 'http://localhost:3000/api/youtube/callback')
+              : 'http://localhost:3005/api/youtube/callback')
 
     // 環境変数の確認
     if (!process.env.YOUTUBE_CLIENT_ID || !process.env.YOUTUBE_CLIENT_SECRET) {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     // リダイレクトURIの確認
     const expectedRedirectUri = process.env.NODE_ENV === 'production' 
       ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-      : 'http://localhost:3000/api/youtube/callback'
+      : 'http://localhost:3005/api/youtube/callback'
     
     console.log('Expected Redirect URI:', expectedRedirectUri)
     console.log('=== YouTube Auth URL Generation Complete ===')
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       authUrl,
       redirectUri: process.env.NODE_ENV === 'production' 
         ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-        : 'http://localhost:3000/api/youtube/callback'
+        : 'http://localhost:3005/api/youtube/callback'
     })
 
   } catch (error) {

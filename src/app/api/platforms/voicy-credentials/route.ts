@@ -6,105 +6,58 @@ import { PlatformCredentials } from '@/lib/encryption'
 // localhost専用のデフォルトユーザーID
 const LOCALHOST_USER_ID = 'localhost-user'
 
-// Voicy認証情報取得
+// Voicy認証情報取得（環境変数ベース）
 export async function GET(request: NextRequest) {
   try {
-    // localhost専用設定のため、認証チェックをスキップ
-    const userId = LOCALHOST_USER_ID
+    console.log('=== Voicy Credentials API (Environment Variables) ===')
+    
+    // 環境変数からVoicy認証情報を取得
+    const email = process.env.VOICY_EMAIL
+    const password = process.env.VOICY_PASSWORD
+    const browserlessApiKey = process.env.BROWSERLESS_API_KEY
 
-    // Voicyプラットフォームの認証情報を取得
-    if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
-      const result = await db.query(`
-        SELECT credentials
-        FROM distribution_platforms
-        WHERE user_id = $1 AND platform_type = 'voicy' AND is_active = true
-        LIMIT 1
-      `, [userId])
-
-      if (result.rows.length === 0) {
-        return NextResponse.json({ 
-          error: 'Voicy credentials not found',
-          message: 'Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。'
-        }, { status: 404 })
-      }
-
-      const platform = result.rows[0]
-      if (!platform.credentials || !platform.credentials.encrypted) {
-        return NextResponse.json({ 
-          error: 'Invalid credentials format',
-          message: '認証情報の形式が正しくありません。'
-        }, { status: 400 })
-      }
-
-      try {
-        const decryptedCredentials = PlatformCredentials.decryptVoicy(platform.credentials.encrypted)
-        return NextResponse.json({
-          success: true,
-          data: decryptedCredentials
-        })
-      } catch (error) {
-        console.error('Voicy credentials decryption error:', error)
-        return NextResponse.json({ 
-          error: 'Failed to decrypt credentials',
-          message: '認証情報の復号化に失敗しました。'
-        }, { status: 500 })
-      }
-    } else {
-      // SQLite
-      const sqliteDb = await db
-      const result = await sqliteDb.get(`
-        SELECT credentials
-        FROM distribution_platforms
-        WHERE user_id = ? AND platform_type = 'voicy' AND is_active = 1
-        LIMIT 1
-      `, [userId])
-
-      if (!result) {
-        return NextResponse.json({ 
-          error: 'Voicy credentials not found',
-          message: 'Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。'
-        }, { status: 404 })
-      }
-
-      if (!result.credentials) {
-        return NextResponse.json({ 
-          error: 'Invalid credentials format',
-          message: '認証情報の形式が正しくありません。'
-        }, { status: 400 })
-      }
-
-      try {
-        const credentials = typeof result.credentials === 'string' 
-          ? JSON.parse(result.credentials) 
-          : result.credentials
-        
-        if (!credentials.encrypted) {
-          return NextResponse.json({ 
-            error: 'Invalid credentials format',
-            message: '認証情報の形式が正しくありません。'
-          }, { status: 400 })
+    if (!email || !password) {
+      return NextResponse.json({ 
+        error: 'Voicy credentials not configured',
+        message: 'VOICY_EMAILとVOICY_PASSWORDを.env.localファイルで設定してください',
+        instructions: {
+          step1: '.env.localファイルを作成または編集',
+          step2: 'VOICY_EMAIL="your-email@example.com"を追加',
+          step3: 'VOICY_PASSWORD="your-password"を追加',
+          step4: 'アプリケーションを再起動'
         }
-
-        const decryptedCredentials = PlatformCredentials.decryptVoicy(credentials.encrypted)
-        return NextResponse.json({
-          success: true,
-          data: decryptedCredentials
-        })
-      } catch (error) {
-        console.error('Voicy credentials decryption error:', error)
-        return NextResponse.json({ 
-          error: 'Failed to decrypt credentials',
-          message: '認証情報の復号化に失敗しました。'
-        }, { status: 500 })
-      }
+      }, { status: 404 })
     }
+
+    if (!email.includes('@')) {
+      return NextResponse.json({ 
+        error: 'Invalid email format',
+        message: 'VOICY_EMAILの形式が正しくありません。有効なメールアドレスを設定してください。'
+      }, { status: 400 })
+    }
+
+    console.log('✅ Voicy credentials found in environment variables')
+    console.log('  - Email:', email)
+    console.log('  - Password:', password ? '[SET]' : '[NOT SET]')
+    console.log('  - Browserless API Key:', browserlessApiKey ? '[SET]' : '[NOT SET]')
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        email,
+        password,
+        browserlessApiKey
+      },
+      source: 'environment_variables',
+      message: 'Voicy認証情報は環境変数から読み込まれています'
+    })
 
   } catch (error) {
     console.error('Get Voicy credentials error:', error)
     return NextResponse.json({ 
       error: 'Failed to get Voicy credentials',
-      message: 'Voicy認証情報の取得に失敗しました。'
+      message: 'Voicy認証情報の取得に失敗しました。',
+      details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
 } 

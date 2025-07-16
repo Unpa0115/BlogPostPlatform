@@ -59,9 +59,10 @@ export function usePlatforms() {
   }
 
   const isPlatformConfigured = (platformType: 'voicy' | 'youtube' | 'spotify' | 'openai') => {
-    console.log('=== Platform Configuration Check ===')
-    console.log('Checking platform:', platformType)
-    console.log('Available platforms:', platforms)
+    // デバッグログを削除してパフォーマンスを向上
+    // console.log('=== Platform Configuration Check ===')
+    // console.log('Checking platform:', platformType)
+    // console.log('Available platforms:', platforms)
     
     const isConfigured = platforms.some(platform => 
       platform.platform_type === platformType && 
@@ -69,7 +70,7 @@ export function usePlatforms() {
       platform.credentials
     )
     
-    console.log('Is configured:', isConfigured)
+    // console.log('Is configured:', isConfigured)
     return isConfigured
   }
 

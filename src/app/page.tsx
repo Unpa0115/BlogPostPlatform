@@ -358,7 +358,27 @@ export default function Dashboard() {
       })
       if (!response.ok) throw new Error('Preprocessing failed')
       const result = await response.json()
-      toast({ title: "前処理完了", description: "音声ファイルの前処理が完了しました。" })
+      
+      // キーワード検出結果を表示
+      let description = "音声ファイルの前処理が完了しました。"
+      if (result.keyword) {
+        if (result.keywordDetected) {
+          description += ` キーワード「${result.keyword}」が${result.trimStart.toFixed(1)}秒地点で見つかりました。`
+        } else {
+          description += ` キーワード「${result.keyword}」は見つかりませんでした。`
+        }
+      }
+      
+      // 音声詳細情報を表示
+      if (result.audioDetails) {
+        const { original, trimmed } = result.audioDetails
+        description += ` 元音声: ${original.duration.toFixed(1)}秒 → トリミング後: ${trimmed.duration.toFixed(1)}秒`
+        description += ` (サイズ: ${(original.size / 1024).toFixed(1)}KB → ${(trimmed.size / 1024).toFixed(1)}KB)`
+      } else if (result.processingInfo) {
+        description += ` (${result.processingInfo.finalTrimStart.toFixed(1)}秒から${result.processingInfo.finalTrimDuration.toFixed(1)}秒間)`
+      }
+      
+      toast({ title: "前処理完了", description })
       setPreprocessedFile({
         id: result.data.processed_file_name,
         filePath: result.data.processed_file_name,

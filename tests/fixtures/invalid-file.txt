@@ -1,0 +1,1 @@
+This is a text file that should not be accepted for upload as it's not a valid audio or video file format.

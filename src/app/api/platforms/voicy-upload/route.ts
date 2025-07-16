@@ -14,65 +14,21 @@ const UPLOAD_DIR = process.env.NODE_ENV === 'production'
 const LOCALHOST_USER_ID = 'localhost-user'
 
 async function getVoicyCredentials(userId: string): Promise<{ email: string; password: string }> {
-  // データベースからVoicy認証情報を取得
-  if (process.env.NODE_ENV === 'production') {
-    // PostgreSQL
-    const result = await db.query(`
-      SELECT credentials
-      FROM distribution_platforms
-      WHERE user_id = $1 AND platform_type = 'voicy' AND is_active = true
-      LIMIT 1
-    `, [userId])
+  // 環境変数からVoicy認証情報を取得
+  const email = process.env.VOICY_EMAIL
+  const password = process.env.VOICY_PASSWORD
 
-    if (result.rows.length === 0) {
-      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
-    }
+  if (!email || !password) {
+    throw new Error("Voicyの認証情報が設定されていません。.env.localファイルでVOICY_EMAILとVOICY_PASSWORDを設定してください。");
+  }
 
-    const platform = result.rows[0]
-    if (!platform.credentials || !platform.credentials.encrypted) {
-      throw new Error("認証情報の形式が正しくありません。");
-    }
+  if (!email.includes('@')) {
+    throw new Error("VOICY_EMAILの形式が正しくありません。有効なメールアドレスを設定してください。");
+  }
 
-    try {
-      const decryptedCredentials = PlatformCredentials.decryptVoicy(platform.credentials.encrypted)
-      return decryptedCredentials
-    } catch (error) {
-      console.error('Voicy credentials decryption error:', error)
-      throw new Error("認証情報の復号化に失敗しました。");
-    }
-  } else {
-    // SQLite
-    const sqliteDb = await db
-    const result = await sqliteDb.get(`
-      SELECT credentials
-      FROM distribution_platforms
-      WHERE user_id = ? AND platform_type = 'voicy' AND is_active = 1
-      LIMIT 1
-    `, [userId])
-
-    if (!result) {
-      throw new Error("Voicyの認証情報が設定されていません。プラットフォーム設定ページで設定してください。");
-    }
-
-    if (!result.credentials) {
-      throw new Error("認証情報の形式が正しくありません。");
-    }
-
-    try {
-      const credentials = typeof result.credentials === 'string' 
-        ? JSON.parse(result.credentials) 
-        : result.credentials
-      
-      if (!credentials.encrypted) {
-        throw new Error("認証情報の形式が正しくありません。");
-      }
-
-      const decryptedCredentials = PlatformCredentials.decryptVoicy(credentials.encrypted)
-      return decryptedCredentials
-    } catch (error) {
-      console.error('Voicy credentials decryption error:', error)
-      throw new Error("認証情報の復号化に失敗しました。");
-    }
+  return {
+    email,
+    password
   }
 }
 

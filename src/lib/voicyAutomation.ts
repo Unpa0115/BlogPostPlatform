@@ -17,7 +17,7 @@ import * as path from 'path';
 // const PASSWORD = getEnvOrThrow('VOICY_PASSWORD');
 
 // API設定
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3005';
 const API_TOKEN = process.env.API_TOKEN; // 環境変数からトークンを取得
 
 export interface VoicyAutomationOptions {
@@ -464,129 +464,130 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       return button && !button.hasAttribute('disabled') && !button.classList.contains('disabled');
     }, { timeout: 30000 });
     
+    // 【テストモード】実際の投稿処理はコメントアウト
+    console.log("🚫 テストモード: 最終投稿処理は実行されません");
+    console.log("📋 予約ボタンが準備できましたが、実際のクリックはスキップします");
+    
+    // 投稿直前のスクリーンショットを撮影
+    await saveScreenshot(page, "12_final_reserve_ready_but_not_clicked.png");
+    
+    // 実際の投稿処理（コメントアウト済み）
     // ダイアログハンドラを事前に登録（クリック前に重要）
-    let dialogHandled = false;
-    const handleDialog = (dialog: any) => {
-      console.log(`ダイアログ検出: ${dialog.message()}`);
-      console.log(`ダイアログタイプ: ${dialog.type()}`);
-      dialog.accept(); // 「OK」を自動で押す
-      dialogHandled = true;
-      console.log("ダイアログを自動でOKしました");
-    };
+    // let dialogHandled = false;
+    // const handleDialog = (dialog: any) => {
+    //   console.log(`ダイアログ検出: ${dialog.message()}`);
+    //   console.log(`ダイアログタイプ: ${dialog.type()}`);
+    //   dialog.accept(); // 「OK」を自動で押す
+    //   dialogHandled = true;
+    //   console.log("ダイアログを自動でOKしました");
+    // };
     
     // ダイアログハンドラを登録（1回だけ）
-    page.once("dialog", handleDialog);
+    // page.once("dialog", handleDialog);
     
-    console.log("ボタンが有効になりました。クリックします...");
-    await finalReserveButton.click();
-    await saveScreenshot(page, "12_final_reserve_clicked.png");
+    // console.log("ボタンが有効になりました。クリックします...");
+    // await finalReserveButton.click();
+    // await saveScreenshot(page, "12_final_reserve_clicked.png");
     
     // ダイアログが処理されたか確認
-    if (dialogHandled) {
-      console.log("確認ダイアログが正常に処理されました");
-      await saveScreenshot(page, "13_confirmation_accepted.png");
-    } else {
-      console.log("ダイアログは表示されませんでした。予約が直接完了した可能性があります。");
-    }
+    // if (dialogHandled) {
+    //   console.log("確認ダイアログが正常に処理されました");
+    //   await saveScreenshot(page, "13_confirmation_accepted.png");
+    // } else {
+    //   console.log("ダイアログは表示されませんでした。予約が直接完了した可能性があります。");
+    // }
     
     // 「設定が完了しました。」の緑のポップアップを検出
-    console.log("完了メッセージのポップアップを検出中...");
-    try {
-      // 複数の方法で完了メッセージを検出
-      const completionMessage = page.locator(
-        'text=設定が完了しました。, text=完了しました, text=予約が完了'
-      );
-      await completionMessage.waitFor({ state: "visible", timeout: 10000 });
-      console.log("完了メッセージを検出しました");
-      
-      await page.waitForTimeout(1000);
-      await saveScreenshot(page, "15_completion_popup.png");
-      console.log("完了ポップアップのスクリーンショットを保存しました");
-      
-      await completionMessage.waitFor({ state: "hidden", timeout: 15000 });
-      console.log("完了ポップアップが自動で消えました");
-      
-    } catch (completionError) {
-      console.log("完了メッセージの検出中にエラーが発生しました:", completionError);
-    }
+    // console.log("完了メッセージのポップアップを検出中...");
+    // try {
+    //   // 複数の方法で完了メッセージを検出
+    //   const completionMessage = page.locator(
+    //     'text=設定が完了しました。, text=完了しました, text=予約が完了'
+    //   );
+    //   await completionMessage.waitFor({ state: "visible", timeout: 10000 });
+    //   console.log("完了メッセージを検出しました");
+    //   
+    //   await page.waitForTimeout(1000);
+    //   await saveScreenshot(page, "15_completion_popup.png");
+    //   console.log("完了ポップアップのスクリーンショットを保存しました");
+    //   
+    //   await completionMessage.waitFor({ state: "hidden", timeout: 15000 });
+    //   console.log("完了ポップアップが自動で消えました");
+    //   
+    // } catch (completionError) {
+    //   console.log("完了メッセージの検出中にエラーが発生しました:", completionError);
+    // }
     
-    console.log("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。");
-    await saveScreenshot(page, "16_broadcast_reserved.png");
+    // console.log("予約が完了し、ページが遷移しました。スクリーンショットを撮影します。");
+    // await saveScreenshot(page, "16_broadcast_reserved.png");
     
-    // 予約完了後の詳細確認
-    console.log("予約完了後の状態を確認しています...");
-    try {
-      // ページタイトルやURLの確認
-      console.log(`現在のページタイトル: ${await page.title()}`);
-      console.log(`現在のURL: ${page.url()}`);
-      
-      // 予約完了を示す要素を探す
-      const successIndicators = [
-        "予約完了",
-        "放送予約",
-        "予約済み",
-        "完了",
-        "success"
-      ];
-      
-      for (const indicator of successIndicators) {
-        try {
-          const element = page.locator(`text=${indicator}`);
-          const count = await element.count();
-          if (count > 0) {
-            console.log(`✅ 成功指標を発見: '${indicator}'`);
-            break;
-          }
-        } catch (error) {
-          continue;
-        }
-      }
-      
-      // エラー要素がないか確認
-      const errorIndicators = [
-        "エラー",
-        "失敗",
-        "error",
-        "failed"
-      ];
-      
-      for (const indicator of errorIndicators) {
-        try {
-          const element = page.locator(`text=${indicator}`);
-          const count = await element.count();
-          if (count > 0) {
-            console.log(`⚠️ エラー指標を発見: '${indicator}'`);
-          }
-        } catch (error) {
-          continue;
-        }
-      }
-      
-    } catch (statusError) {
-      console.log("状態確認中にエラーが発生しました:", statusError);
-    }
+    console.log("📸 テストモード完了: 投稿直前の状態でスクリーンショットを保存しました");
+    await saveScreenshot(page, "16_test_mode_completed.png");
     
-    // 実際の投稿処理（Python実装と同様にコメントアウト）
-    console.log("テストモード。最終投稿処理は実行しません。");
-    console.log("実際の投稿を行う場合は、以下のコメントアウトを解除してください:");
-    console.log("// finalReserveButton.click();");
-    console.log("// await page.waitForTimeout(5000);");
-    console.log("// await saveScreenshot(page, '17_final_submission.png');");
+    // 【テストモード】予約完了後の詳細確認もコメントアウト
+    // console.log("予約完了後の状態を確認しています...");
+    // try {
+    //   // ページタイトルやURLの確認
+    //   console.log(`現在のページタイトル: ${await page.title()}`);
+    //   console.log(`現在のURL: ${page.url()}`);
+    //   
+    //   // 予約完了を示す要素を探す
+    //   const successIndicators = [
+    //     "予約完了",
+    //     "放送予約",
+    //     "予約済み",
+    //     "完了",
+    //     "success"
+    //   ];
+    //   
+    //   for (const indicator of successIndicators) {
+    //     try {
+    //       const element = page.locator(`text=${indicator}`);
+    //       const count = await element.count();
+    //       if (count > 0) {
+    //         console.log(`✅ 成功指標を発見: '${indicator}'`);
+    //         break;
+    //       }
+    //     } catch (error) {
+    //       continue;
+    //     }
+    //   }
+    //   
+    //   // エラー要素がないか確認
+    //   const errorIndicators = [
+    //     "エラー",
+    //     "失敗",
+    //     "error",
+    //     "failed"
+    //   ];
+    //   
+    //   for (const indicator of errorIndicators) {
+    //     try {
+    //       const element = page.locator(`text=${indicator}`);
+    //       const count = await element.count();
+    //       if (count > 0) {
+    //         console.log(`⚠️ エラー指標を発見: '${indicator}'`);
+    //       }
+    //     } catch (error) {
+    //       continue;
+    //     }
+    //   }
+    //   
+    // } catch (statusError) {
+    //   console.log("状態確認中にエラーが発生しました:", statusError);
+    // }
     
-    // 開発環境では実際の投稿処理を実行するかどうかの確認
-    if (process.env.NODE_ENV === 'development' && process.env.ENABLE_VOICY_SUBMISSION === 'true') {
-      console.log("開発環境で実際の投稿処理を実行します...");
-      try {
-        await finalReserveButton.click();
-        await page.waitForTimeout(5000);
-        await saveScreenshot(page, "17_final_submission.png");
-        console.log("✅ 実際の投稿処理が完了しました");
-      } catch (submissionError) {
-        console.log("投稿処理中にエラーが発生しました:", submissionError);
-      }
-    } else {
-      console.log("⚠️ テストモード: 実際の投稿は実行されませんでした");
-    }
+    // 【重要】実際の投稿処理は完全にコメントアウト済み
+    console.log("⚠️ 【テストモード】実際の投稿処理は実行されません");
+    console.log("🔧 実際の投稿を行う場合は、voicyAutomation.tsの以下の処理のコメントアウトを解除してください:");
+    console.log("   - ダイアログハンドラの登録");
+    console.log("   - finalReserveButton.click()");
+    console.log("   - 確認ダイアログの処理");
+    console.log("   - 完了メッセージの検出");
+    
+    // 環境変数による投稿許可設定も削除（テストモードを徹底）
+    console.log("🚫 環境変数 ENABLE_VOICY_SUBMISSION が 'true' でも実際の投稿は実行されません");
+    console.log("📋 すべての投稿処理がコメントアウトされています")
 
     console.log("✅ Voicy自動化が完了しました");
     return true;
