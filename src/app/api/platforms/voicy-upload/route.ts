@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         // データベースからファイル名でアップロードを検索
         let upload;
         if (process.env.NODE_ENV === 'production') {
-          // PostgreSQL
+          // SQLite
           const sqliteDb = await db
           const result = await sqliteDb.query(`
             SELECT id FROM uploads 
