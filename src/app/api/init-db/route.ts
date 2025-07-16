@@ -11,8 +11,8 @@ export async function POST() {
     console.log('Connection test result:', connectionTest)
     
     if (connectionTest && connectionTest.success) {
-      // テーブル作成
-      await createTables()
+      // テーブル作成（一時的に無効化）
+      // await createTables()
       
       // デフォルトユーザーの作成
       const defaultUserId = '10699750-312a-4f82-ada7-c8e5cf9b1fa8'

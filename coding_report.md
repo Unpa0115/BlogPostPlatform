@@ -515,3 +515,168 @@ RSS Feed処理における2つの重要なエラーを特定し、修正しま�
 - 非同期処理でのエラーハンドリングのベストプラクティス
 - データ形式の後方互換性を保つ設計パターン
 - Node.js fs.mkdir の recursive オプション活用
+
+### [2024-12-21 12:00] - Spotify環境変数設定エラー修正
+
+# 実行結果報告
+
+## 概要
+Spotify RSS Feed URLの環境変数名の不一致により発生していた設定エラーを修正しました。プラットフォーム設定画面でSpotifyが「設定されていません」と表示され、設定保存時に400エラーが発生していた問題を解決しました。
+
+## 実行ステップ
+
+1. **問題の特定**
+   - `env-config.ts`で`SPOTIFY_RSS_FEED_URL`を参照
+   - 実際の環境変数名は`NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL`
+   - 環境変数名の不一致が原因で設定が読み込まれない状態
+
+2. **環境変数参照の修正**
+   - `src/lib/env-config.ts`の修正
+   - `process.env.SPOTIFY_RSS_FEED_URL` → `process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL`
+   - Spotify設定の`isConfigured`フラグも修正
+
+3. **エラーハンドリングの改善**
+   - `src/app/platforms/page.tsx`の修正
+   - 400エラー時に適切なメッセージを表示
+   - 環境変数設定のガイダンス表示を追加
+
+## 最終成果物
+
+### 修正されたファイル
+
+1. **`src/lib/env-config.ts`**
+   - Spotify設定の環境変数参照を修正
+   - `rssFeedUrl: process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL`
+   - `isConfigured`判定も更新
+
+2. **`src/app/platforms/page.tsx`**
+   - Spotify設定保存時の400エラーハンドリング改善
+   - 環境変数設定ガイダンスの表示追加
+
+### 解決された問題
+
+- ✅ Spotify RSS Feed URLが「設定されていません」と表示される問題
+- ✅ Spotify設定保存時の400エラー
+- ✅ 環境変数名の不一致による設定読み込み失敗
+
+## 課題対応（該当する場合）
+
+### 発生していた問題
+- **環境変数名の不一致**: `SPOTIFY_RSS_FEED_URL` vs `NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL`
+- **400エラーでの保存失敗**: API側で環境変数設定を推奨する設計
+- **ユーザーエクスペリエンス**: エラーメッセージが不明確
+
+### 実施した対策
+- 環境変数参照の統一
+- 適切なエラーメッセージの表示
+- ユーザーガイダンスの改善
+
+### 今後の予防策
+- 環境変数名の一元管理
+- フロントエンド・バックエンド間での名前空間の統一
+- 設定変更時の影響範囲チェック
+
+## 注意点・改善提案
+
+- **環境変数の命名規則**: `NEXT_PUBLIC_`プレフィックスの使用時は全体で統一
+- **接続済みラベル**: 環境変数が正しく読み込まれれば「接続済み」表示も正常化
+- **開発サーバー再起動**: 環境変数変更後は必ず再起動が必要
+- **設定の一元管理**: 環境変数名の変更時は全関連ファイルの同期更新
+
+### [2024-12-21 12:30] - Voicy自動化Playwrightエラー修正と環境分岐実装
+
+# 実行結果報告
+
+## 概要
+Voicy自動化でPlaywrightブラウザが見つからないエラーを修正し、環境分岐開発方針ルールに従った適切な実装に変更しました。開発環境ではローカルChrome、本番環境ではBrowserless.ioを使用する環境分岐を実装しました。
+
+## 実行ステップ
+
+1. **問題の特定**
+   - Playwright Chromiumブラウザがインストールされていない
+   - `browserType.launch: Executable doesn't exist` エラー
+   - 環境分岐が実装されていない状態
+
+2. **即座の解決**
+   - `npx playwright install chromium` を実行
+   - Playwright Chromium 139.0.7258.5のダウンロードとインストール完了
+
+3. **環境分岐の実装**
+   - `src/lib/voicyAutomation.ts` の修正
+   - `process.env.NODE_ENV` による環境分岐追加
+   - 開発環境: ローカルChrome（`chromium.launch`）
+   - 本番環境: Browserless.io（`chromium.connect`）
+
+4. **ブラウザ設定の最適化**
+   - JavaScriptの有効化（`--enable-javascript`）
+   - DOMストレージの有効化（`--enable-dom-storage`）
+   - メモリ使用量の最適化
+
+## 最終成果物
+
+### 修正されたファイル
+
+1. **`src/lib/voicyAutomation.ts`**
+   - 環境分岐によるブラウザ起動処理の実装
+   - 開発環境用のローカルChrome設定
+   - 本番環境用のBrowserless.io接続設定
+   - 適切なブラウザ引数の設定
+
+### 環境分岐の実装詳細
+
+**開発環境（NODE_ENV=development）:**
+```typescript
+browser = await chromium.launch({
+  headless: false, // デバッグ用にブラウザを表示
+  args: [
+    '--no-sandbox',
+    '--enable-javascript',
+    '--enable-dom-storage',
+    // その他の最適化設定
+  ],
+  timeout: 60000,
+});
+```
+
+**本番環境（NODE_ENV=production）:**
+```typescript
+browser = await chromium.connect({
+  wsEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+  timeout: 60000,
+});
+```
+
+### 解決された問題
+
+- ✅ Playwright Chromiumブラウザのインストール
+- ✅ 環境分岐による適切なブラウザ選択
+- ✅ 開発時のデバッグ容易性向上
+- ✅ 本番環境でのコスト最適化
+- ✅ JavaScript・DOMストレージの有効化
+
+## 課題対応（該当する場合）
+
+### 発生していた問題
+- **Playwrightブラウザ未インストール**: `browserType.launch: Executable doesn't exist`
+- **環境分岐未実装**: 全環境でPlaywrightブラウザを使用していた
+- **デバッグ困難**: 本番環境でもheadlessモードを使用
+- **コスト問題**: 開発時でもBrowserless.ioを使用する可能性
+
+### 実施した対策
+- Playwright Chromiumの即座インストール
+- NODE_ENVによる環境分岐の実装
+- 開発環境でのheadless=false設定
+- 本番環境専用のBrowserless.io設定
+
+### 今後の予防策
+- 開発環境セットアップガイドにPlaywrightインストール手順を追加
+- 環境分岐テストの実装
+- CI/CDパイプラインでのブラウザ環境確認
+
+## 注意点・改善提案
+
+- **環境分岐テスト**: 両環境での動作確認が必要
+- **エラーハンドリング**: Browserless.io接続失敗時のフォールバック処理
+- **設定の一元管理**: ブラウザ引数の設定を設定ファイルに外出し
+- **デバッグ機能**: 開発環境でのスクリーンショット自動保存
+- **パフォーマンス監視**: メモリ使用量とブラウザ起動時間の監視
