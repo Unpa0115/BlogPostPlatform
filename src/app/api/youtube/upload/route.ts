@@ -37,7 +37,25 @@ export async function POST(request: NextRequest) {
     const actualFilePath = path.join(UPLOAD_DIR, filePath)
     console.log('Actual file path:', actualFilePath)
 
-    // YouTube認証情報を取得
+    // YouTube認証情報を環境変数から取得
+    const youtubeClientId = process.env.YOUTUBE_CLIENT_ID
+    const youtubeClientSecret = process.env.YOUTUBE_CLIENT_SECRET
+    
+    if (!youtubeClientId || !youtubeClientSecret) {
+      return NextResponse.json({ 
+        error: 'YouTube credentials not configured',
+        message: 'YOUTUBE_CLIENT_IDとYOUTUBE_CLIENT_SECRETを.env.localファイルで設定してください',
+        instructions: {
+          step1: '.env.localファイルを作成または編集',
+          step2: 'YOUTUBE_CLIENT_ID="your-client-id"を追加',
+          step3: 'YOUTUBE_CLIENT_SECRET="your-client-secret"を追加',
+          step4: 'アプリケーションを再起動'
+        }
+      }, { status: 400 })
+    }
+
+    console.log('✅ YouTube credentials found in environment variables')
+    
     let credentials
     try {
       if (process.env.NODE_ENV === 'production') {

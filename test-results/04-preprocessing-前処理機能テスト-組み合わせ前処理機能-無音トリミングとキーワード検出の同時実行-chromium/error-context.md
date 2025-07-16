@@ -1,0 +1,146 @@
+# Page snapshot
+
+```yaml
+- banner:
+  - link "BlogPostPlatform":
+    - /url: /
+  - navigation:
+    - link "ダッシュボード":
+      - /url: /
+      - img
+      - text: ダッシュボード
+    - link "アップロード":
+      - /url: /upload
+      - img
+      - text: アップロード
+    - link "プラットフォーム":
+      - /url: /platforms
+      - img
+      - text: プラットフォーム
+    - link "設定":
+      - /url: /settings
+      - img
+      - text: 設定
+- main:
+  - heading "BlogPostPlatform - localhost" [level=1]
+  - paragraph: 音声ファイルのアップロードと配信管理を行います（localhost専用）
+  - img
+  - text: 認証通知
+  - img
+  - text: 新しい通知はありません 総アップロード数
+  - img
+  - text: "90"
+  - paragraph: アップロードされたファイル数
+  - text: 処理中ジョブ
+  - img
+  - text: "0"
+  - paragraph: 実行中のジョブ数
+  - text: 完了ジョブ
+  - img
+  - text: "0"
+  - paragraph: 正常に完了したジョブ数
+  - text: 失敗ジョブ
+  - img
+  - text: "0"
+  - paragraph: 失敗したジョブ数
+  - tablist:
+    - tab "新規アップロード" [selected]
+    - tab "RSS Feed管理・配信"
+  - tabpanel "新規アップロード":
+    - text: 新規アップロード ファイルを選択し、メタデータを入力して投稿してください
+    - button "ファイルをドラッグ＆ドロップまたはクリックして選択 音声・動画ファイル（MP3, WAV, M4A, MP4, AVI, MOV等） 最大2GBまで":
+      - img
+      - paragraph: ファイルをドラッグ＆ドロップまたはクリックして選択
+      - paragraph: 音声・動画ファイル（MP3, WAV, M4A, MP4, AVI, MOV等）
+      - paragraph: 最大2GBまで
+    - img
+    - text: localhost-user_1752565485031_sample-audio.mp3 audio/mpeg タイトル *
+    - textbox "タイトル *"
+    - text: カテゴリ
+    - textbox "カテゴリ"
+    - text: 説明
+    - textbox "説明"
+    - text: タグ
+    - textbox "タグ"
+  - text: 前処理オプション 音声ファイルの自動トリミングとキーワード検出
+  - checkbox "無音部分を自動トリミング" [checked]:
+    - img
+  - text: 無音部分を自動トリミング キーワード検出
+  - textbox "キーワード検出": テスト
+  - button "前処理中..." [disabled]
+  - img
+  - text: 配信プラットフォーム 選択したプラットフォームに一括で配信できます
+  - img
+  - heading "YouTube" [level=3]
+  - paragraph: 動画プラットフォーム
+  - switch [disabled]
+  - text: 対象外の拡張子
+  - paragraph: 動画ファイルのみ対応（音声ファイルは動画に変換が必要）
+  - img
+  - heading "Voicy" [level=3]
+  - paragraph: 音声プラットフォーム
+  - switch [checked]
+  - text: 対応ファイル形式
+  - img
+  - heading "Spotify" [level=3]
+  - paragraph: ポッドキャストプラットフォーム
+  - switch [checked]
+  - text: 対応ファイル形式
+  - button "選択したプラットフォームに配信":
+    - img
+    - text: 選択したプラットフォームに配信
+  - text: 最近のアップロード 最近アップロードされたファイル一覧
+  - img
+  - heading "キーワード検出テスト" [level=4]
+  - text: アップロード中 650 Bytes 2025/7/15
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - img
+  - heading "キーワードテスト" [level=4]
+  - text: アップロード中 650 Bytes 2025/7/15
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - img
+  - heading "テスト投稿 1752565474387" [level=4]
+  - text: アップロード中 650 Bytes 2025/7/15
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - img
+  - heading "トリミング実行テスト" [level=4]
+  - text: アップロード中 650 Bytes 2025/7/15
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+  - img
+  - heading "トリミングテスト" [level=4]
+  - text: アップロード中 650 Bytes 2025/7/15
+  - button:
+    - img
+  - button:
+    - img
+  - button:
+    - img
+- region "Notifications (F8)":
+  - list:
+    - status:
+      - text: アップロード完了 ファイルのアップロードが完了しました。
+      - button:
+        - img
+- alert
+- status: Notification アップロード完了ファイルのアップロードが完了しました。
+```

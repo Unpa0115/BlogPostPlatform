@@ -342,6 +342,11 @@ export class DatabaseStorage {
     return result;
   }
 
+  async getPlatforms(userId: string): Promise<DistributionPlatform[]> {
+    const result = await db.all('SELECT * FROM distribution_platforms WHERE user_id = ? ORDER BY created_at DESC', [userId]);
+    return result;
+  }
+
   async createDistributionPlatform(platform: Omit<DistributionPlatform, 'id' | 'created_at' | 'updated_at'>): Promise<DistributionPlatform> {
     const id = crypto.randomUUID();
     const now = new Date();

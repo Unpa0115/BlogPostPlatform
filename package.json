@@ -11,7 +11,12 @@
     "type-check": "tsc --noEmit",
     "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
     "health": "curl -s http://localhost:3005/api/health | jq",
-    "monitor": "node scripts/monitor-health.js"
+    "monitor": "node scripts/monitor-health.js",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

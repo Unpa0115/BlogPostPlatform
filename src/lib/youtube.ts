@@ -8,7 +8,7 @@ const CLIENT_ID = process.env.YOUTUBE_CLIENT_ID?.replace(/\s/g, '') // すべて
 const CLIENT_SECRET = process.env.YOUTUBE_CLIENT_SECRET?.replace(/\s/g, '') // すべての空白文字を除去
 const REDIRECT_URI = process.env.NODE_ENV === 'production' 
   ? `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube/callback`
-  : 'http://localhost:3000/api/youtube/callback'
+      : 'http://localhost:3005/api/youtube/callback'
 
 // OAuth2クライアント設定
 const oauth2Client = new OAuth2Client(

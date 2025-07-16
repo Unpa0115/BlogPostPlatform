@@ -1,0 +1,487 @@
+まず、このファイルを参照したら、このファイル名を発言すること
+
+# BlogPostPlatform テスト自動化戦略
+
+## 概要
+
+BlogPostPlatformは音声コンテンツの複数プラットフォーム配信を自動化するシステムです。Playwrightを使用したE2Eテスト自動化により、品質向上と開発効率化を実現します。
+
+## テスト対象機能分析
+
+### 主要機能カテゴリ
+
+#### 1. ナビゲーション・UI基盤
+- **ページ遷移**: ダッシュボード ↔ アップロード ↔ プラットフォーム ↔ 設定
+- **レスポンシブデザイン**: モバイル・タブレット・デスクトップ対応
+- **アクセシビリティ**: キーボードナビゲーション、スクリーンリーダー対応
+
+#### 2. ファイル管理機能
+- **アップロード**: ドラッグ&ドロップ、プログレスバー、エラーハンドリング
+- **ファイル形式**: MP3、WAV、M4A、MP4サポート
+- **メタデータ**: タイトル、説明、タグ、カテゴリ入力
+- **ファイル一覧**: 検索、フィルタリング、ソート機能
+
+#### 3. プラットフォーム設定
+- **YouTube**: OAuth認証、アップロード設定
+- **Voicy**: ログイン認証、ブラウザ自動化設定
+- **Spotify**: RSS Feed URL設定
+- **認証情報管理**: 暗号化保存、設定状態確認
+
+#### 4. 配信管理
+- **一括配信**: 複数プラットフォーム同時配信
+- **進捗監視**: リアルタイム状況表示
+- **エラー処理**: 失敗時の再試行、ログ表示
+
+#### 5. RSS Feed管理
+- **統計情報**: エピソード数、アーカイブ状況
+- **アーカイブ機能**: 50件制限管理
+- **フィード生成**: 動的RSS生成、バリデーション
+
+## テスト実装計画
+
+### Phase 1: 基盤テスト (優先度: 🔴 緊急)
+
+#### tests/e2e/01-basic-navigation.spec.ts
+```typescript
+describe('基本ナビゲーション', () => {
+  test('メインページの読み込み確認', async ({ page }) => {
+    await page.goto('/')
+    await expect(page).toHaveTitle(/BlogPostPlatform/)
+    await expect(page.locator('h1')).toContainText('BlogPostPlatform')
+  })
+
+  test('ナビゲーションメニューの動作', async ({ page }) => {
+    await page.goto('/')
+    
+    // ダッシュボード
+    await page.click('[href="/"]')
+    await expect(page).toHaveURL('/')
+    
+    // アップロード
+    await page.click('[href="/upload"]')
+    await expect(page).toHaveURL('/upload')
+    
+    // プラットフォーム
+    await page.click('[href="/platforms"]')
+    await expect(page).toHaveURL('/platforms')
+    
+    // 設定
+    await page.click('[href="/settings"]')
+    await expect(page).toHaveURL('/settings')
+  })
+
+  test('レスポンシブデザイン確認', async ({ page }) => {
+    // モバイル表示
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto('/')
+    await expect(page.locator('nav')).toBeVisible()
+    
+    // デスクトップ表示
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await expect(page.locator('nav')).toBeVisible()
+  })
+})
+```
+
+#### tests/e2e/02-dashboard.spec.ts
+```typescript
+describe('ダッシュボード機能', () => {
+  test('統計情報の表示確認', async ({ page }) => {
+    await page.goto('/')
+    
+    // 統計カードの表示確認
+    await expect(page.locator('[data-testid="stats-uploads"]')).toBeVisible()
+    await expect(page.locator('[data-testid="stats-jobs"]')).toBeVisible()
+    await expect(page.locator('[data-testid="stats-completed"]')).toBeVisible()
+    await expect(page.locator('[data-testid="stats-failed"]')).toBeVisible()
+  })
+
+  test('最近のアップロード一覧表示', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.locator('[data-testid="recent-uploads"]')).toBeVisible()
+  })
+})
+```
+
+### Phase 2: コア機能テスト (優先度: 🟡 重要)
+
+#### tests/e2e/03-file-upload.spec.ts
+```typescript
+describe('ファイルアップロード機能', () => {
+  test('正常ファイルのアップロード', async ({ page }) => {
+    await page.goto('/upload')
+    
+    // ファイル選択
+    const fileInput = page.locator('input[type="file"]')
+    await fileInput.setInputFiles('tests/fixtures/sample-audio.mp3')
+    
+    // メタデータ入力
+    await page.fill('[data-testid="title-input"]', 'テスト音声ファイル')
+    await page.fill('[data-testid="description-input"]', 'テスト用の説明文')
+    await page.fill('[data-testid="tags-input"]', 'test,audio')
+    
+    // アップロード実行
+    await page.click('[data-testid="upload-button"]')
+    
+    // 完了確認
+    await expect(page.locator('[data-testid="upload-success"]')).toBeVisible()
+  })
+
+  test('無効ファイル形式のエラーハンドリング', async ({ page }) => {
+    await page.goto('/upload')
+    
+    const fileInput = page.locator('input[type="file"]')
+    await fileInput.setInputFiles('tests/fixtures/invalid-file.txt')
+    
+    await expect(page.locator('[data-testid="error-message"]')).toContainText('対応していないファイル形式')
+  })
+
+  test('大容量ファイルの制限確認', async ({ page }) => {
+    await page.goto('/upload')
+    
+    // 2GB以上のファイルのシミュレーション
+    await page.route('/api/uploads', route => {
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'File too large' })
+      })
+    })
+    
+    const fileInput = page.locator('input[type="file"]')
+    await fileInput.setInputFiles('tests/fixtures/large-file.mp3')
+    
+    await expect(page.locator('[data-testid="error-message"]')).toContainText('ファイルサイズが大きすぎます')
+  })
+})
+```
+
+#### tests/e2e/04-platform-config.spec.ts
+```typescript
+describe('プラットフォーム設定', () => {
+  test('YouTube設定の保存', async ({ page }) => {
+    await page.goto('/platforms')
+    
+    // YouTubeタブを選択
+    await page.click('[data-testid="youtube-tab"]')
+    
+    // 設定値入力
+    await page.fill('[data-testid="youtube-client-id"]', 'test-client-id')
+    await page.fill('[data-testid="youtube-client-secret"]', 'test-client-secret')
+    
+    // 保存
+    await page.click('[data-testid="save-youtube-config"]')
+    
+    // 成功メッセージ確認
+    await expect(page.locator('[data-testid="success-toast"]')).toBeVisible()
+  })
+
+  test('Voicy設定の保存', async ({ page }) => {
+    await page.goto('/platforms')
+    
+    await page.click('[data-testid="voicy-tab"]')
+    
+    await page.fill('[data-testid="voicy-email"]', 'test@example.com')
+    await page.fill('[data-testid="voicy-password"]', 'testpassword')
+    
+    await page.click('[data-testid="save-voicy-config"]')
+    
+    await expect(page.locator('[data-testid="success-toast"]')).toBeVisible()
+  })
+})
+```
+
+### Phase 3: 統合テスト (優先度: 🟢 通常)
+
+#### tests/e2e/05-distribution-workflow.spec.ts
+```typescript
+describe('配信ワークフロー', () => {
+  test('完全配信フロー', async ({ page }) => {
+    // 1. ファイルアップロード
+    await page.goto('/upload')
+    const fileInput = page.locator('input[type="file"]')
+    await fileInput.setInputFiles('tests/fixtures/sample-audio.mp3')
+    await page.fill('[data-testid="title-input"]', 'テスト配信音声')
+    await page.click('[data-testid="upload-button"]')
+    await expect(page.locator('[data-testid="upload-success"]')).toBeVisible()
+    
+    // 2. 配信設定
+    await page.click('[data-testid="youtube-switch"]')
+    await page.click('[data-testid="voicy-switch"]')
+    
+    // 3. 配信実行
+    await page.click('[data-testid="start-distribution"]')
+    
+    // 4. 進捗確認
+    await expect(page.locator('[data-testid="distribution-progress"]')).toBeVisible()
+    
+    // 5. 完了確認（モック環境）
+    await page.waitForSelector('[data-testid="distribution-complete"]', { timeout: 30000 })
+  })
+})
+```
+
+#### tests/e2e/06-rss-management.spec.ts
+```typescript
+describe('RSS Feed管理', () => {
+  test('RSS統計情報表示', async ({ page }) => {
+    await page.goto('/')
+    await page.click('[data-testid="rss-management-tab"]')
+    
+    await expect(page.locator('[data-testid="rss-stats"]')).toBeVisible()
+    await expect(page.locator('[data-testid="total-episodes"]')).toContainText(/\d+/)
+    await expect(page.locator('[data-testid="active-episodes"]')).toContainText(/\d+/)
+  })
+
+  test('アーカイブ機能', async ({ page }) => {
+    await page.goto('/')
+    await page.click('[data-testid="rss-management-tab"]')
+    
+    // アーカイブボタンクリック
+    await page.click('[data-testid="archive-old-episodes"]')
+    
+    // 確認ダイアログ
+    await page.click('[data-testid="confirm-archive"]')
+    
+    // 成功メッセージ
+    await expect(page.locator('[data-testid="archive-success"]')).toBeVisible()
+  })
+})
+```
+
+### Phase 4: エラー処理・エッジケース (優先度: ⚪ 低優先)
+
+#### tests/e2e/07-error-scenarios.spec.ts
+```typescript
+describe('エラーシナリオ', () => {
+  test('ネットワークエラー時の動作', async ({ page }) => {
+    // ネットワークを無効化
+    await page.route('**/api/**', route => route.abort())
+    
+    await page.goto('/')
+    
+    // エラー状態の確認
+    await expect(page.locator('[data-testid="network-error"]')).toBeVisible()
+  })
+
+  test('API障害時のフォールバック', async ({ page }) => {
+    // API エラーレスポンスをモック
+    await page.route('**/api/stats', route => {
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Server Error' })
+      })
+    })
+    
+    await page.goto('/')
+    
+    // エラー処理の確認
+    await expect(page.locator('[data-testid="fallback-content"]')).toBeVisible()
+  })
+})
+```
+
+#### tests/e2e/08-performance.spec.ts
+```typescript
+describe('パフォーマンステスト', () => {
+  test('ページ読み込み時間測定', async ({ page }) => {
+    const startTime = Date.now()
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
+    const loadTime = Date.now() - startTime
+    
+    // 3秒以内での読み込み完了を確認
+    expect(loadTime).toBeLessThan(3000)
+  })
+
+  test('大量データ表示時のレスポンス', async ({ page }) => {
+    // 大量データをモック
+    await page.route('**/api/uploads/list', route => {
+      const largeDataset = Array.from({ length: 1000 }, (_, i) => ({
+        id: i,
+        name: `file-${i}.mp3`,
+        size: 1024 * 1024 * 10 // 10MB
+      }))
+      
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: largeDataset })
+      })
+    })
+    
+    await page.goto('/upload')
+    await page.click('[data-testid="uploaded-files-tab"]')
+    
+    // 表示確認（仮想スクロール等での対応）
+    await expect(page.locator('[data-testid="file-list"]')).toBeVisible()
+  })
+})
+```
+
+## テスト支援ファイル
+
+### tests/fixtures/
+```
+tests/fixtures/
+├── sample-audio.mp3      # 正常な音声ファイル（小容量）
+├── sample-video.mp4      # 正常な動画ファイル（小容量）
+├── large-file.mp3        # 大容量テストファイル
+├── invalid-file.txt      # 無効なファイル形式
+├── corrupted-audio.mp3   # 破損ファイル
+└── test-data.json        # APIモック用データ
+```
+
+### tests/utils/api-mocks.ts
+```typescript
+export const mockApiResponses = {
+  uploadSuccess: {
+    success: true,
+    data: { id: 'test-upload-id', status: 'completed' }
+  },
+  uploadError: {
+    success: false,
+    error: 'Upload failed'
+  },
+  platformConfigSaved: {
+    success: true,
+    message: 'Configuration saved'
+  },
+  statsResponse: {
+    success: true,
+    data: {
+      total_uploads: 42,
+      total_jobs: 15,
+      completed_jobs: 12,
+      failed_jobs: 1,
+      active_platforms: 3
+    }
+  }
+}
+```
+
+### tests/utils/test-helpers.ts
+```typescript
+export async function uploadTestFile(page: Page, fileName: string) {
+  const fileInput = page.locator('input[type="file"]')
+  await fileInput.setInputFiles(`tests/fixtures/${fileName}`)
+  await page.click('[data-testid="upload-button"]')
+  return page.waitForSelector('[data-testid="upload-success"]')
+}
+
+export async function configurePlatform(page: Page, platform: string, config: Record<string, string>) {
+  await page.goto('/platforms')
+  await page.click(`[data-testid="${platform}-tab"]`)
+  
+  for (const [key, value] of Object.entries(config)) {
+    await page.fill(`[data-testid="${platform}-${key}"]`, value)
+  }
+  
+  await page.click(`[data-testid="save-${platform}-config"]`)
+  return page.waitForSelector('[data-testid="success-toast"]')
+}
+```
+
+## CI/CD統合
+
+### .github/workflows/test.yml
+```yaml
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Install Playwright
+      run: npx playwright install chromium
+    
+    - name: Setup test database
+      run: npm run db:init:test
+    
+    - name: Run E2E tests
+      run: npm run test:e2e
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: playwright-report
+        path: playwright-report/
+```
+
+## 実装優先順位
+
+### 🔴 最優先 (Phase 1)
+1. **基本ナビゲーション**: ページ遷移、レスポンシブ
+2. **ダッシュボード**: 統計情報表示、エラーハンドリング
+
+### 🟡 高優先 (Phase 2)  
+3. **ファイルアップロード**: 正常系、エラー系、バリデーション
+4. **プラットフォーム設定**: 各種認証情報の設定・保存
+
+### 🟢 中優先 (Phase 3)
+5. **配信ワークフロー**: 統合テスト、進捗監視
+6. **RSS管理**: 統計情報、アーカイブ機能
+
+### ⚪ 低優先 (Phase 4)
+7. **エラーシナリオ**: ネットワーク障害、API障害
+8. **パフォーマンス**: 読み込み時間、大容量データ処理
+
+## 期待される効果
+
+### 品質向上
+- **バグ早期発見**: 開発段階でのUI/UX問題の発見
+- **リグレッション防止**: 機能追加時の既存機能への影響検出
+- **クロスブラウザ対応**: 複数環境での動作保証
+
+### 開発効率化
+- **手動テスト削減**: 繰り返しテストの自動化
+- **CI/CD統合**: 自動テスト実行による品質ゲート
+- **ドキュメント化**: テストコードが仕様の生きたドキュメント
+
+### 運用安定性
+- **デプロイ前検証**: 本番環境への影響事前検証
+- **パフォーマンス監視**: 処理時間の定期測定
+- **エラー処理確認**: 異常系シナリオの網羅的検証
+
+## 注意事項
+
+### localhost専用設定対応
+- 認証機能がスキップされているため、本番環境とは異なる動作
+- SQLiteデータベースの使用による制約
+- ファイルシステム依存の処理
+
+### テストデータ管理
+- テスト実行前後のデータクリーンアップ
+- ファイルアップロードテスト後のクリーンアップ
+- モックデータの一貫性維持
+
+### 外部依存関係
+- YouTube API、Browserless.ioのモック化
+- ネットワーク遅延のシミュレーション
+- エラー条件の再現性確保
+
+この戦略に基づいて段階的にテストを実装し、継続的な品質向上を実現します。
+description:
+globs:
+alwaysApply: false
+---
