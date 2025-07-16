@@ -101,6 +101,26 @@ export interface VoicyCredentials {
   sessionToken?: string
 }
 
+// YouTube認証関連
+export interface YouTubeToken {
+  id: string
+  user_id: string
+  access_token: string
+  refresh_token: string
+  status: 'active' | 'warning' | 'expired'
+  expires_at: Date
+  created_at: Date
+  updated_at: Date
+}
+
+export interface YouTubeCredentials {
+  clientId: string
+  clientSecret: string
+  refreshToken?: string
+  accessToken?: string
+  expiresAt?: number
+}
+
 // Spotify認証関連
 export interface SpotifyCredentials {
   clientId: string

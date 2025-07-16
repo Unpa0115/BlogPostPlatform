@@ -142,7 +142,7 @@ export class TestHelpers {
       return {
         domContentLoaded: navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
         loadComplete: navigation.loadEventEnd - navigation.loadEventStart,
-        totalTime: navigation.loadEventEnd - navigation.navigationStart
+        totalTime: navigation.loadEventEnd - navigation.startTime
       };
     });
   }
