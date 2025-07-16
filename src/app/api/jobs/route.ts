@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const jobType = searchParams.get('job_type')
 
     if (process.env.NODE_ENV === 'production') {
-      // PostgreSQL
+      // SQLite
       let query = `
         SELECT j.id, j.job_type, j.status, j.progress, j.platform_type, j.error_message, j.created_at,
                af.file_name as audio_file_name

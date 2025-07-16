@@ -6,7 +6,6 @@ export async function POST(request: NextRequest) {
   try {
     console.log('=== REGISTER API START ===')
     console.log('Environment:', process.env.NODE_ENV)
-    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL)
     
     const body = await request.json()
     const { email, password } = body
@@ -92,7 +91,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // PostgreSQLの重複エラー
+    // SQLiteの重複エラー
     if (error.code === '23505' && error.constraint === 'users_email_key') {
       return NextResponse.json(
         { error: 'このメールアドレスは既に登録されています' },
