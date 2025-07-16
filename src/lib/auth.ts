@@ -23,9 +23,33 @@ function generateUUID(): string {
   })
 }
 
-// JWT_SECRETの取得（開発環境ではデフォルト値を使用）
+// JWT_SECRETの取得（本番環境では必須）
 function getJwtSecret(): string {
-  return process.env.JWT_SECRET || 'dev-secret-key-for-development-only'
+  const secret = process.env.JWT_SECRET
+  
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET環境変数が設定されていません。本番環境では必須です。')
+    }
+    
+    // 開発環境でも最低限の強度を保つ
+    const devSecret = process.env.NODE_ENV === 'development' 
+      ? 'dev-secret-key-minimum-32-chars-long-for-security'
+      : undefined
+    
+    if (!devSecret) {
+      throw new Error('JWT_SECRET環境変数が設定されていません。')
+    }
+    
+    console.warn('⚠️  開発環境のデフォルトJWT_SECRETを使用しています。本番環境では必ず独自の値を設定してください。')
+    return devSecret
+  }
+  
+  if (secret.length < 32) {
+    throw new Error('JWT_SECRETは32文字以上である必要があります。')
+  }
+  
+  return secret
 }
 
 // ユーザー登録

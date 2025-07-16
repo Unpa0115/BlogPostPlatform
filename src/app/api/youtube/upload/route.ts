@@ -58,38 +58,20 @@ export async function POST(request: NextRequest) {
     
     let credentials
     try {
-      if (process.env.NODE_ENV === 'production') {
-        const result = await db.query(
-          'SELECT client_id, client_secret, access_token, refresh_token, expires_at FROM platform_credentials WHERE platform_type = $1',
-          ['youtube']
-        )
-        if (!result.rows[0]) {
-          throw new Error('YouTube credentials not found')
-        }
-        const row = result.rows[0]
-        credentials = {
-          clientId: row.client_id,
-          clientSecret: row.client_secret,
-          accessToken: row.access_token,
-          refreshToken: row.refresh_token,
-          expiresAt: row.expires_at ? new Date(row.expires_at).getTime() : undefined
-        }
-      } else {
-        const sqliteDb = await db
-        const result = await sqliteDb.get(
-          'SELECT client_id, client_secret, access_token, refresh_token, expires_at FROM platform_credentials WHERE platform_type = ?',
-          ['youtube']
-        )
-        if (!result) {
-          throw new Error('YouTube credentials not found')
-        }
-        credentials = {
-          clientId: result.client_id,
-          clientSecret: result.client_secret,
-          accessToken: result.access_token,
-          refreshToken: result.refresh_token,
-          expiresAt: result.expires_at ? new Date(result.expires_at).getTime() : undefined
-        }
+      const sqliteDb = await db
+      const result = await sqliteDb.get(
+        'SELECT client_id, client_secret, access_token, refresh_token, expires_at FROM platform_credentials WHERE platform_type = ?',
+        ['youtube']
+      )
+      if (!result) {
+        throw new Error('YouTube credentials not found')
+      }
+      credentials = {
+        clientId: result.client_id,
+        clientSecret: result.client_secret,
+        accessToken: result.access_token,
+        refreshToken: result.refresh_token,
+        expiresAt: result.expires_at ? new Date(result.expires_at).getTime() : undefined
       }
 
       // トークンの有効性をチェック
@@ -104,22 +86,13 @@ export async function POST(request: NextRequest) {
         credentials = refreshedCredentials
         
         // 更新されたトークンを保存
-        if (process.env.NODE_ENV === 'production') {
-          await db.query(
-            `UPDATE platform_credentials 
-             SET access_token = $1, expires_at = $2, updated_at = CURRENT_TIMESTAMP 
-             WHERE platform_type = $3`,
-            [credentials.accessToken, credentials.expiresAt ? new Date(credentials.expiresAt) : null, 'youtube']
-          )
-        } else {
-          const sqliteDb = await db
-          await sqliteDb.run(
-            `UPDATE platform_credentials 
-             SET access_token = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP 
-             WHERE platform_type = ?`,
-            [credentials.accessToken, credentials.expiresAt ? new Date(credentials.expiresAt) : null, 'youtube']
-          )
-        }
+        const sqliteDb = await db
+        await sqliteDb.run(
+          `UPDATE platform_credentials 
+           SET access_token = ?, expires_at = ?, updated_at = CURRENT_TIMESTAMP 
+           WHERE platform_type = ?`,
+          [credentials.accessToken, credentials.expiresAt ? new Date(credentials.expiresAt) : null, 'youtube']
+        )
         console.log('Access token refreshed and saved')
       }
     } catch (error) {

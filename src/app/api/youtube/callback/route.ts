@@ -60,45 +60,20 @@ export async function GET(request: NextRequest) {
     })
 
     try {
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(
-          `INSERT INTO platform_credentials (platform_type, client_id, client_secret, access_token, refresh_token, expires_at, is_active) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7) 
-           ON CONFLICT (platform_type) 
-           DO UPDATE SET 
-             client_id = $2, 
-             client_secret = $3, 
-             access_token = $4, 
-             refresh_token = $5, 
-             expires_at = $6, 
-             is_active = $7, 
-             updated_at = CURRENT_TIMESTAMP`,
-          [
-            'youtube', 
-            credentials.clientId, 
-            credentials.clientSecret, 
-            credentials.accessToken, 
-            credentials.refreshToken, 
-            credentials.expiresAt ? new Date(credentials.expiresAt) : null,
-            true
-          ]
-        )
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(
-          `INSERT OR REPLACE INTO platform_credentials (platform_type, client_id, client_secret, access_token, refresh_token, expires_at, is_active) 
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            'youtube', 
-            credentials.clientId, 
-            credentials.clientSecret, 
-            credentials.accessToken, 
-            credentials.refreshToken, 
-            credentials.expiresAt ? new Date(credentials.expiresAt) : null,
-            true
-          ]
-        )
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(
+        `INSERT OR REPLACE INTO platform_credentials (platform_type, client_id, client_secret, access_token, refresh_token, expires_at, is_active) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          'youtube', 
+          credentials.clientId, 
+          credentials.clientSecret, 
+          credentials.accessToken, 
+          credentials.refreshToken, 
+          credentials.expiresAt ? new Date(credentials.expiresAt) : null,
+          true
+        ]
+      )
     } catch (dbError) {
       console.error('Database error:', dbError)
       console.error('Database error details:', {
@@ -120,36 +95,17 @@ export async function GET(request: NextRequest) {
       // 暗号化された認証情報を作成
       const encryptedCredentials = CredentialEncryption.encrypt(JSON.stringify(credentials), CredentialEncryption.getMasterKey())
       
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(`
-          INSERT INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
-          VALUES ($1, $2, $3, $4, $5)
-          ON CONFLICT (user_id, platform_type)
-          DO UPDATE SET 
-            platform_name = $3,
-            credentials = $4,
-            is_active = $5,
-            updated_at = CURRENT_TIMESTAMP
-        `, [
-          userId,
-          'youtube',
-          'YouTube',
-          { encrypted: encryptedCredentials },
-          true
-        ])
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(`
-          INSERT OR REPLACE INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
-          VALUES (?, ?, ?, ?, ?)
-        `, [
-          userId,
-          'youtube',
-          'YouTube',
-          JSON.stringify({ encrypted: encryptedCredentials }),
-          true
-        ])
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(`
+        INSERT OR REPLACE INTO distribution_platforms (user_id, platform_type, platform_name, credentials, is_active)
+        VALUES (?, ?, ?, ?, ?)
+      `, [
+        userId,
+        'youtube',
+        'YouTube',
+        JSON.stringify({ encrypted: encryptedCredentials }),
+        true
+      ])
       console.log('Distribution platforms table updated successfully')
     } catch (updateError) {
       console.error('Failed to update distribution_platforms:', updateError)
