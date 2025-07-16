@@ -12,23 +12,11 @@ export async function POST(request: NextRequest) {
     const userId = LOCALHOST_USER_ID
 
     // YouTubeプラットフォームの認証情報を取得
-    let youtubePlatform = null
-    if (process.env.NODE_ENV === 'production') {
-      const result = await db.query(
-        'SELECT id, credentials FROM distribution_platforms WHERE user_id = $1 AND platform_type = $2',
-        [userId, 'youtube']
-      )
-      
-      if (result.rows.length > 0) {
-        youtubePlatform = result.rows[0]
-      }
-    } else {
-      const sqliteDb = await db
-      youtubePlatform = await sqliteDb.get(
-        'SELECT id, credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
-        [userId, 'youtube']
-      )
-    }
+    const sqliteDb = await db
+    const youtubePlatform = await sqliteDb.get(
+      'SELECT id, credentials FROM distribution_platforms WHERE user_id = ? AND platform_type = ?',
+      [userId, 'youtube']
+    )
 
     if (youtubePlatform) {
       // 既存の認証情報を取得
@@ -60,21 +48,12 @@ export async function POST(request: NextRequest) {
       }
 
       // データベースを更新
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(`
-          UPDATE distribution_platforms 
-          SET credentials = $1, updated_at = NOW()
-          WHERE id = $2
-        `, [encryptedCredentials, youtubePlatform.id])
-      } else {
-        const sqliteDb = await db
-        const now = new Date().toISOString()
-        await sqliteDb.run(`
-          UPDATE distribution_platforms 
-          SET credentials = ?, updated_at = ?
-          WHERE id = ?
-        `, [JSON.stringify(encryptedCredentials), now, youtubePlatform.id])
-      }
+      const now = new Date().toISOString()
+      await sqliteDb.run(`
+        UPDATE distribution_platforms 
+        SET credentials = ?, updated_at = ?
+        WHERE id = ?
+      `, [JSON.stringify(encryptedCredentials), now, youtubePlatform.id])
 
       return NextResponse.json({
         success: true,

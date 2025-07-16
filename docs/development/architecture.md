@@ -16,7 +16,7 @@ BlogPostPlatformのシステム設計と技術仕様について説明します�
          ▼                       ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   UI Components │    │   Database      │    │   OpenAI        │
-│   (React)       │    │   (PostgreSQL)  │    │   Whisper API   │
+│   (React)       │    │   (SQLite)      │    │   Whisper API   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │                       │                       │
@@ -58,10 +58,10 @@ const frontendStack = {
 const backendStack = {
   runtime: "Node.js 18+",
   framework: "Next.js API Routes",
-  database: "Prisma 5.11.0 + PostgreSQL",
-  authentication: "Clerk 6.12.9",
-  encryption: "crypto-js + bcryptjs",
-  fileProcessing: "Multer + Sharp",
+  database: "SQLite 3 + sqlite library",
+  authentication: "Custom JWT + bcryptjs",
+  encryption: "Node.js crypto + bcryptjs",
+  fileProcessing: "Multer + fluent-ffmpeg",
 };
 ```
 
@@ -72,9 +72,10 @@ const backendStack = {
 const externalServices = {
   openai: "Whisper API + GPT-4o-mini",
   youtube: "YouTube Data API v3",
-  browserless: "Browserless.io",
-  railway: "Railway PostgreSQL",
+  browserless: "Browserless.io + Playwright",
+  railway: "Railway Deployment Platform",
   spotify: "RSS Feed Generation",
+  voicy: "Browser Automation",
 };
 ```
 
@@ -114,48 +115,60 @@ src/
 ### 認証情報の暗号化
 
 ```typescript
-// src/lib/encryption.ts
-export class CredentialEncryption {
-  private algorithm = 'aes-256-gcm';
-  private key: Buffer;
+// src/lib/auth.ts
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+
+// JWT_SECRETの取得（本番環境では必須）
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET
   
-  constructor() {
-    const encryptionKey = process.env.ENCRYPTION_KEY;
-    if (!encryptionKey || encryptionKey.length !== 32) {
-      throw new Error('Invalid encryption key');
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET環境変数が設定されていません。本番環境では必須です。')
     }
-    this.key = Buffer.from(encryptionKey, 'hex');
+    
+    // 開発環境でも最低限の強度を保つ
+    const devSecret = process.env.NODE_ENV === 'development' 
+      ? 'dev-secret-key-minimum-32-chars-long-for-security'
+      : undefined
+    
+    if (!devSecret) {
+      throw new Error('JWT_SECRET環境変数が設定されていません。')
+    }
+    
+    console.warn('⚠️  開発環境のデフォルトJWT_SECRETを使用しています。本番環境では必ず独自の値を設定してください。')
+    return devSecret
   }
   
-  encrypt(data: any): string {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher(this.algorithm, this.key);
-    cipher.setAAD(Buffer.from('credentials'));
-    
-    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    
-    const authTag = cipher.getAuthTag();
-    
-    return JSON.stringify({
-      iv: iv.toString('hex'),
-      encrypted,
-      authTag: authTag.toString('hex'),
-    });
+  if (secret.length < 32) {
+    throw new Error('JWT_SECRETは32文字以上である必要があります。')
   }
   
-  decrypt(encryptedData: string): any {
-    const { iv, encrypted, authTag } = JSON.parse(encryptedData);
-    
-    const decipher = crypto.createDecipher(this.algorithm, this.key);
-    decipher.setAAD(Buffer.from('credentials'));
-    decipher.setAuthTag(Buffer.from(authTag, 'hex'));
-    
-    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
-    
-    return JSON.parse(decrypted);
+  return secret
+}
+
+// ユーザー登録時のパスワードハッシュ化
+export async function registerUser(email: string, password: string): Promise<User> {
+  const hashedPassword = await bcrypt.hash(password, 12)
+  // ... SQLiteへの保存処理
+}
+
+// ログイン時のパスワード検証
+export async function loginUser(email: string, password: string) {
+  const user = await getUserByEmail(email)
+  const isValid = await bcrypt.compare(password, user.password_hash)
+  
+  if (isValid) {
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      getJwtSecret(),
+      { expiresIn: '7d' }
+    )
+    return { user, token }
   }
+  
+  return null
 }
 ```
 
@@ -164,46 +177,90 @@ export class CredentialEncryption {
 ```sql
 -- ユーザーテーブル
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- プラットフォーム認証情報テーブル
 CREATE TABLE platform_credentials (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  platform VARCHAR(50) NOT NULL,
-  encrypted_data TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, platform)
+  id TEXT PRIMARY KEY,
+  platform_type TEXT NOT NULL UNIQUE,
+  client_id TEXT,
+  client_secret TEXT,
+  access_token TEXT,
+  refresh_token TEXT,
+  expires_at DATETIME,
+  is_active INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 音声ファイルテーブル
 CREATE TABLE audio_files (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  filename VARCHAR(255) NOT NULL,
-  original_name VARCHAR(255) NOT NULL,
-  file_size BIGINT NOT NULL,
-  mime_type VARCHAR(100) NOT NULL,
-  duration FLOAT,
-  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  file_name TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  duration INTEGER,
+  status TEXT DEFAULT 'uploading',
+  metadata TEXT DEFAULT '{}',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- 配信ジョブテーブル
-CREATE TABLE distribution_jobs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  audio_file_id UUID REFERENCES audio_files(id) ON DELETE CASCADE,
-  platform VARCHAR(50) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending',
-  metadata JSONB,
+CREATE TABLE jobs (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  audio_file_id TEXT NOT NULL,
+  job_type TEXT NOT NULL,
+  status TEXT DEFAULT 'pending',
+  result_url TEXT,
   error_message TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  progress INTEGER DEFAULT 0,
+  platform_type TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (audio_file_id) REFERENCES audio_files(id) ON DELETE CASCADE
+);
+
+-- アップロードファイルテーブル
+CREATE TABLE uploads (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  file_path TEXT NOT NULL,
+  processed_file_path TEXT,
+  file_size INTEGER NOT NULL,
+  mime_type TEXT NOT NULL,
+  status TEXT DEFAULT 'uploading',
+  metadata TEXT DEFAULT '{}',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- YouTube認証トークンテーブル
+CREATE TABLE youtube_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT NOT NULL,
+  expires_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  status TEXT DEFAULT 'active',
+  failure_count INTEGER DEFAULT 0,
+  last_used_at DATETIME,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  UNIQUE(user_id)
 );
 ```
 
@@ -286,28 +343,39 @@ const distributionFlow = async (audioFile: File, platforms: string[]) => {
 POST   /api/auth/login          # ログイン
 POST   /api/auth/register       # ユーザー登録
 GET    /api/auth/me             # ユーザー情報取得
+GET    /api/auth/notifications  # 認証通知取得
 
 // ファイル管理
 POST   /api/uploads             # 音声ファイルアップロード
 GET    /api/uploads/list        # ファイル一覧取得
+GET    /api/uploads/lookup      # ファイル検索
 POST   /api/uploads/trim        # 音声トリミング
 POST   /api/uploads/transcribe  # 文字起こし
 
 // プラットフォーム管理
 GET    /api/platforms           # プラットフォーム一覧
-POST   /api/platforms/credentials # 認証情報保存
-GET    /api/platforms/voicy-upload # Voicy配信
+POST   /api/platforms/voicy-credentials # Voicy認証情報保存
+POST   /api/platforms/voicy-upload # Voicy配信
+GET    /api/platforms/youtube/auth # YouTube認証開始
+GET    /api/platforms/youtube/callback # YouTube認証コールバック
 POST   /api/platforms/youtube/upload # YouTube配信
+POST   /api/platforms/youtube/revoke # YouTube認証廃棄
 
 // RSS Feed
 GET    /api/rss                 # RSS Feed取得
-POST   /api/rss/episodes        # エピソード追加
+GET    /api/rss/archive         # RSSアーカイブ
+GET    /api/rss/info            # RSS情報
 GET    /api/rss/stats           # RSS統計情報
 
 // ジョブ管理
 GET    /api/jobs                # ジョブ一覧取得
 POST   /api/jobs                # ジョブ作成
-PUT    /api/jobs/:id            # ジョブ更新
+
+// システム管理
+GET    /api/health              # ヘルスチェック
+POST   /api/init-db             # データベース初期化
+GET    /api/stats               # システム統計
+GET    /api/validate-rss        # RSS検証
 ```
 
 ### GraphQLスキーマ（将来の拡張）
@@ -380,12 +448,12 @@ type Mutation {
 ### 環境変数管理
 
 ```typescript
-// src/lib/config.ts
+// src/lib/env-config.ts
 export const config = {
   // データベース設定
   database: {
-    url: process.env.DATABASE_URL!,
-    ssl: process.env.NODE_ENV === 'production',
+    path: './blogpostplatform.db',
+    type: 'sqlite',
   },
   
   // OpenAI設定
@@ -399,7 +467,15 @@ export const config = {
   youtube: {
     clientId: process.env.YOUTUBE_CLIENT_ID!,
     clientSecret: process.env.YOUTUBE_CLIENT_SECRET!,
+    apiKey: process.env.YOUTUBE_API_KEY!,
     redirectUri: `${process.env.NEXT_PUBLIC_APP_URL}/api/platforms/youtube/callback`,
+  },
+  
+  // Voicy設定
+  voicy: {
+    email: process.env.VOICY_EMAIL!,
+    password: process.env.VOICY_PASSWORD!,
+    browserlessApiKey: process.env.BROWSERLESS_API_KEY!,
   },
   
   // Browserless設定
@@ -410,15 +486,24 @@ export const config = {
   
   // ファイル設定
   file: {
-    maxSize: 50 * 1024 * 1024, // 50MB
-    allowedTypes: ['audio/mpeg', 'audio/wav', 'audio/mp4'],
+    maxSize: 2 * 1024 * 1024 * 1024, // 2GB
+    allowedTypes: ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/m4a', 'video/mp4', 'video/mov'],
     uploadDir: './uploads',
   },
   
-  // 暗号化設定
-  encryption: {
-    algorithm: 'aes-256-gcm',
-    key: process.env.ENCRYPTION_KEY!,
+  // 音声処理設定
+  audio: {
+    ffmpegPath: process.env.FFMPEG_PATH || 'ffmpeg',
+    quality: process.env.AUDIO_QUALITY || '128k',
+    format: process.env.AUDIO_FORMAT || 'mp3',
+    silenceThreshold: process.env.SILENCE_THRESHOLD || '-50dB',
+    silenceDuration: process.env.SILENCE_DURATION || '2.0',
+  },
+  
+  // 認証設定
+  auth: {
+    jwtSecret: process.env.JWT_SECRET || 'dev-secret-key-for-development-only',
+    encryptionMasterKey: process.env.ENCRYPTION_MASTER_KEY!,
   },
 };
 ```
@@ -430,10 +515,12 @@ export const config = {
 ```typescript
 // キャッシュ設定
 const cacheConfig = {
-  // Redis設定（将来の拡張）
-  redis: {
-    url: process.env.REDIS_URL,
-    ttl: 3600, // 1時間
+  // SQLite WALモード（Write-Ahead Logging）
+  sqlite: {
+    journalMode: 'WAL',
+    synchronous: 'NORMAL',
+    cacheSize: 1000,
+    tempStore: 'MEMORY',
   },
   
   // メモリキャッシュ
@@ -442,10 +529,17 @@ const cacheConfig = {
     ttl: 300, // 5分
   },
   
-  // CDN設定
-  cdn: {
-    domain: process.env.CDN_DOMAIN,
+  // ファイルキャッシュ
+  file: {
+    uploadDir: './uploads',
+    processingDir: './processing',
     cacheControl: 'public, max-age=3600',
+  },
+  
+  // プラットフォーム設定キャッシュ
+  platform: {
+    configCacheTtl: 600, // 10分
+    tokenCacheTtl: 1800, // 30分
   },
 };
 ```
@@ -453,19 +547,20 @@ const cacheConfig = {
 ### データベース最適化
 
 ```sql
--- インデックス設定
-CREATE INDEX idx_audio_files_user_id ON audio_files(user_id);
-CREATE INDEX idx_distribution_jobs_user_id ON distribution_jobs(user_id);
-CREATE INDEX idx_distribution_jobs_status ON distribution_jobs(status);
-CREATE INDEX idx_platform_credentials_user_platform ON platform_credentials(user_id, platform);
+-- インデックス設定（SQLite）
+CREATE INDEX IF NOT EXISTS idx_audio_files_user_id ON audio_files(user_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON jobs(user_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_uploads_user_id ON uploads(user_id);
+CREATE INDEX IF NOT EXISTS idx_uploads_status ON uploads(status);
+CREATE INDEX IF NOT EXISTS idx_uploads_created_at ON uploads(created_at);
+CREATE INDEX IF NOT EXISTS idx_youtube_tokens_user_id ON youtube_tokens(user_id);
 
--- パーティショニング（将来の拡張）
-CREATE TABLE audio_files_partitioned (
-  LIKE audio_files INCLUDING ALL
-) PARTITION BY RANGE (uploaded_at);
-
-CREATE TABLE audio_files_2024 PARTITION OF audio_files_partitioned
-FOR VALUES FROM ('2024-01-01') TO ('2025-01-01');
+-- SQLite固有の最適化
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;
+PRAGMA cache_size = 1000;
+PRAGMA temp_store = MEMORY;
 ```
 
 ## 🔍 監視とログ
@@ -538,11 +633,57 @@ const metrics = {
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "npm start",
+    "startCommand": "NODE_OPTIONS='--max-old-space-size=768' npm start",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
+  }
+}
+```
+
+### 例外処理とメモリ管理
+
+```typescript
+// src/lib/voicyAutomation.ts
+export async function processVoicyUpload(options: VoicyUploadOptions) {
+  let browser: Browser | null = null
+  let page: Page | null = null
+  
+  try {
+    // メモリ使用量監視
+    const startMemory = process.memoryUsage()
+    console.log(`🚀 開始時メモリ使用量: ${Math.round(startMemory.heapUsed / 1024 / 1024)}MB`)
+    
+    // Playwrightブラウザー起動
+    if (process.env.NODE_ENV === 'development') {
+      browser = await chromium.launch({ headless: false })
+    } else {
+      browser = await chromium.connectOverCDT({
+        wsEndpoint: process.env.BROWSERLESS_WS_ENDPOINT!,
+      })
+    }
+    
+    page = await browser.newPage()
+    
+    // アップロード処理実行
+    await performVoicyUpload(page, options)
+    
+  } catch (error) {
+    console.error('Voicyアップロードエラー:', error)
+    throw error
+  } finally {
+    // リソースクリーンアップ
+    if (page) {
+      await page.close()
+    }
+    if (browser) {
+      await browser.close()
+    }
+    
+    // メモリ使用量最終確認
+    const endMemory = process.memoryUsage()
+    console.log(`📊 終了時メモリ使用量: ${Math.round(endMemory.heapUsed / 1024 / 1024)}MB`)
   }
 }
 ```

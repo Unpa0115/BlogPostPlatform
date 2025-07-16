@@ -8,12 +8,15 @@ export async function GET(request: NextRequest) {
     const dbTest = await testConnectionSimple()
     console.log('Database connection test:', dbTest)
 
-    // localhost環境では認証チェックをスキップ
+    // 開発環境でのみ認証バイパスを許可（環境変数で制御）
+    const allowAuthBypass = process.env.ALLOW_LOCALHOST_AUTH_BYPASS === 'true' && 
+                           process.env.NODE_ENV === 'development'
+    
     const isLocalhost = request.headers.get('host')?.includes('localhost') || 
                        request.headers.get('host')?.includes('127.0.0.1') ||
                        request.headers.get('host')?.includes('192.168.')
 
-    if (isLocalhost) {
+    if (isLocalhost && allowAuthBypass) {
       // localhost環境では固定ユーザーを返す
       const localhostUser = {
         id: 'localhost-user',

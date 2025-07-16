@@ -12,20 +12,12 @@ export class YouTubeTokenManager {
    */
   static async getToken(userId: string): Promise<YouTubeToken | null> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        const result = await db.query(
-          'SELECT * FROM youtube_tokens WHERE user_id = $1',
-          [userId]
-        )
-        return result.rows[0] || null
-      } else {
-        const sqliteDb = await db
-        const result = await sqliteDb.get(
-          'SELECT * FROM youtube_tokens WHERE user_id = ?',
-          [userId]
-        )
-        return result || null
-      }
+      const sqliteDb = await db
+      const result = await sqliteDb.get(
+        'SELECT * FROM youtube_tokens WHERE user_id = ?',
+        [userId]
+      )
+      return result || null
     } catch (error) {
       console.error('Error getting YouTube token:', error)
       return null
@@ -40,27 +32,12 @@ export class YouTubeTokenManager {
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + 7) // 7日間有効
 
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(`
-          INSERT INTO youtube_tokens (user_id, access_token, refresh_token, expires_at, status, failure_count)
-          VALUES ($1, $2, $3, $4, 'active', 0)
-          ON CONFLICT (user_id) 
-          DO UPDATE SET 
-            access_token = $2,
-            refresh_token = $3,
-            expires_at = $4,
-            status = 'active',
-            failure_count = 0,
-            updated_at = NOW()
-        `, [userId, accessToken, refreshToken, expiresAt])
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(`
-          INSERT OR REPLACE INTO youtube_tokens 
-          (user_id, access_token, refresh_token, expires_at, status, failure_count, updated_at)
-          VALUES (?, ?, ?, ?, 'active', 0, CURRENT_TIMESTAMP)
-        `, [userId, accessToken, refreshToken, expiresAt.toISOString()])
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(`
+        INSERT OR REPLACE INTO youtube_tokens 
+        (user_id, access_token, refresh_token, expires_at, status, failure_count, updated_at)
+        VALUES (?, ?, ?, ?, 'active', 0, CURRENT_TIMESTAMP)
+      `, [userId, accessToken, refreshToken, expiresAt.toISOString()])
     } catch (error) {
       console.error('Error saving YouTube token:', error)
       throw error
@@ -72,18 +49,11 @@ export class YouTubeTokenManager {
    */
   static async recordTokenUsage(userId: string): Promise<void> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(
-          'UPDATE youtube_tokens SET last_used_at = NOW() WHERE user_id = $1',
-          [userId]
-        )
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(
-          'UPDATE youtube_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE user_id = ?',
-          [userId]
-        )
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(
+        'UPDATE youtube_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE user_id = ?',
+        [userId]
+      )
     } catch (error) {
       console.error('Error recording token usage:', error)
     }
@@ -94,32 +64,18 @@ export class YouTubeTokenManager {
    */
   static async recordTokenFailure(userId: string): Promise<void> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(`
-          UPDATE youtube_tokens 
-          SET failure_count = failure_count + 1,
-              status = CASE 
-                WHEN failure_count >= 3 THEN 'expired'
-                WHEN failure_count >= 1 THEN 'warning'
-                ELSE status
-              END,
-              updated_at = NOW()
-          WHERE user_id = $1
-        `, [userId])
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(`
-          UPDATE youtube_tokens 
-          SET failure_count = failure_count + 1,
-              status = CASE 
-                WHEN failure_count >= 3 THEN 'expired'
-                WHEN failure_count >= 1 THEN 'warning'
-                ELSE status
-              END,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE user_id = ?
-        `, [userId])
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(`
+        UPDATE youtube_tokens 
+        SET failure_count = failure_count + 1,
+            status = CASE 
+              WHEN failure_count >= 3 THEN 'expired'
+              WHEN failure_count >= 1 THEN 'warning'
+              ELSE status
+            END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ?
+      `, [userId])
     } catch (error) {
       console.error('Error recording token failure:', error)
     }
@@ -183,22 +139,13 @@ export class YouTubeTokenManager {
       const warningDate = new Date()
       warningDate.setDate(warningDate.getDate() + this.WARNING_DAYS)
 
-      if (process.env.NODE_ENV === 'production') {
-        const result = await db.query(`
-          SELECT * FROM youtube_tokens 
-          WHERE expires_at < $1 AND status = 'active'
-          ORDER BY expires_at ASC
-        `, [warningDate])
-        return result.rows
-      } else {
-        const sqliteDb = await db
-        const result = await sqliteDb.all(`
-          SELECT * FROM youtube_tokens 
-          WHERE expires_at < ? AND status = 'active'
-          ORDER BY expires_at ASC
-        `, [warningDate.toISOString()])
-        return result
-      }
+      const sqliteDb = await db
+      const result = await sqliteDb.all(`
+        SELECT * FROM youtube_tokens 
+        WHERE expires_at < ? AND status = 'active'
+        ORDER BY expires_at ASC
+      `, [warningDate.toISOString()])
+      return result
     } catch (error) {
       console.error('Error getting expiring tokens:', error)
       return []
@@ -219,20 +166,12 @@ export class YouTubeTokenManager {
       const expiresAt = new Date()
       expiresAt.setDate(expiresAt.getDate() + 7) // 7日間有効
 
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(`
-          INSERT INTO auth_notifications 
-          (user_id, platform_type, notification_type, message, action_url, expires_at)
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [userId, platformType, notificationType, message, actionUrl, expiresAt])
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(`
-          INSERT INTO auth_notifications 
-          (user_id, platform_type, notification_type, message, action_url, expires_at)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `, [userId, platformType, notificationType, message, actionUrl, expiresAt.toISOString()])
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(`
+        INSERT INTO auth_notifications 
+        (user_id, platform_type, notification_type, message, action_url, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `, [userId, platformType, notificationType, message, actionUrl, expiresAt.toISOString()])
     } catch (error) {
       console.error('Error creating auth notification:', error)
     }
@@ -243,22 +182,13 @@ export class YouTubeTokenManager {
    */
   static async getUnreadNotifications(userId: string): Promise<AuthNotification[]> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        const result = await db.query(`
-          SELECT * FROM auth_notifications 
-          WHERE user_id = $1 AND is_read = false AND (expires_at IS NULL OR expires_at > NOW())
-          ORDER BY created_at DESC
-        `, [userId])
-        return result.rows
-      } else {
-        const sqliteDb = await db
-        const result = await sqliteDb.all(`
-          SELECT * FROM auth_notifications 
-          WHERE user_id = ? AND is_read = 0 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
-          ORDER BY created_at DESC
-        `, [userId])
-        return result
-      }
+      const sqliteDb = await db
+      const result = await sqliteDb.all(`
+        SELECT * FROM auth_notifications 
+        WHERE user_id = ? AND is_read = 0 AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+        ORDER BY created_at DESC
+      `, [userId])
+      return result
     } catch (error) {
       console.error('Error getting unread notifications:', error)
       return []
@@ -270,18 +200,11 @@ export class YouTubeTokenManager {
    */
   static async markNotificationAsRead(notificationId: string): Promise<void> {
     try {
-      if (process.env.NODE_ENV === 'production') {
-        await db.query(
-          'UPDATE auth_notifications SET is_read = true WHERE id = $1',
-          [notificationId]
-        )
-      } else {
-        const sqliteDb = await db
-        await sqliteDb.run(
-          'UPDATE auth_notifications SET is_read = 1 WHERE id = ?',
-          [notificationId]
-        )
-      }
+      const sqliteDb = await db
+      await sqliteDb.run(
+        'UPDATE auth_notifications SET is_read = 1 WHERE id = ?',
+        [notificationId]
+      )
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
