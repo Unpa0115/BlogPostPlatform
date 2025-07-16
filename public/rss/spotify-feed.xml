@@ -6,8 +6,8 @@
     <description>Automatically generated podcast feed for Spotify synchronization</description>
     <language>ja</language>
     <copyright>© 2025 AutoPost</copyright>
-    <lastBuildDate>Wed, 16 Jul 2025 02:54:28 GMT</lastBuildDate>
-    <pubDate>Wed, 16 Jul 2025 02:54:28 GMT</pubDate>
+    <lastBuildDate>Wed, 16 Jul 2025 07:16:04 GMT</lastBuildDate>
+    <pubDate>Wed, 16 Jul 2025 07:16:04 GMT</pubDate>
     <itunes:category text="Technology" />
     <itunes:explicit>no</itunes:explicit>
     <itunes:image href="https://yujiyamanaka.github.io/BlogPostPlatform/podcast-cover.jpg" />
@@ -15,11 +15,11 @@
     <itunes:summary>Automatically generated podcast feed for multi-platform distribution</itunes:summary>
     <item>
       <title>新規録音 5.m4a</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752634468914______5.m4a</link>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752650045585______5.m4a</link>
       <description></description>
-      <pubDate>Wed, 16 Jul 2025 02:54:28 GMT</pubDate>
-      <guid>autopost-b054dd2a-9ef7-45c4-8eed-8c79f6984131-1752634468923</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752634468914______5.m4a" length="76356" type="audio/x-m4a" />
+      <pubDate>Wed, 16 Jul 2025 07:14:05 GMT</pubDate>
+      <guid>autopost-c8e33f5a-5597-4c8c-8bd9-3cf26d13ed4e-1752650164084</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752650045585______5.m4a" length="76356" type="audio/x-m4a" />
       <itunes:duration>00:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>
@@ -40,6 +40,56 @@
       <pubDate>Fri, 27 Jun 2025 14:27:35 GMT</pubDate>
       <guid>autopost-a2f9017b-f672-4201-a2cd-7e74e0497af0-1751034455000</guid>
       <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=10699750-312a-4f82-ada7-c8e5cf9b1fa8_1751066855604_bell-ringing-05____.mp3" length="99238" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>新規録音 5.m4a</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752650045585______5.m4a</link>
+      <description></description>
+      <pubDate>Wed, 16 Jul 2025 07:14:05 GMT</pubDate>
+      <guid>autopost-c8e33f5a-5597-4c8c-8bd9-3cf26d13ed4e-1752650045590</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752650045585______5.m4a" length="76356" type="audio/x-m4a" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>10699750-312a-4f82-ada7-c8e5cf9b1fa8_1751182036404_IMG_2947.MOV</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752649592773_10699750-312a-4f82-ada7-c8e5cf9b1fa8_1751182036404_IMG_2947.MOV</link>
+      <description></description>
+      <pubDate>Wed, 16 Jul 2025 07:06:32 GMT</pubDate>
+      <guid>autopost-b1a7923f-ce84-42d3-8a50-d5ea53608651-1752649592839</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752649592773_10699750-312a-4f82-ada7-c8e5cf9b1fa8_1751182036404_IMG_2947.MOV" length="44299935" type="video/quicktime" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>Trimmed: trimmed_1752649523392_localhost-user_1752649380989______5.m4a</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=trimmed_1752649523392_localhost-user_1752649380989______5.m4a</link>
+      <description></description>
+      <pubDate>Wed, 16 Jul 2025 07:05:27 GMT</pubDate>
+      <guid>autopost-3f396f5c-bdcb-41c5-b06a-74c43c00747d-1752649527718</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=trimmed_1752649523392_localhost-user_1752649380989______5.m4a" length="70556" type="audio/mpeg" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>新規録音 5.m4a</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752649380989______5.m4a</link>
+      <description></description>
+      <pubDate>Wed, 16 Jul 2025 07:03:00 GMT</pubDate>
+      <guid>autopost-e2edff19-7b0b-4f5c-991b-ea826942866a-1752649380996</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752649380989______5.m4a" length="76356" type="audio/x-m4a" />
+      <itunes:duration>00:00</itunes:duration>
+      <itunes:explicit>no</itunes:explicit>
+    </item>
+    <item>
+      <title>新規録音 5.m4a</title>
+      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752647609745______5.m4a</link>
+      <description></description>
+      <pubDate>Wed, 16 Jul 2025 06:33:29 GMT</pubDate>
+      <guid>autopost-f72dce37-4934-4920-864b-b59299b59cd6-1752647609749</guid>
+      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752647609745______5.m4a" length="76356" type="audio/x-m4a" />
       <itunes:duration>00:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>
@@ -460,56 +510,6 @@
       <pubDate>Tue, 15 Jul 2025 07:16:17 GMT</pubDate>
       <guid>autopost-d2e37a6a-3392-459f-b701-fa128292f489-1752563777155</guid>
       <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563777154_sample-audio.mp3" length="650" type="audio/mpeg" />
-      <itunes:duration>00:00</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>
-    <item>
-      <title>テスト投稿 1752563770276</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563770364_sample-audio.mp3</link>
-      <description></description>
-      <pubDate>Tue, 15 Jul 2025 07:16:10 GMT</pubDate>
-      <guid>autopost-3bd310f7-9161-48f1-882c-57aae226fb03-1752563770365</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563770364_sample-audio.mp3" length="650" type="audio/mpeg" />
-      <itunes:duration>00:00</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>
-    <item>
-      <title>トリミング実行テスト</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563708148_sample-audio.mp3</link>
-      <description></description>
-      <pubDate>Tue, 15 Jul 2025 07:15:08 GMT</pubDate>
-      <guid>autopost-74872401-3aa4-4977-9c14-0050cf8d1ee4-1752563708150</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563708148_sample-audio.mp3" length="650" type="audio/mpeg" />
-      <itunes:duration>00:00</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>
-    <item>
-      <title>トリミングテスト</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563706660_sample-audio.mp3</link>
-      <description></description>
-      <pubDate>Tue, 15 Jul 2025 07:15:06 GMT</pubDate>
-      <guid>autopost-c18d338c-429e-4891-ba84-b2ff2c6129c1-1752563706661</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563706660_sample-audio.mp3" length="650" type="audio/mpeg" />
-      <itunes:duration>00:00</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>
-    <item>
-      <title>テスト投稿 1752563705151</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563705252_sample-audio.mp3</link>
-      <description></description>
-      <pubDate>Tue, 15 Jul 2025 07:15:05 GMT</pubDate>
-      <guid>autopost-233ebe1a-34cd-42fa-918f-3c0122788619-1752563705254</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752563705252_sample-audio.mp3" length="650" type="audio/mpeg" />
-      <itunes:duration>00:00</itunes:duration>
-      <itunes:explicit>no</itunes:explicit>
-    </item>
-    <item>
-      <title>リセットテスト</title>
-      <link>https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752562688832_sample-audio.mp3</link>
-      <description></description>
-      <pubDate>Tue, 15 Jul 2025 06:58:08 GMT</pubDate>
-      <guid>autopost-47a23db4-88bd-4588-9333-807ae772c1b7-1752562688833</guid>
-      <enclosure url="https://yujiyamanaka.github.io/BlogPostPlatform/api/uploads?file=localhost-user_1752562688832_sample-audio.mp3" length="650" type="audio/mpeg" />
       <itunes:duration>00:00</itunes:duration>
       <itunes:explicit>no</itunes:explicit>
     </item>

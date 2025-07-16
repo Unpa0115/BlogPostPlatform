@@ -87,11 +87,11 @@ export function getPlatformConfig(): PlatformConfig {
     spotify: {
       clientId: process.env.SPOTIFY_CLIENT_ID || null,
       clientSecret: process.env.SPOTIFY_CLIENT_SECRET || null,
-      rssFeedUrl: process.env.SPOTIFY_RSS_FEED_URL || null,
+      rssFeedUrl: process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL || null,
       isConfigured: !!(
         // Spotify API経由 または RSS Feed経由
         (process.env.SPOTIFY_CLIENT_ID && process.env.SPOTIFY_CLIENT_SECRET) ||
-        process.env.SPOTIFY_RSS_FEED_URL
+        process.env.NEXT_PUBLIC_SPOTIFY_RSS_FEED_URL
       )
     },
     

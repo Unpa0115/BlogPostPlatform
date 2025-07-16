@@ -9,7 +9,7 @@
     "start": "NODE_OPTIONS='--max-old-space-size=768' next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "db:init": "node -e \"require('./src/lib/database').initializeDatabase()\"",
+    "db:init": "npx tsx -e \"require('./src/lib/database').initializeDatabase()\"",
     "health": "curl -s http://localhost:3005/api/health | jq",
     "monitor": "node scripts/monitor-health.js",
     "test": "playwright test",
@@ -65,7 +65,8 @@
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.49.0",
-    "eslint-config-next": "14.2.25"
+    "eslint-config-next": "14.2.25",
+    "tsx": "^4.20.3"
   },
   "overrides": {
     "bcryptjs": {

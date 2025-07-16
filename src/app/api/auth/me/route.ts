@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     if (action === 'init-db') {
       console.log('Initializing database...')
-      await createTables()
+      // await createTables()
       const testResult = await testConnectionSimple()
       return NextResponse.json({
         success: true,

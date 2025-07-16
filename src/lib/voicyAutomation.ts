@@ -119,25 +119,54 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
       throw new Error("Voicy認証情報が設定されていません");
     }
 
-    // localhost環境のみ対応（Browserless.ioは使用しない）
-    console.log("Localhost mode: Using local Chrome browser...");
-    browser = await chromium.launch({
-      headless: false, // デバッグ用にブラウザを表示
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--enable-javascript', // JavaScriptを明示的に有効化
-        '--enable-dom-storage' // DOMストレージを有効化
-      ],
-      timeout: 60000,
-    });
+    // 環境分岐によるブラウザ起動
+    if (process.env.NODE_ENV === 'development') {
+      console.log("Development mode: Using local Chrome browser...");
+      browser = await chromium.launch({
+        headless: false, // デバッグ用にブラウザを表示
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--disable-plugins',
+                     '--enable-dom-storage', // DOMストレージを有効化
+                     '--enable-javascript', // JavaScriptを明示的に有効化
+          '--disable-default-apps',
+          '--disable-background-networking',
+          '--disable-background-timer-throttling',
+          '--disable-backgrounding-occluded-windows',
+          '--disable-renderer-backgrounding',
+          '--disable-features=TranslateUI',
+          '--disable-component-extensions-with-background-pages',
+          '--memory-pressure-off',
+          '--max_old_space_size=512',
+          '--no-first-run',
+          '--no-default-browser-check',
+          '--single-process'
+        ],
+        timeout: 60000,
+      });
+    } else {
+      console.log("Production mode: Connecting to Browserless.io...");
+      
+      // 環境変数の確認
+      const browserlessApiKey = process.env.BROWSERLESS_API_KEY;
+      if (!browserlessApiKey) {
+        throw new Error("BROWSERLESS_API_KEY 環境変数が設定されていません");
+      }
+      
+      console.log(`Using Browserless.io API key: ${browserlessApiKey.substring(0, 8)}...`);
+      
+      browser = await chromium.connect({
+        wsEndpoint: `wss://chrome.browserless.io?token=${browserlessApiKey}`,
+        timeout: 60000,
+      });
+    }
 
-    // ブラウザコンテキスト作成（localhost環境用）
+    // ブラウザコンテキスト作成
     console.log("Creating browser context...");
     const contextOptions = {
       viewport: { width: 1280, height: 720 },

@@ -2,13 +2,21 @@ import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 
 // localhost環境ではSQLiteのみを使用
-let db: any
+// 遅延初期化に変更
+let dbPromise: Promise<any> | null = null
 
-// SQLite接続（localhost環境用）
-db = open({
-  filename: './blogpostplatform.db',
-  driver: sqlite3.Database
-})
+const getDb = () => {
+  if (!dbPromise) {
+    dbPromise = open({
+      filename: './blogpostplatform.db',
+      driver: sqlite3.Database
+    })
+  }
+  return dbPromise
+}
+
+// 後方互換性のため
+const db = getDb()
 
 // データベーステーブル作成スクリプト
 export const createTables = async () => {
@@ -18,7 +26,7 @@ export const createTables = async () => {
     
     console.log('Creating SQLite tables...')
     // SQLite用のテーブル作成
-    const sqliteDb = await db
+    const sqliteDb = await getDb()
     
     await sqliteDb.exec(`
       CREATE TABLE IF NOT EXISTS users (
@@ -208,7 +216,7 @@ export const testConnectionSimple = async () => {
     console.log('Environment: localhost (SQLite only)')
     
     console.log('Testing SQLite simple connection...')
-    const sqliteDb = await db
+    const sqliteDb = await getDb()
     const result = await sqliteDb.get('SELECT 1 as test')
     
     if (result && result.test === 1) {
@@ -241,7 +249,7 @@ export const testConnection = async () => {
     console.log('Environment: localhost (SQLite only)')
     
     console.log('Testing SQLite connection...')
-    const sqliteDb = await db
+    const sqliteDb = await getDb()
     
     // 基本的な接続テスト
     const basicTest = await sqliteDb.get('SELECT 1 as test')
@@ -341,18 +349,18 @@ export const initializeDatabase = async () => {
 }
 
 // データベースエクスポート
-export { db }
+export { getDb, db }
 
-// アプリケーション起動時にデータベースを初期化
-if (typeof window === 'undefined') {
-  // サーバーサイドでのみ実行
-  console.log('=== DATABASE INITIALIZATION START ===')
-  initializeDatabase()
-    .then(() => {
-      console.log('=== DATABASE INITIALIZATION SUCCESS ===')
-    })
-    .catch((error) => {
-      console.error('=== DATABASE INITIALIZATION FAILED ===')
-      console.error('Initialization error:', error)
-    })
-} 
+// アプリケーション起動時のデータベース初期化を一時的に無効化
+// if (typeof window === 'undefined') {
+//   // サーバーサイドでのみ実行
+//   console.log('=== DATABASE INITIALIZATION START ===')
+//   initializeDatabase()
+//     .then(() => {
+//       console.log('=== DATABASE INITIALIZATION SUCCESS ===')
+//     })
+//     .catch((error) => {
+//       console.error('=== DATABASE INITIALIZATION FAILED ===')
+//       console.error('Initialization error:', error)
+//     })
+// } 

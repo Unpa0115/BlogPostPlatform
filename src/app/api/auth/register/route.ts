@@ -40,11 +40,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // データベーステーブルの初期化
+    // データベーステーブルの初期化（一時的に無効化）
     console.log('Initializing database tables...')
     try {
-      await createTables()
-      console.log('Database tables initialized successfully')
+      // await createTables()
+      console.log('Database tables initialized successfully (skipped)')
     } catch (dbError) {
       console.error('Database initialization error:', dbError)
       return NextResponse.json(

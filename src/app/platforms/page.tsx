@@ -327,6 +327,18 @@ export default function PlatformsPage() {
         })
         // 保存完了後にプラットフォーム一覧を再取得
         await fetchPlatforms()
+      } else {
+        // 400エラーの場合は環境変数設定の案内を表示
+        const errorData = await response.json()
+        if (response.status === 400 && errorData.message) {
+          toast({
+            title: "環境変数での設定が必要",
+            description: errorData.message,
+            variant: "default"
+          })
+        } else {
+          throw new Error(errorData.message || 'Unknown error')
+        }
       }
     } catch (error) {
       toast({
