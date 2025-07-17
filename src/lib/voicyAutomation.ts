@@ -122,33 +122,92 @@ export async function runVoicyAutomation(options: VoicyAutomationOptions): Promi
     // 環境分岐によるブラウザ起動
     if (process.env.NODE_ENV === 'development') {
       console.log("Development mode: Using local Chrome browser...");
-      browser = await chromium.launch({
-        headless: false, // デバッグ用にブラウザを表示
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--disable-gpu',
-          '--disable-extensions',
-          '--disable-plugins',
-                     '--enable-dom-storage', // DOMストレージを有効化
-                     '--enable-javascript', // JavaScriptを明示的に有効化
-          '--disable-default-apps',
-          '--disable-background-networking',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI',
-          '--disable-component-extensions-with-background-pages',
-          '--memory-pressure-off',
-          '--max_old_space_size=512',
-          '--no-first-run',
-          '--no-default-browser-check',
-          '--single-process'
-        ],
-        timeout: 60000,
-      });
+      
+      // macOS + Apple Silicon でのクラッシュ回避のため、システムChromeを試行
+      const useSystemChrome = process.env.USE_SYSTEM_CHROME === 'true' || process.platform === 'darwin';
+      
+      if (useSystemChrome) {
+        console.log("Attempting to use system Chrome for better compatibility...");
+        const chromePaths = [
+          '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+          '/Applications/Chromium.app/Contents/MacOS/Chromium',
+          '/usr/bin/google-chrome',
+          '/usr/bin/chromium-browser'
+        ];
+        
+        let executablePath = undefined;
+        for (const path of chromePaths) {
+          try {
+            const fs = require('fs');
+            if (fs.existsSync(path)) {
+              executablePath = path;
+              console.log(`Found Chrome at: ${path}`);
+              break;
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        browser = await chromium.launch({
+          executablePath,
+          headless: false, // デバッグ用にブラウザを表示
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--disable-extensions',
+            '--disable-plugins',
+            '--enable-dom-storage', // DOMストレージを有効化
+            '--enable-javascript', // JavaScriptを明示的に有効化
+            '--disable-default-apps',
+            '--disable-background-networking',
+            '--disable-background-timer-throttling',
+            '--disable-backgrounding-occluded-windows',
+            '--disable-renderer-backgrounding',
+            '--disable-features=TranslateUI,VizDisplayCompositor',
+            '--disable-component-extensions-with-background-pages',
+            '--memory-pressure-off',
+            '--max_old_space_size=512',
+            '--no-first-run',
+            '--no-default-browser-check',
+            // Apple Silicon macOS 15.5 対応
+            '--disable-metal',
+            '--disable-gpu-sandbox',
+            '--disable-software-rasterizer',
+            '--disable-features=VizServiceDisplayCompositor',
+            '--disable-ipc-flooding-protection',
+            '--disable-features=Translate',
+            '--use-fake-ui-for-media-stream',
+            '--disable-blink-features=AutomationControlled',
+            // single-processを削除（クラッシュの原因となることがある）
+          ],
+          timeout: 60000,
+          // macOS 15.5 + Apple Silicon での安定性向上
+          slowMo: 100, // 操作を少し遅くして安定性を向上
+          devtools: false, // DevToolsを無効化
+        });
+      } else {
+        // フォールバック: 内蔵Chromiumを使用
+        console.log("Falling back to bundled Chromium...");
+        browser = await chromium.launch({
+          headless: false,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-metal',
+            '--disable-gpu-sandbox',
+          ],
+          timeout: 60000,
+          slowMo: 100,
+          devtools: false,
+        });
+      }
     } else {
       console.log("Production mode: Connecting to Browserless.io...");
       
